@@ -30,7 +30,7 @@ class Store(object):
     """ Store based of file system"""
     def __init__(self):
         pass
-    def store_map_output(key1, key2=None, val2=None, keyvals2=None):
+    def save_map_output(key1, key2=None, val2=None, keyvals2=None):
         """ Collect and store map output.
         Map is called given primary (1) key/val and produce intermediary
         (secondary, 2) key/val. This method intermediary key/val
@@ -60,31 +60,64 @@ class StoreLo(Store):
     """ Store based on Living Objects"""
     def __init__(self, storage_root):
         pass
-    def store_map_output(self, key1, key2=None, val2=None, keyvals2=None):
+    def save_map_output(self, key1, key2=None, val2=None, keyvals2=None):
         pass
 
+
 class StoreFs(Store):
+
     """ Store based of file system"""
     def __init__(self):
         pass
-    def store_map_output(self, key1, key2=None, val2=None, keyvals2=None):
-        print key1, key2, val2
-        key1_prefix, key1_content = key1.split(":", 1)
+
+    def key2path(self, key):
+        key_prefix, key_content = key.split(":", 1)
         import os
-        import pickle
-        if not os.path.exists(key1_content):
-            os.makedirs(key1_content)
+        if not os.path.exists(key_content):
+            os.makedirs(key_content)
+        return key_content
+
+    def save_map_output(self, key1, key2=None, val2=None, keyvals2=None):
+        path = self.key2path(key1)
+        import os
         if key2 and val2:
             keyvals2 = dict()
             keyvals2[key2] = val2
         for key2 in keyvals2.keys():
             val2 = keyvals2[key2]
-            file_path = os.path.join(key1_content, key2)
-            output = open(file_path, 'wb')
-            pickle.dump(val2, output)
-            output.close()
+            filename = EpacFmwk.config.file_map_output_prefix + key2 +\
+                EpacFmwk.config.file_pickle_suffix
+            file_path = os.path.join(path, filename)
+            self.save_pickle(val2, file_path)
 
-class EpacFramework(object):
+    def save_node(self, key1, node):
+        path = self.key2path(key1)
+        import os
+        node_name = str(node.__class__).split(".")[-1].replace(r"'","").replace(r">","")
+        filename = EpacFmwk.config.file_nodet_prefix + node_name +\
+                EpacFmwk.config.file_pickle_suffix
+        file_path = os.path.join(path, filename)
+        self.save_pickle(node, file_path)
+
+    def save_pickle(self, obj, file_path):
+            import pickle
+            output = open(file_path, 'wb')
+            pickle.dump(obj, output)
+            output.close()
+            
+    def load_pickle(self, file_path):
+            import pickle
+            inputf = open(file_path, 'wb')
+            obj = pickle.load(inputf)
+            inputf.close()
+            return obj
+
+class EpacFmwk(object):
+    class config:
+        file_pickle_suffix = ".pickle"
+        file_map_output_prefix = "__map__"
+        file_node_prefix = "__node__"
+
     roots = dict() # root of the execution trees.
     def __init__(self, scheme=None, data=None, store=None):
         import os        
@@ -95,34 +128,37 @@ class EpacFramework(object):
             key_prefix = "lo:"+"".join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
         # store is a string and a valid directory , assume that storage will
         # be done on the file system, ie.: key prefix "fs:"
-        elif isinstance(store, str) and os.path.isdir(store):
+        elif isinstance(store, str):
             key_prefix = "fs:"+store
         else:
-            raise ValueError("Invalid value for store: should be:"+
-            "None for no persistence and storage on living objects or"+
-            "a valid directory path for file system based storage")
+            raise ValueError("Invalid value for store: should be: "+
+            "None for no persistence and storage on living objects or "+
+            "a string path for file system based storage")
         if not scheme is None and not data is None:
             root = EpacNode(name=key_prefix)
             root.add_children(root.build_execution_tree(scheme, data))
         if not store:
-            EpacFramework.roots[key_prefix] = root
+            EpacFmwk.roots[key_prefix] = root
         self.root = root
 
-#    def get_root(self):
-#        return self.root
-    @staticmethod
-    def get_store(key):
-        """ factory function returning the Store object of the class 
-        associated with the key parameter"""
-        key_prefix, key_content = key.split(":", 1)
-        if key_prefix == "fs":
-            return StoreFs()
-        elif key_prefix == "lo":
-            return StoreLo(storage_root=EpacFramework.roots[key_content])
-        else:
-            raise ValueError("Invalid value for key: should be:"+
-            "lo for no persistence and storage on living objects or"+
-            "fs and a directory path for file system based storage")
+def get_store(key):
+    """ factory function returning the Store object of the class 
+    associated with the key parameter"""
+    key_prefix, key_content = key.split(":", 1)
+    if key_prefix == "fs":
+        return StoreFs()
+    elif key_prefix == "lo":
+        return StoreLo(storage_root=EpacFmwk.roots[key_content])
+    else:
+        raise ValueError("Invalid value for key: should be:"+
+        "lo for no persistence and storage on living objects or"+
+        "fs and a directory path for file system based storage")
+
+def save_map_output(key1, key2=None ,val2=None, keyvals2=None):
+    store = get_store(key1)
+    store.save_map_output(key1, key2 ,val2, keyvals2)
+
+
 class EpacNode(object):
     """Parallelization node, provide:
         - key/val
@@ -250,9 +286,10 @@ class EpacNode(object):
                     aggregate[key2].append(map_out)
         return aggregate
     # I/O (persistance) operation
-    def store_write_node(self):
-        self.get_key()
-    def store_read_node(self):
+    def save_node(self):
+        store = get_store(self.get_key())
+        #store.
+    def load_node(self):
         pass
     def store_write_tree(self):
         pass
@@ -326,16 +363,17 @@ data = dict(X=X, y=y)
 # Resampling scheme
 scheme = ((Permutation, dict(n=X.shape[0], n_perms=10),
                         dict(transform_only=["X"])),
-          (StratifiedKFold, dict(y="y", k=2)))
+          (StratifiedKFold, dict(y="y", n_folds=2)))
 
 # map and reduce functions
 def mapfunc(key1, val1):
     X_test = val1["X"][1]
     y_test = val1["y"][1]
-    return dict(
+    keyvals2 = dict(
         mean=dict(pred=np.sign(np.mean(X_test, axis=1)), true=y_test),
         med=dict(pred=np.sign(np.median(X_test, axis=1)), true=y_test))
-
+    save_map_output(key1, keyvals2=keyvals2)
+    
 def reducefunc(key2, val2):
     mean_pred = np.asarray(val2['pred'])
     mean_true = np.asarray(val2['true'])
@@ -344,22 +382,29 @@ def reducefunc(key2, val2):
     accuracies_perm_pval = np.sum(accuracies_cv_mean[1:] > accuracies_cv_mean[0])
     return dict(method=key2, accuracies_cv_mean=accuracies_cv_mean, accuracies_perm_pval=accuracies_perm_pval)
 
-fmwk = EpacFramework(scheme=scheme, data=data, store="/tmp/store")
+fmwk = EpacFmwk(scheme=scheme, data=data, store="/tmp/store")
 root = fmwk.root
-#root = EpacNode(name=results')
 
-# 1) Call mapfunc
-[fold.add_map_output(keyvals=mapfunc(key1=fold.get_key(),
-   val1=fold.transform(data))) for fold in root.get_leaves()]
+# 1) Call mapfunc keyvals2
+# ------------------------
+# Simply call map func
+[mapfunc(key1=fold.get_key(),
+   val1=fold.transform(data)) for fold in root.get_leaves()]
+# or use job lib
+from sklearn.externals.joblib import Parallel, delayed
+p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(), val1=fold.transform(data)) for fold in root.get_leaves())
 
-key2 = 'med'
-val2 = fold.map_outputs[key2]
+# 1) Re-load results
+# ------------------
 
-key1=fold.get_key()
-store = EpacFramework.get_store(key1)
-store.store_map_output(key1, key2 ,val2)
+#[EpacFmwk.save_map_output(key1, keyvals2=keyvals2) for (key1, keyvals2) in keyvals_list]
 
-#p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(), val1=fold.transform(data)) for fold in root.get_leaves())
+#key2 = 'med'
+#val2 = fold.map_outputs[key2]
+
+#key1=fold.get_key()
+#EpacFmwk.save_map_output(key1, key2 ,val2)
+
   
 
 #[[fold.add_map_output(key2, val2) for key2, val2 in mapfunc(key1=fold.get_key(),
