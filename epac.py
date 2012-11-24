@@ -111,6 +111,8 @@ class StoreFs(Store):
                 self.save_node(child, recursive=True)
 
     def load_node(self, key, recursive=True):
+        """Load a node given a key, recursive=True recursively walk through
+        children"""
         path = self.key2path(key)
         import os
         prefix = os.path.join(path, EpacFmwk.config.store_fs_node_prefix)
@@ -127,12 +129,27 @@ class StoreFs(Store):
             replace(EpacFmwk.config.store_fs_json_suffix, "")
         node = object.__new__(eval(class_str))
         node.__dict__.update(node_dict)
+        # If Children: Recursively walk through children
         if recursive and len(node.children):
             for i in xrange(len(node.children)):
                 child = node.children[i]
                 child_key = EpacFmwk.config.levels_key_sep.join(
                     [key, child])
-                node.children[i] = self.load_node(key=child_key, recursive=True)
+                node.children[i] = self.load_node(key=child_key,
+                    recursive=True)
+        # If leaf node: look for map outputs
+        if len(node.children) == 0:
+            map_paths = glob.glob(os.path.join(path,
+                EpacFmwk.config.store_fs_map_output_prefix) + '*')
+            for map_path in map_paths:
+                ext = os.path.splitext(map_path)[-1]
+                if ext == EpacFmwk.config.store_fs_pickle_suffix:
+                    map_obj = self.load_pickle(map_path)
+                if ext == EpacFmwk.config.store_fs_json_suffix:
+                    map_obj = self.load_json(map_path)
+                key2 = os.path.splitext(os.path.basename(map_path))[0].\
+                    replace(EpacFmwk.config.store_fs_map_output_prefix, "", 1)
+                node.map_outputs[key2] = map_obj
         return node
 
     def save_pickle(self, obj, file_path):
@@ -477,8 +494,12 @@ def reducefunc(key2, val2):
     return dict(method=key2, accuracies_cv_mean=accuracies_cv_mean,
                 accuracies_perm_pval=accuracies_perm_pval)
 
+
 fmwk = EpacFmwk(scheme=scheme, data=data, store="/tmp/store")
 root = fmwk.root
+
+# Recursively store the nodes
+root.save_node()
 
 # 1) Call mapfunc keyvals2
 # ------------------------
@@ -493,5 +514,11 @@ p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(),
 
 # 1) Re-load results
 # ------------------
-#[EpacFmwk.save_map_output(key1, keyvals2=keyvals2) for (key1, keyvals2)
-#    in keyvals_list]
+store = get_store(root.get_key())
+root2 = store.load_node(root.get_key())
+
+# 2) Aggregate
+keyval2 = root2.aggregate()
+
+## 3) Reduce
+[reducefunc(key2, keyval2[key2]) for key2 in keyval2.keys()]
