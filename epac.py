@@ -58,11 +58,11 @@ class StoreFs(Store):
         pass
 
     def key2path(self, key):
-        key_prefix, key_content = key.split(":", 1)
+        prot, path = key_split(key)
         import os
-        if not os.path.exists(key_content):
-            os.makedirs(key_content)
-        return key_content
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return path
 
     def save_map_output(self, key1, key2=None, val2=None, keyvals2=None):
         path = self.key2path(key1)
@@ -78,7 +78,6 @@ class StoreFs(Store):
             self.save_pickle(val2, file_path)
 
     def save_node(self, node, recursive=True):
-        print node.get_key()
         path = self.key2path(node.get_key())
         import os
         class_name = str(node.__class__).split(".")[-1].\
@@ -160,14 +159,7 @@ class StoreFs(Store):
             return obj
 
 
-class EpacFmwk(object):
-
-    def __init__(self, scheme=None, data=None, store=None):
-        # No store is provided, assume that storage will be done directly
-        # on "living objects", ie.: key prefix "lo:"
-        pass
-
-
+## DEBUT CENTRALISER LES RELATIONS key / store / path etc... ICI
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
@@ -180,6 +172,14 @@ def get_store(key):
         raise ValueError("Invalid value for key: should be:" +\
         "lo for no persistence and storage on living objects or" +\
         "fs and a directory path for file system based storage")
+
+
+def key_split(key):
+    return key.split(Epac.config.key_prot_path_sep, 1)
+
+
+def key_join(prot="", path=""):
+    return prot + Epac.config.key_prot_path_sep + path
 
 
 def save_map_output(key1, key2=None, val2=None, keyvals2=None):
@@ -213,23 +213,30 @@ class Epac(object):
             if not store:
                 import string
                 import random
-                self.name = Epac.config.key_prot_lo +\
-                             Epac.config.key_prot_path_sep +\
-                    "".join(random.choice(string.ascii_uppercase +
-                        string.digits)
-                    for x in range(5))
+                self.name = key_join(prot=Epac.config.key_prot_lo,
+                    path="".join(random.choice(string.ascii_uppercase +
+                        string.digits) for x in range(5)))
                 self.add_children(self.build_execution_tree(scheme, data))
             # store is a string and a valid directory , assume that storage
             # will be done on the file system, ie.: key prefix "fs://"
             elif isinstance(store, str):
-                self.name = Epac.config.key_prot_fs +\
-                            Epac.config.key_prot_path_sep + store
+                self.name = key_join(prot=Epac.config.key_prot_fs,
+                                     path=store)
                 self.add_children(self.build_execution_tree(scheme, data))
                 self.save_node()
             else:
                 raise ValueError("Invalid value for store: should be: " +\
                 "None for no persistence and storage on living objects or " +\
                 "a string path for file system based storage")
+        # If not scheme but store : load from fs store
+        if not scheme and not store is None and isinstance(store, str):
+            self.name = key_join(prot=Epac.config.key_prot_fs,
+                                 path=store)
+            #self.add_children(self.build_execution_tree(scheme, data))
+            store = get_store(self.get_key())
+            self2 = store.load_node(self.get_key())
+            self.__dict__.update(self2.__dict__)
+            #keyval2 = self.aggregate()
 
     # Tree operations
     # ---------------
@@ -444,7 +451,6 @@ class PermutationParNode(RowSlicerParNode):
     def __init__(self, permutation, nb, **kargs):
         super(PermutationParNode, self).__init__(slices=[permutation],
             name="Permutation-" + str(nb), **kargs)
-        #self.permutation = permutation
 
 
 # map and reduce functions
@@ -480,26 +486,19 @@ scheme = ((Permutation, dict(n=X.shape[0], n_perms=10),
 
 epac = Epac(scheme=scheme, data=data, store="/tmp/store")
 
-# 1) Call mapfunc keyvals2
-# ------------------------
-# Simply call map func
-#[mapfunc(key1=fold.get_key(),
-#   val1=fold.transform(data)) for fold in epac.get_leaves()]
+# 1) Map: call mapfunc
+# --------------------
 [mapfunc(key1=fold.get_key(), val1=fold.transform(data)) for fold in epac]
 
 # or use job lib
-from sklearn.externals.joblib import Parallel, delayed
-p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(),
-                       val1=fold.transform(data)) for fold in
-                       epac)
+#from sklearn.externals.joblib import Parallel, delayed
+#p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(),
+#                       val1=fold.transform(data)) for fold in
+#                       epac)
 
-# 1) Re-load results
-# ------------------
-store = get_store(epac.get_key())
-root2 = store.load_node(epac.get_key())
+# 2) Re-load results and agregate results
+# ---------------------------------------
+keyval2 = Epac(store="/tmp/store").aggregate()
 
-# 2) Aggregate
-keyval2 = root2.aggregate()
-
-## 3) Reduce
-[reducefunc(key2, keyval2[key2]) for key2 in keyval2.keys()]
+# 3) Reduce
+[reducefunc(key2, keyval2[key2]) for key2 in keyval2]
