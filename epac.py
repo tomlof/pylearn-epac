@@ -6,44 +6,20 @@ print __doc__
 
 import numpy as np
 
-from addtosklearn import Permutation
-from sklearn.cross_validation import KFold, StratifiedKFold
-
 
 class Store(object):
-    """ Store based of file system"""
+    """Abstract Store"""
+
     def __init__(self):
         pass
 
     def save_map_output(key1, key2=None, val2=None, keyvals2=None):
-        """ Collect and store map output.
-        Map is called given primary (1) key/val and produce intermediary
-        (secondary, 2) key/val. This method intermediary key/val
-        indexed by primary key.
-
-        Parameters
-        ----------
-        key1 : (typically a string) primary key
-
-        key2 : (typically a string) the intermediary key
-
-        val2 : (dictionary, list, tuple or array) the intermediary value
-        produced by the mapper.
-                If key/val are provided a single map output is added
-
-        keyvals2 : a dictionary of intermediary keys/values produced by the
-        mapper.
-        """
-        if key2 and val2:
-            #self.map_outputs[key] = val
-            pass
-        if keyvals2:
-            #self.map_outputs.update(keyvals)
-            pass
+        pass
 
 
 class StoreLo(Store):
     """ Store based on Living Objects"""
+
     def __init__(self, storage_root):
         pass
 
@@ -52,8 +28,8 @@ class StoreLo(Store):
 
 
 class StoreFs(Store):
-
     """ Store based of file system"""
+
     def __init__(self):
         pass
 
@@ -77,60 +53,64 @@ class StoreFs(Store):
             file_path = os.path.join(path, filename)
             self.save_pickle(val2, file_path)
 
-    def save_node(self, node, recursive=True):
+    def save_node(self, node):
         path = self.key2path(node.get_key())
         import os
         class_name = str(node.__class__).split(".")[-1].\
             replace(r"'", "").replace(r">", "")
+        # try to save in json format
         filename = Epac.config.store_fs_node_prefix + class_name +\
             Epac.config.store_fs_json_suffix
         file_path = os.path.join(path, filename)
-        self.save_json(node.todict(), file_path)
-        if recursive and len(node.children):
-            for child in node.children:
-                self.save_node(child, recursive=True)
+        if self.save_json(node.todict(), file_path):
+            # saving in json failed => pickle
+            filename = Epac.config.store_fs_node_prefix + class_name +\
+            Epac.config.store_fs_pickle_suffix
+            file_path = os.path.join(path, filename)
+            self.save_pickle(node, file_path)
 
-    def load_node(self, key, recursive=True):
+    def load_node(self, key):
         """Load a node given a key, recursive=True recursively walk through
         children"""
         path = self.key2path(key)
         import os
         prefix = os.path.join(path, Epac.config.store_fs_node_prefix)
         import glob
-        node_path_json = glob.glob(prefix + '*' + \
-            Epac.config.store_fs_json_suffix)
-        if len(node_path_json) != 1:
-            raise ValueError("Found more that one or none node file in " +\
-            prefix)
-        node_path_json = node_path_json[0]
-        file_path = node_path_json
-        node_dict = self.load_json(file_path)
-        class_str = node_path_json.replace(prefix, "").\
-            replace(Epac.config.store_fs_json_suffix, "")
-        node = object.__new__(eval(class_str))
-        node.__dict__.update(node_dict)
-        # If Children: Recursively walk through children
-        if recursive and len(node.children):
-            for i in xrange(len(node.children)):
-                child = node.children[i]
-                child_key = Epac.config.key_path_sep.join(
-                    [key, child])
-                node.children[i] = self.load_node(key=child_key,
-                    recursive=True)
-        # If leaf node: look for map outputs
-        if len(node.children) == 0:
-            map_paths = glob.glob(os.path.join(path,
-                Epac.config.store_fs_map_output_prefix) + '*')
-            for map_path in map_paths:
-                ext = os.path.splitext(map_path)[-1]
-                if ext == Epac.config.store_fs_pickle_suffix:
-                    map_obj = self.load_pickle(map_path)
-                if ext == Epac.config.store_fs_json_suffix:
-                    map_obj = self.load_json(map_path)
-                key2 = os.path.splitext(os.path.basename(map_path))[0].\
-                    replace(Epac.config.store_fs_map_output_prefix, "", 1)
-                node.map_outputs[key2] = map_obj
+        file_path = glob.glob(prefix + '*')
+        if len(file_path) != 1:
+            raise IOError('Found no or more that one file in %s' % (prefix))
+        file_path = file_path[0]
+        _, ext = os.path.splitext(file_path)
+        if ext == Epac.config.store_fs_json_suffix:
+            node_dict = self.load_json(file_path)
+            class_str = file_path.replace(prefix, "").\
+                replace(Epac.config.store_fs_json_suffix, "")
+            node = object.__new__(eval(class_str))
+            node.__dict__.update(node_dict)
+        elif ext == Epac.config.store_fs_pickle_suffix:
+            node = self.load_pickle(file_path)
+        else:
+            raise IOError('File %s has an unkown extension: %s' %
+                (file_path, ext))
         return node
+
+    def load_map_output(self, key):
+        path = self.key2path(key)
+        import os
+        import glob
+        map_paths = glob.glob(os.path.join(path,
+            Epac.config.store_fs_map_output_prefix) + '*')
+        map_outputs = dict()
+        for map_path in map_paths:
+            ext = os.path.splitext(map_path)[-1]
+            if ext == Epac.config.store_fs_pickle_suffix:
+                map_obj = self.load_pickle(map_path)
+            if ext == Epac.config.store_fs_json_suffix:
+                map_obj = self.load_json(map_path)
+            key = os.path.splitext(os.path.basename(map_path))[0].\
+                replace(Epac.config.store_fs_map_output_prefix, "", 1)
+            map_outputs[key] = map_obj
+        return map_outputs
 
     def save_pickle(self, obj, file_path):
             import pickle
@@ -147,9 +127,16 @@ class StoreFs(Store):
 
     def save_json(self, obj, file_path):
             import json
+            import os
             output = open(file_path, 'wb')
-            json.dump(obj, output)
+            try:
+                json.dump(obj, output)
+            except TypeError:  # save in pickle
+                output.close()
+                os.remove(file_path)
+                return 1
             output.close()
+            return 0
 
     def load_json(self, file_path):
             import json
@@ -159,15 +146,14 @@ class StoreFs(Store):
             return obj
 
 
-## DEBUT CENTRALISER LES RELATIONS key / store / path etc... ICI
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
-    key_prefix, key_content = key.split(":", 1)
-    if key_prefix == "fs":
+    prot, path = key_split(key)
+    if prot == Epac.config.key_prot_fs:
         return StoreFs()
-    elif key_prefix == "lo":
-        return StoreLo(storage_root=EpacFmwk.roots[key_content])
+    elif prot == Epac.config.key_prot_lo:
+        return StoreLo(storage_root=Epac.roots[path])
     else:
         raise ValueError("Invalid value for key: should be:" +\
         "lo for no persistence and storage on living objects or" +\
@@ -198,55 +184,49 @@ class Epac(object):
         store_fs_json_suffix = ".json"
         store_fs_map_output_prefix = "__map__"
         store_fs_node_prefix = "__node__"
-        key_prot_lo = "lo"  # key storage protocol: living object
-        key_prot_fs = "fs"  # key storage protocol: file system
+        key_prot_lo = "mem"  # key storage protocol: living object
+        key_prot_fs = "file"  # key storage protocol: file system
         key_path_sep = "/"
-        key_prot_path_sep = ":"  # key storage protocol / path separator
+        key_prot_path_sep = "://"  # key storage protocol / path separator
 
-    def __init__(self, scheme=None, data=None, store=None, **kwargs):
+    def __init__(self, steps=None, key=None, store=None, **kwargs):
         self.__dict__.update(kwargs)
         self.parent = None
         self.children = list()
         self.map_outputs = dict()
-        # If a scheme is provided: initial construction of the execution tree
-        if scheme:
+        # If a steps is provided: initial construction of the execution tree
+        if steps:
             if not store:
                 import string
                 import random
                 self.name = key_join(prot=Epac.config.key_prot_lo,
                     path="".join(random.choice(string.ascii_uppercase +
-                        string.digits) for x in range(5)))
-                self.add_children(self.build_execution_tree(scheme, data))
+                        string.digits) for x in range(10)))
+                self.build_tree(steps, **kwargs)
             # store is a string and a valid directory , assume that storage
             # will be done on the file system, ie.: key prefix "fs://"
             elif isinstance(store, str):
                 self.name = key_join(prot=Epac.config.key_prot_fs,
                                      path=store)
-                self.add_children(self.build_execution_tree(scheme, data))
+                self.build_tree(steps, **kwargs)
                 self.save_node()
             else:
                 raise ValueError("Invalid value for store: should be: " +\
                 "None for no persistence and storage on living objects or " +\
                 "a string path for file system based storage")
-        # If not scheme but store : load from fs store
-        if not scheme and not store is None and isinstance(store, str):
-            self.name = key_join(prot=Epac.config.key_prot_fs,
-                                 path=store)
-            #self.add_children(self.build_execution_tree(scheme, data))
-            store = get_store(self.get_key())
-            self2 = store.load_node(self.get_key())
-            self.__dict__.update(self2.__dict__)
-            #keyval2 = self.aggregate()
+        # If not steps but store or key : load from fs store
+        if not steps and (isinstance(store, str) or isinstance(key, str)):
+            self.load_node(key=key, store=store)
 
     # Tree operations
     # ---------------
     def add_child(self, child):
         self.children.append(child)
+        child.parent = self
 
     def add_children(self, children):
         for child in children:
-            self.children.append(child)
-            child.parent = self
+            self.add_child(child)
 
     def add_map_output(self, key=None, val=None, keyvals=None):
         """ Collect map output
@@ -266,11 +246,10 @@ class Epac(object):
         if keyvals:
             self.map_outputs.update(keyvals)
 
-    def transform(self, data, compose_from_root=True):
+    def transform(self, compose_from_root=True, **kwargs):
         if compose_from_root and self.parent:  # compose tranfo up to root
-            data = self.parent.transform(data, compose_from_root=True)
-        # identity transformation
-        return data
+            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
+        return kwargs
 
     def get_name(self):
         return self.name
@@ -292,59 +271,61 @@ class Epac(object):
 
     def todict(self):
         ret = self.__dict__.copy()
-        ret["children"] = [child.name for child in ret["children"]]
+        
+        ret["children"] = [child.name for child in ret["children"] 
+                                          if hasattr(child, "name")]
         if self.parent:
             ret["parent"] = self.parent.name
         return ret
 
     # Tree construction
-    def build_execution_tree(self, scheme, data):
-        """ Chunk function,
-        A scheme is a list of slicers, provided with their parameters
-        ((Slicers1, (parameters), (hyper-parameters),
-         (Slicers2, (parameters), (hyper-parameters), ...)
-
-        Slicers is a class that provide an iterable object (slicers), each item
+    def build_tree(self, steps, **kwargs):
         """
-        if len(scheme) == 0:
-            return []
-        nodes = []
-        scheme_curr = scheme[0]
-        scheme_next = scheme[1:]
-        slicers_cls = scheme_curr[0]
-        if len(scheme_curr) < 2 or not isinstance(scheme_curr[1], dict):
-            raise ValueError("Arg should provided and shoud be a dictionnary")
-        slicer_args = scheme_curr[1]
-        if len(scheme_curr) < 3:
-            slicer_opt_args = dict()
-        elif not isinstance(scheme_curr[2], dict):
-            raise ValueError("Opt arg should be a dictionnary")
+        """
+        if len(steps) == 0:
+            return
+        # If current step is a Parallelization node: a foactory of ParNode
+        if isinstance(steps[0], ParNodeFactory):
+            for child in steps[0].produceParNodes():
+                self.add_children(child)
+                child.build_tree(steps[1:], **kwargs)
         else:
-            slicer_opt_args = scheme_curr[2]
-        # Get slicer arguments, eventually eval them
-        slicer_args_eval = dict()
-        for k in slicer_args.keys():
-            if isinstance(slicer_args[k], str):
-                slicer_args_eval[k] = eval(slicer_args[k], data.copy())
-            else:
-                slicer_args_eval[k] = slicer_args[k]
-        slicers = object.__new__(slicers_cls)
-        slicers.__init__(**slicer_args_eval)
-        nb = 0
-        for slicer in slicers:
-            #slicer = slicers.__iter__().next()
-            slicer_node_cls_str = "".join([slicers.__class__.__name__ +
-                                           "ParNode"])
-            #print slicer_node_cls_str
-            slicer_node_cls = globals()[slicer_node_cls_str]
-            slicer_node = object.__new__(slicer_node_cls)
-            slicer_node.__init__(slicer, nb=nb, **slicer_opt_args)
-            data_tr = slicer_node.transform(data, compose_from_root=False)
-            slicer_node.add_children(
-                self.build_execution_tree(scheme_next, data_tr))
-            nodes.append(slicer_node)
-            nb += 1
-        return nodes
+            child = EstimatorWrapperNode(steps[0])
+            self.add_children(child)
+            child.build_tree(steps[1:], **kwargs)
+
+    # I/O (persistance) operation
+    def save_node(self, recursive=True):
+        store = get_store(self.get_key())
+        # prevent recursive saving of children/parent in a single dump
+        children_save = self.children
+        self.children = [child.name for child in self.children]
+        parent_save = self.parent
+        self.parent = ".."
+        store.save_node(self)
+        self.parent = parent_save
+        self.children = children_save
+        if recursive and len(self.children):
+            for child in self.children:
+                child.save_node(recursive=True)
+
+    # I/O (persistance) operation
+    @classmethod
+    def load_node(cls, key=None, store=None, recursive=True):
+        if key is None:
+            key = key_join(prot=Epac.config.key_prot_fs,
+                           path=store)
+        #self.add_children(self.build_execution_tree(steps, data))
+        store = get_store(key)
+        node = store.load_node(key)
+        # If Children: Recursively walk through children
+        if recursive and len(node.children):
+            for i in xrange(len(node.children)):
+                child = node.children[i]
+                child_key = Epac.config.key_path_sep.join([key, child])
+                node.add_children(node.load_node(key=child_key,
+                    recursive=True))
+        return node
 
     # Iterate over leaves
     def __iter__(self):
@@ -380,78 +361,111 @@ class Epac(object):
                     aggregate[key2].append(map_out)
         return aggregate
 
-    # I/O (persistance) operation
-    def save_node(self):
-        store = get_store(self.get_key())
-        store.save_node(self)
+class EstimatorWrapperNode(Epac):
+
+    """Node that wrap estimators"""
+    def __init__(self, estimator, **kargs):
+        self.estimator = estimator
+        super(EstimatorWrapperNode, self).__init__(
+            name=estimator.__class__.__name__, **kargs)
+
+    def __repr__(self):
+        return '%s(estimator=%s)' % (self.__class__.__name__,
+            self.estimator.__repr__())
 
 
-class SlicerParNode(Epac):
+class ParNodeFactory(object):
+    """Abstract class for Factories of parallelization nodes that implement
+    produceParNodes"""
+
+    def produceParNodes(self):
+        raise NotImplementedError("Cannot call abstract method")
+
+
+class ParSlicer(Epac):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
-
-    Parameters
-    transform_only:
     """
     def __init__(self, transform_only=None, **kwargs):
-        super(SlicerParNode, self).__init__(**kwargs)
+        super(ParSlicer, self).__init__(**kwargs)
         self.transform_only = transform_only
 
 
-class RowSlicerParNode(SlicerParNode):
+class ParRowSlicer(ParSlicer):
     """Parallelization is based on several row-wise reslicing of the same
     dataset"""
 
     def __init__(self, slices, **kwargs):
-        super(RowSlicerParNode, self).__init__(**kwargs)
+        super(ParRowSlicer, self).__init__(**kwargs)
         # convert a as list if required
-        self.slices =\
-            [s.tolist() for s in slices if isinstance(s, np.ndarray)]
+        if slices:
+            self.slices =\
+                [s.tolist() for s in slices if isinstance(s, np.ndarray)]
 
-    def transform(self, data, compose_from_root=True):
+    def transform(self, compose_from_root=True, **kwargs):
+        """ Transform inputs kwargs of array, and produce dict of array"""
         # Recusively compose the tranformations up to root's tree
         if compose_from_root and self.parent:
-            data = self.parent.transform(data, compose_from_root=True)
-        # If data is an array: reslices it
-        if isinstance(data, np.ndarray):
-            if len(self.slices) == 1:
-                return data[self.slices[0]]
-            else:
-                return [data[slice] for slice in self.slices]
-        # If data is a dict or a list call transform on each item
-        if isinstance(data, dict):
-            res = data.copy()
-            # if it is a dict and transform_only is not empty restrict
-            # transformation to self.transform_only
-            if self.transform_only:
-                keys = self.transform_only
-            else:
-                keys = data.keys()
-        elif isinstance(data, list):
-            res = [None] * len(data)
-            keys = range(len(data))
+            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
+        if self.transform_only:
+            keys = self.transform_only
+        else:
+            keys = kwargs.keys()
+        res = kwargs.copy()
         for k in keys:
-            res[k] = self.transform(data[k], compose_from_root=False)
+            res[k] = kwargs[k][self.slices[0]]
         return res
 
 
-class KFoldParNode(RowSlicerParNode):
+class ParKFold(ParRowSlicer, ParNodeFactory):
+    """ KFold parallelization node"""
+
+    def __init__(self, n=None, n_folds=None, slices=None, nb=None, **kargs):
+        super(ParKFold, self).__init__(slices=slices,
+            name="KFold-" + str(nb), **kargs)
+        self.n = n
+        self.n_folds = n_folds
+
+    def produceParNodes(self):
+        nodes = []
+        from sklearn.cross_validation import KFold  # StratifiedKFold
+        nb = 0
+        for train_test in KFold(n=self.n, n_folds=self.n_folds):
+            nodes.append(ParKFold(slices=train_test, nb=nb))
+            nb += 1
+        return nodes
+
+
+class ParStratifiedKFold(ParRowSlicer):
     def __init__(self, slices, nb, **kargs):
-        super(KFoldParNode, self).__init__(slices=slices,
+        super(ParStratifiedKFold, self).__init__(slices=slices,
             name="KFold-" + str(nb), **kargs)
 
 
-class StratifiedKFoldParNode(RowSlicerParNode):
-    def __init__(self, slices, nb, **kargs):
-        super(StratifiedKFoldParNode, self).__init__(slices=slices,
-            name="KFold-" + str(nb), **kargs)
+class ParPermutation(ParRowSlicer, ParNodeFactory):
+    """ Permutation parallelization node
 
-
-class PermutationParNode(RowSlicerParNode):
-    def __init__(self, permutation, nb, **kargs):
-        super(PermutationParNode, self).__init__(slices=[permutation],
+    2. implement the nodes ie.: the methods
+       - fit and transform that modify the data during the "map" phase: the
+         top-down (root to leaves) data flow
+       - reduce that locally agregates the map results during the "reduce"
+         phase: the bottom-up (leaves to root) data-flow.
+    """
+    def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
+                 **kargs):
+        super(ParPermutation, self).__init__(slices=[permutation],
             name="Permutation-" + str(nb), **kargs)
+        self.n = n
+        self.n_perms = n_perms
 
+    def produceParNodes(self):
+        nodes = []
+        from addtosklearn import Permutation
+        nb = 0
+        for perm in Permutation(n=self.n, n_perms=self.n_perms):
+            nodes.append(ParPermutation(permutation=perm, nb=nb))
+            nb += 1
+        return nodes
 
 # map and reduce functions
 def mapfunc(key1, val1):
@@ -475,30 +489,13 @@ def reducefunc(key2, val2):
 
 # Data
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y=np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
-data = dict(X=X, y=y)
+y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-# Resampling scheme
-scheme = ((Permutation, dict(n=X.shape[0], n_perms=10),
-                        dict(transform_only=["X"])),
-          (StratifiedKFold, dict(y="y", n_folds=2)))
+kwargs = dict(X=X, y=y)
 
+from sklearn import svm
+steps = (ParKFold(n=X.shape[0], n_folds=2),
+         svm.SVC(kernel='linear'))
 
-epac = Epac(scheme=scheme, data=data, store="/tmp/store")
-
-# 1) Map: call mapfunc
-# --------------------
-[mapfunc(key1=fold.get_key(), val1=fold.transform(data)) for fold in epac]
-
-# or use job lib
-#from sklearn.externals.joblib import Parallel, delayed
-#p = Parallel(n_jobs=4)(delayed(mapfunc)(key1=fold.get_key(),
-#                       val1=fold.transform(data)) for fold in
-#                       epac)
-
-# 2) Re-load results and agregate results
-# ---------------------------------------
-keyval2 = Epac(store="/tmp/store").aggregate()
-
-# 3) Reduce
-[reducefunc(key2, keyval2[key2]) for key2 in keyval2]
+root = Epac(steps=steps, store="/tmp/store", X=X, y=y)
+#root2 = Epac(store="/tmp/store")
