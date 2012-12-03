@@ -53,23 +53,23 @@ class StoreFs(Store):
             file_path = os.path.join(path, filename)
             self.save_pickle(val2, file_path)
 
-    def save_node(self, node):
-        path = self.key2path(node.get_key())
+    def save_object(self, obj, key):
+        path = self.key2path(key)
         import os
-        class_name = str(node.__class__).split(".")[-1].\
+        class_name = str(obj.__class__).split(".")[-1].\
             replace(r"'", "").replace(r">", "")
         # try to save in json format
         filename = Epac.config.store_fs_node_prefix + class_name +\
             Epac.config.store_fs_json_suffix
         file_path = os.path.join(path, filename)
-        if self.save_json(node.todict(), file_path):
+        if self.save_json(obj, file_path):
             # saving in json failed => pickle
             filename = Epac.config.store_fs_node_prefix + class_name +\
             Epac.config.store_fs_pickle_suffix
             file_path = os.path.join(path, filename)
-            self.save_pickle(node, file_path)
+            self.save_pickle(obj, file_path)
 
-    def load_node(self, key):
+    def load_object(self, key):
         """Load a node given a key, recursive=True recursively walk through
         children"""
         path = self.key2path(key)
@@ -82,17 +82,17 @@ class StoreFs(Store):
         file_path = file_path[0]
         _, ext = os.path.splitext(file_path)
         if ext == Epac.config.store_fs_json_suffix:
-            node_dict = self.load_json(file_path)
+            obj_dict = self.load_json(file_path)
             class_str = file_path.replace(prefix, "").\
                 replace(Epac.config.store_fs_json_suffix, "")
-            node = object.__new__(eval(class_str))
-            node.__dict__.update(node_dict)
+            obj = object.__new__(eval(class_str))
+            obj.__dict__.update(obj_dict)
         elif ext == Epac.config.store_fs_pickle_suffix:
-            node = self.load_pickle(file_path)
+            obj = self.load_pickle(file_path)
         else:
             raise IOError('File %s has an unkown extension: %s' %
                 (file_path, ext))
-        return node
+        return obj
 
     def load_map_output(self, key):
         path = self.key2path(key)
@@ -119,6 +119,7 @@ class StoreFs(Store):
             output.close()
 
     def load_pickle(self, file_path):
+            #u'/tmp/store/KFold-0/SVC/__node__EstimatorWrapperNode.pkl'
             import pickle
             inputf = open(file_path, 'rb')
             obj = pickle.load(inputf)
@@ -130,7 +131,7 @@ class StoreFs(Store):
             import os
             output = open(file_path, 'wb')
             try:
-                json.dump(obj, output)
+                json.dump(obj.__dict__, output)
             except TypeError:  # save in pickle
                 output.close()
                 os.remove(file_path)
@@ -166,6 +167,15 @@ def key_split(key):
 
 def key_join(prot="", path=""):
     return prot + Epac.config.key_prot_path_sep + path
+
+
+def key_pop(key):
+    import os
+    return os.path.dirname(key)
+
+
+def key_push(key, basename):
+    return key + Epac.config.key_path_sep + basename
 
 
 def save_map_output(key1, key2=None, val2=None, keyvals2=None):
@@ -216,7 +226,8 @@ class Epac(object):
                 "a string path for file system based storage")
         # If not steps but store or key : load from fs store
         if not steps and (isinstance(store, str) or isinstance(key, str)):
-            self.load_node(key=key, store=store)
+            root = load_node(key=key, store=store)
+            self.__dict__.update(root.__dict__)
 
     # Tree operations
     # ---------------
@@ -257,8 +268,7 @@ class Epac(object):
     def get_key(self):
         if not self.parent:
             return self.get_name()
-        return Epac.config.key_path_sep.join(
-            [self.parent.get_key(), self.get_name()])
+        return key_push(self.parent.get_key(), self.get_name())
 
     def get_leaves(self):
         if not len(self.children):
@@ -269,18 +279,18 @@ class Epac(object):
                 leaves = leaves + child.get_leaves()
             return leaves
 
-    def todict(self):
-        ret = self.__dict__.copy()
-        
-        ret["children"] = [child.name for child in ret["children"] 
-                                          if hasattr(child, "name")]
-        if self.parent:
-            ret["parent"] = self.parent.name
-        return ret
+    def get_path_from_root(self):
+        if self.parent is None:
+            return [self]
+        return self.parent.get_path_from_root() + [self]
 
     # Tree construction
     def build_tree(self, steps, **kwargs):
-        """
+        """Build execution tree.
+
+        Parameters
+        ----------
+        steps: list
         """
         if len(steps) == 0:
             return
@@ -294,41 +304,8 @@ class Epac(object):
             self.add_children(child)
             child.build_tree(steps[1:], **kwargs)
 
-    # I/O (persistance) operation
-    def save_node(self, recursive=True):
-        store = get_store(self.get_key())
-        # prevent recursive saving of children/parent in a single dump
-        children_save = self.children
-        self.children = [child.name for child in self.children]
-        parent_save = self.parent
-        self.parent = ".."
-        store.save_node(self)
-        self.parent = parent_save
-        self.children = children_save
-        if recursive and len(self.children):
-            for child in self.children:
-                child.save_node(recursive=True)
-
-    # I/O (persistance) operation
-    @classmethod
-    def load_node(cls, key=None, store=None, recursive=True):
-        if key is None:
-            key = key_join(prot=Epac.config.key_prot_fs,
-                           path=store)
-        #self.add_children(self.build_execution_tree(steps, data))
-        store = get_store(key)
-        node = store.load_node(key)
-        # If Children: Recursively walk through children
-        if recursive and len(node.children):
-            for i in xrange(len(node.children)):
-                child = node.children[i]
-                child_key = Epac.config.key_path_sep.join([key, child])
-                node.add_children(node.load_node(key=child_key,
-                    recursive=True))
-        return node
-
-    # Iterate over leaves
     def __iter__(self):
+        """ Iterate over leaves"""
         for leaf in self.get_leaves():
             yield leaf
 
@@ -360,6 +337,41 @@ class Epac(object):
                         aggregate[key2] = list()
                     aggregate[key2].append(map_out)
         return aggregate
+
+    def save_node(self, recursive=True):
+        """I/O (persistance) operation: save the node on the store"""
+        key = self.get_key()
+        store = get_store(key)
+        # Prevent recursive saving of children/parent in a single dump:
+        # replace reference to chidren/parent by basename strings
+        import copy
+        clone = copy.copy(self)
+        clone.children = [child.name for child in self.children]
+        if self.parent:
+            clone.parent = ".."
+        store.save_object(clone, key)
+        if recursive and len(self.children):
+            for child in self.children:
+                child.save_node(recursive=True)
+
+
+def load_node(key=None, store=None, recursive=True):
+    """I/O (persistance) operation load a node from the store"""
+    if key is None:
+        key = key_join(prot=Epac.config.key_prot_fs, path=store)
+    #self.add_children(self.build_execution_tree(steps, data))
+    store = get_store(key)
+    node = store.load_object(key)
+    # children contain basename string: Save the string a Recursively
+    # walk/load children
+    children = node.children
+    node.children = list()
+    if recursive and len(children):
+        for child in children:
+            child_key = key_push(key, child)
+            node.add_child(load_node(key=child_key, recursive=True))
+    return node
+
 
 class EstimatorWrapperNode(Epac):
 
@@ -491,11 +503,13 @@ def reducefunc(key2, val2):
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-kwargs = dict(X=X, y=y)
+#kwargs = dict(X=X, y=y)
 
 from sklearn import svm
 steps = (ParKFold(n=X.shape[0], n_folds=2),
          svm.SVC(kernel='linear'))
 
-root = Epac(steps=steps, store="/tmp/store", X=X, y=y)
-#root2 = Epac(store="/tmp/store")
+root = Epac(steps=steps, store="/tmp/store")
+
+# reload
+root2 = Epac(store="/tmp/store")
