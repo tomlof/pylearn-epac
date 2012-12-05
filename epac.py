@@ -7,6 +7,10 @@ print __doc__
 import numpy as np
 
 
+## ==================== ##
+## == Stores and I/O == ##
+## ==================== ##
+
 class Store(object):
     """Abstract Store"""
 
@@ -119,7 +123,7 @@ class StoreFs(Store):
             output.close()
 
     def load_pickle(self, file_path):
-            #u'/tmp/store/KFold-0/SVC/__node__EstimatorWrapperNode.pkl'
+            #u'/tmp/store/KFold-0/SVC/__node__WrapEstimator.pkl'
             import pickle
             inputf = open(file_path, 'rb')
             obj = pickle.load(inputf)
@@ -198,6 +202,7 @@ class Epac(object):
         key_prot_fs = "file"  # key storage protocol: file system
         key_path_sep = "/"
         key_prot_path_sep = "://"  # key storage protocol / path separator
+        kwargs_data_prefix = ["X", "y"]
 
     def __init__(self, steps=None, key=None, store=None, **kwargs):
         self.__dict__.update(kwargs)
@@ -229,8 +234,10 @@ class Epac(object):
             root = load_node(key=key, store=store)
             self.__dict__.update(root.__dict__)
 
-    # Tree operations
-    # ---------------
+    # --------------------- #
+    # -- Tree operations -- #
+    # --------------------- #
+
     def add_child(self, child):
         self.children.append(child)
         child.parent = self
@@ -238,29 +245,6 @@ class Epac(object):
     def add_children(self, children):
         for child in children:
             self.add_child(child)
-
-    def add_map_output(self, key=None, val=None, keyvals=None):
-        """ Collect map output
-
-        Parameters
-        ----------
-        key : (string) the intermediary key
-        val : (dictionary, list, tuple or array) the intermediary value
-        produced by the mapper.
-                If key/val are provided a single map output is added
-
-        keyvals : a dictionary of intermediary keys/values produced by the
-        mapper.
-        """
-        if key and val:
-            self.map_outputs[key] = val
-        if keyvals:
-            self.map_outputs.update(keyvals)
-
-    def transform(self, compose_from_root=True, **kwargs):
-        if compose_from_root and self.parent:  # compose tranfo up to root
-            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
-        return kwargs
 
     def get_name(self):
         return self.name
@@ -284,7 +268,6 @@ class Epac(object):
             return [self]
         return self.parent.get_path_from_root() + [self]
 
-    # Tree construction
     def build_tree(self, steps, **kwargs):
         """Build execution tree.
 
@@ -300,7 +283,7 @@ class Epac(object):
                 self.add_children(child)
                 child.build_tree(steps[1:], **kwargs)
         else:
-            child = EstimatorWrapperNode(steps[0])
+            child = WrapEstimator(steps[0])
             self.add_children(child)
             child.build_tree(steps[1:], **kwargs)
 
@@ -309,8 +292,52 @@ class Epac(object):
         for leaf in self.get_leaves():
             yield leaf
 
-    # Aggregation operations
-    # ----------------------
+    def add_map_output(self, key=None, val=None, keyvals=None):
+        """ Collect map output
+
+        Parameters
+        ----------
+        key : (string) the intermediary key
+        val : (dictionary, list, tuple or array) the intermediary value
+        produced by the mapper.
+                If key/val are provided a single map output is added
+
+        keyvals : a dictionary of intermediary keys/values produced by the
+        mapper.
+        """
+        if key and val:
+            self.map_outputs[key] = val
+        if keyvals:
+            self.map_outputs.update(keyvals)
+
+    # ------------------------------------------ #
+    # -- Top-down data-flow operations (map)  -- #
+    # ------------------------------------------ #
+
+    def fit(self, compose_from_root=True, **kwargs):
+        """Do nothing fit: just recursively call parent fit"""
+        if compose_from_root and self.parent:  # compose tranfo up to root
+            kwargs = self.parent.fit(compose_from_root=True, **kwargs)
+        return kwargs
+
+    def transform(self, compose_from_root=True, **kwargs):
+        """Do nothing transform: just recursively call parent transform"""
+        if compose_from_root and self.parent:  # compose tranfo up to root
+            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
+        return kwargs
+
+    def fit_transform(self, compose_from_root=True, **kwargs):
+        """Do nothing fit_transform: just recursively call parent
+        fit_transform"""
+        if compose_from_root and self.parent:  # compose tranfo up to root
+            kwargs = self.parent.fit_transform(compose_from_root=True,
+                                               **kwargs)
+        return kwargs
+
+    # --------------------------------------------- #
+    # -- Bottum-up data-flow operations (reduce) -- #
+    # --------------------------------------------- #
+
     def aggregate(self):
         # Terminaison (leaf) node
         if len(self.children) == 0:
@@ -337,6 +364,10 @@ class Epac(object):
                         aggregate[key2] = list()
                     aggregate[key2].append(map_out)
         return aggregate
+
+    # -------------------------------- #
+    # -- I/O persistance operations -- #
+    # -------------------------------- #
 
     def save_node(self, recursive=True):
         """I/O (persistance) operation: save the node on the store"""
@@ -373,18 +404,48 @@ def load_node(key=None, store=None, recursive=True):
     return node
 
 
-class EstimatorWrapperNode(Epac):
+## ================================= ##
+## == Wrapper node for estimators == ##
+## ================================= ##
 
+class WrapEstimator(Epac):
     """Node that wrap estimators"""
-    def __init__(self, estimator, **kargs):
+
+    def __init__(self, estimator, **kwargs):
         self.estimator = estimator
-        super(EstimatorWrapperNode, self).__init__(
-            name=estimator.__class__.__name__, **kargs)
+        super(WrapEstimator, self).__init__(
+            name=estimator.__class__.__name__, **kwargs)
 
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
+    def fit(self, **kwargs):
+        kwargs_train = ParKFold.reformat_filter_kwargs_data(
+            keep_only_suffix="train", **kwargs)
+        self.estimator.fit(**kwargs_train)
+
+    def transform(self, **kwargs):
+        kwargs_train = ParKFold.reformat_filter_kwargs_data(
+            keep_only_suffix="train", **kwargs)
+        kwargs_test = ParKFold.reformat_filter_kwargs_data(
+            keep_only_suffix="test", **kwargs)
+        kwargs_train_tr = self.estimator.transform(**kwargs_train)
+        kwargs_train_tr = self.estimator.transform(**kwargs_test)
+        ParKFold.join_train_test()
+        
+    def predict(self, **kwargs):
+        kwargs_test = ParKFold.reformat_filter_kwargs_data(
+            keep_only_suffix="test", **kwargs)
+        if "y" in kwargs_test:
+            kwargs_test.pop("y")
+        self.estimator.predict(**kwargs_test)
+
+
+
+## =========================== ##
+## == Parallelization nodes == ##
+## =========================== ##
 
 class ParNodeFactory(object):
     """Abstract class for Factories of parallelization nodes that implement
@@ -405,36 +466,52 @@ class ParSlicer(Epac):
 
 class ParRowSlicer(ParSlicer):
     """Parallelization is based on several row-wise reslicing of the same
-    dataset"""
+    dataset
+
+    Parameters
+    ----------
+    slices: dict of sets of slicing indexes or a single set of slicing indexes
+    """
 
     def __init__(self, slices, **kwargs):
         super(ParRowSlicer, self).__init__(**kwargs)
         # convert a as list if required
-        if slices:
+        if slices and  isinstance(slices, dict):
             self.slices =\
-                [s.tolist() for s in slices if isinstance(s, np.ndarray)]
+                {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
+                else slices[k] for k in slices}
+        else:
+            self.slices = \
+                slices.tolist() if isinstance(slices, np.ndarray) else slices
 
     def transform(self, compose_from_root=True, **kwargs):
         """ Transform inputs kwargs of array, and produce dict of array"""
         # Recusively compose the tranformations up to root's tree
         if compose_from_root and self.parent:
             kwargs = self.parent.transform(compose_from_root=True, **kwargs)
-        if self.transform_only:
-            keys = self.transform_only
-        else:
-            keys = kwargs.keys()
-        res = kwargs.copy()
-        for k in keys:
-            res[k] = kwargs[k][self.slices[0]]
-        return res
+        keys_data = self.transform_only if self.transform_only\
+                    else kwargs.keys()
+        data_out = kwargs.copy()
+        for key_data in keys_data:  # slice input data
+            if isinstance(self.slices, dict):
+                # rename output keys according to input keys and slice keys
+                data = data_out.pop(key_data)
+                for key_slice in self.slices:
+                    data_out[key_data + key_slice] = \
+                        data[self.slices[key_slice]]
+            else:
+                data_out[key_data] = data_out[key_data][self.slices]
+        return data_out
 
 
 class ParKFold(ParRowSlicer, ParNodeFactory):
     """ KFold parallelization node"""
+    train_data_suffix = "train"
+    test_data_suffix = "test"
 
-    def __init__(self, n=None, n_folds=None, slices=None, nb=None, **kargs):
+    def __init__(self, n=None, n_folds=None, slices=None, nb=None, **kwargs):
         super(ParKFold, self).__init__(slices=slices,
-            name="KFold-" + str(nb), **kargs)
+            name="KFold-" + str(nb), **kwargs)
         self.n = n
         self.n_folds = n_folds
 
@@ -442,16 +519,82 @@ class ParKFold(ParRowSlicer, ParNodeFactory):
         nodes = []
         from sklearn.cross_validation import KFold  # StratifiedKFold
         nb = 0
-        for train_test in KFold(n=self.n, n_folds=self.n_folds):
-            nodes.append(ParKFold(slices=train_test, nb=nb))
+        for train, test in KFold(n=self.n, n_folds=self.n_folds):
+            nodes.append(ParKFold(slices={ParKFold.train_data_suffix: train,
+                                          ParKFold.test_data_suffix: test},
+                                          nb=nb))
             nb += 1
         return nodes
 
+    @classmethod
+    def split_train_test(cls, **kwargs):
+        """Split kwargs into train dict (that contains train suffix in kw)
+        and test dict (that contains test suffix in kw).
+
+        Returns
+        -------
+        Two dictionaries without the train and test suffix into kw. Outputs
+        are then compliant with estimator API that takes only X, y paramaters.
+        If only "X" an "y" kw are found they are replicated into the both
+        outputs.
+
+        Example
+        -------
+       >>> ParKFold.split_train_test(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2,
+       ... a=33)
+       ({'y': 2, 'X': 1, 'a': 33}, {'y': -2, 'X': -1, 'a': 33})
+
+        >>> ParKFold.split_train_test(X=1, y=2, a=33)
+        ({'y': 2, 'X': 1, 'a': 33}, {'y': 2, 'X': 1, 'a': 33})
+        """
+        kwargs_train = kwargs.copy()
+        kwargs_test = kwargs.copy()
+        for data_key in Epac.config.kwargs_data_prefix:
+            data_key_train = data_key + ParKFold.train_data_suffix
+            data_key_test = data_key + ParKFold.test_data_suffix
+            if data_key_test in kwargs_train:  # Remove [X|y]test from train
+                kwargs_train.pop(data_key_test)
+            if data_key_train in kwargs_test:  # Remove [X|y]train from test
+                kwargs_test.pop(data_key_train)
+            # [X|y]train becomes [X|y] to be complient with estimator API
+            if data_key_train in kwargs_train:
+                kwargs_train[data_key] = kwargs_train.pop(data_key_train)
+            # [X|y]test becomes [X|y] to be complient with estimator API
+            if data_key_test in kwargs_test:
+                kwargs_test[data_key] = kwargs_test.pop(data_key_test)                
+        return kwargs_train, kwargs_test
+
+    @classmethod
+    def join_train_test(cls, kwargs_train, kwargs_test):
+        """Merge train test separate kwargs into single dict.
+        
+            Returns
+            -------
+            A single dictionary with train and test suffix as kw.
+    
+            Example
+            -------
+            >>> ParKFold.join_train_test(dict(X=1, y=2, a=33),
+            ...                          dict(X=-1, y=-2, a=33))
+            {'ytest': -2, 'Xtest': -1, 'a': 33, 'Xtrain': 1, 'ytrain': 2}
+        """
+        kwargs = dict()
+        for data_key in Epac.config.kwargs_data_prefix:
+            if data_key in kwargs_train:  # Get [X|y] from train
+                data_key_train = data_key + ParKFold.train_data_suffix
+                kwargs[data_key_train] = kwargs_train.pop(data_key)
+            if data_key in kwargs_test:  # Get [X|y] from train
+                data_key_test = data_key + ParKFold.test_data_suffix
+                kwargs[data_key_test] = kwargs_test.pop(data_key)
+        kwargs.update(kwargs_train)
+        kwargs.update(kwargs_test)
+        return kwargs
+
 
 class ParStratifiedKFold(ParRowSlicer):
-    def __init__(self, slices, nb, **kargs):
+    def __init__(self, slices, nb, **kwargs):
         super(ParStratifiedKFold, self).__init__(slices=slices,
-            name="KFold-" + str(nb), **kargs)
+            name="KFold-" + str(nb), **kwargs)
 
 
 class ParPermutation(ParRowSlicer, ParNodeFactory):
@@ -464,9 +607,9 @@ class ParPermutation(ParRowSlicer, ParNodeFactory):
          phase: the bottom-up (leaves to root) data-flow.
     """
     def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
-                 **kargs):
+                 **kwargs):
         super(ParPermutation, self).__init__(slices=[permutation],
-            name="Permutation-" + str(nb), **kargs)
+            name="Permutation-" + str(nb), **kwargs)
         self.n = n
         self.n_perms = n_perms
 
@@ -503,13 +646,26 @@ def reducefunc(key2, val2):
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-#kwargs = dict(X=X, y=y)
+kwargs = dict(X=X, y=y)
 
 from sklearn import svm
-steps = (ParKFold(n=X.shape[0], n_folds=2),
+steps = (ParKFold(n=X.shape[0], n_folds=4),
          svm.SVC(kernel='linear'))
 
 root = Epac(steps=steps, store="/tmp/store")
+cv = root.children[1]
+self = cv
+
+kwargs = cv.transform(X=X, y=y)
+
+kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
+optim = root.children[1].children[0]
+
+train, test = ParKFold.split_train_test(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2)
+ParKFold.split_train_test(X=1, y=2)
+
+ParKFold.join_train_test(dict(X=1, y=2, a=33), dict(X=-1, y=-2, a=33))
+#self = optim
 
 # reload
 root2 = Epac(store="/tmp/store")
