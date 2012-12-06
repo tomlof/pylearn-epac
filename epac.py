@@ -314,25 +314,34 @@ class Epac(object):
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def fit(self, compose_from_root=True, **kwargs):
-        """Do nothing fit: just recursively call parent fit"""
-        if compose_from_root and self.parent:  # compose tranfo up to root
-            kwargs = self.parent.fit(compose_from_root=True, **kwargs)
+    def map(self, rec_up=True, rec_down=False, **kwargs):
+        """Top-down data processing method
+
+            This method does nothing more that recursively call parent map.
+            But, most of time, it should be implemented.
+
+            Parameters
+            ----------
+            rec_up: boolean
+                if True recursively call parent map up to the
+                tree root.
+            rec_down: boolean
+                if True recursively call children map up to
+                the tree leaves.
+            **kwargs: dict
+                the keyword dictionnary of data flow
+
+            Return
+            ------
+            A dictionnary of processed data
+        """
+        if rec_up and self.parent:  # compose tranfo up to root
+            kwargs = self.parent.map(rec_up=True, **kwargs)
         return kwargs
 
-    def transform(self, compose_from_root=True, **kwargs):
-        """Do nothing transform: just recursively call parent transform"""
-        if compose_from_root and self.parent:  # compose tranfo up to root
-            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
-        return kwargs
-
-    def fit_transform(self, compose_from_root=True, **kwargs):
-        """Do nothing fit_transform: just recursively call parent
-        fit_transform"""
-        if compose_from_root and self.parent:  # compose tranfo up to root
-            kwargs = self.parent.fit_transform(compose_from_root=True,
-                                               **kwargs)
-        return kwargs
+    def reduce(self, recursive=True, **kwargs):
+        """Dottum-up data processing abstract method"""
+        raise NotImplementedError("reduce method should be imeplented")
 
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
@@ -420,27 +429,24 @@ class WrapEstimator(Epac):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def fit(self, **kwargs):
-        kwargs_train = ParKFold.reformat_filter_kwargs_data(
-            keep_only_suffix="train", **kwargs)
-        self.estimator.fit(**kwargs_train)
+    def map(self, rec_up=True, rec_down=False, **kwargs):
+        if rec_up and self.parent:
+            kwargs = self.parent.map(rec_up=True, **kwargs)
+        kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
+        self.estimator.fit(**kwargs_train)            # fit the training data
+        if self.children:                         # transform input to output
+            kwargs_train_out = self.estimator.transform(**kwargs_train)
+            kwargs_test_out = self.estimator.transform(**kwargs_test)
+            kwargs_out = ParKFold.join_train_test(kwargs_train_out,
+                                                  kwargs_test_out)
+            return kwargs_out
+        else:                 # leaf node: do the prediction predict the test
+            y_true = kwargs_test.pop("y")
+            y_pred = self.estimator.predict(**kwargs_test)
+            return dict(y_true=y_true, y_pred=y_pred)
 
-    def transform(self, **kwargs):
-        kwargs_train = ParKFold.reformat_filter_kwargs_data(
-            keep_only_suffix="train", **kwargs)
-        kwargs_test = ParKFold.reformat_filter_kwargs_data(
-            keep_only_suffix="test", **kwargs)
-        kwargs_train_tr = self.estimator.transform(**kwargs_train)
-        kwargs_train_tr = self.estimator.transform(**kwargs_test)
-        ParKFold.join_train_test()
-        
-    def predict(self, **kwargs):
-        kwargs_test = ParKFold.reformat_filter_kwargs_data(
-            keep_only_suffix="test", **kwargs)
-        if "y" in kwargs_test:
-            kwargs_test.pop("y")
-        self.estimator.predict(**kwargs_test)
-
+    def reduce(self, recursive=True, **kwargs):
+        pass
 
 
 ## =========================== ##
@@ -484,11 +490,11 @@ class ParRowSlicer(ParSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def transform(self, compose_from_root=True, **kwargs):
+    def map(self, rec_up=True, rec_down=False, **kwargs):
         """ Transform inputs kwargs of array, and produce dict of array"""
         # Recusively compose the tranformations up to root's tree
-        if compose_from_root and self.parent:
-            kwargs = self.parent.transform(compose_from_root=True, **kwargs)
+        if rec_up and self.parent:
+            kwargs = self.parent.map(rec_up=True, **kwargs)
         keys_data = self.transform_only if self.transform_only\
                     else kwargs.keys()
         data_out = kwargs.copy()
@@ -561,17 +567,17 @@ class ParKFold(ParRowSlicer, ParNodeFactory):
                 kwargs_train[data_key] = kwargs_train.pop(data_key_train)
             # [X|y]test becomes [X|y] to be complient with estimator API
             if data_key_test in kwargs_test:
-                kwargs_test[data_key] = kwargs_test.pop(data_key_test)                
+                kwargs_test[data_key] = kwargs_test.pop(data_key_test)
         return kwargs_train, kwargs_test
 
     @classmethod
     def join_train_test(cls, kwargs_train, kwargs_test):
         """Merge train test separate kwargs into single dict.
-        
+
             Returns
             -------
             A single dictionary with train and test suffix as kw.
-    
+
             Example
             -------
             >>> ParKFold.join_train_test(dict(X=1, y=2, a=33),
@@ -622,15 +628,6 @@ class ParPermutation(ParRowSlicer, ParNodeFactory):
             nb += 1
         return nodes
 
-# map and reduce functions
-def mapfunc(key1, val1):
-    X_test = val1["X"][1]
-    y_test = val1["y"][1]
-    keyvals2 = dict(
-        mean=dict(pred=np.sign(np.mean(X_test, axis=1)), true=y_test),
-        med=dict(pred=np.sign(np.median(X_test, axis=1)), true=y_test))
-    save_map_output(key1, keyvals2=keyvals2)
-
 
 def reducefunc(key2, val2):
     mean_pred = np.asarray(val2['pred'])
@@ -646,26 +643,11 @@ def reducefunc(key2, val2):
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-kwargs = dict(X=X, y=y)
-
 from sklearn import svm
 steps = (ParKFold(n=X.shape[0], n_folds=4),
          svm.SVC(kernel='linear'))
 
-root = Epac(steps=steps, store="/tmp/store")
-cv = root.children[1]
-self = cv
+tree = Epac(steps=steps, store="/tmp/store")
+#tree2 = Epac(store="/tmp/store")
+[leaf.map(X=X, y=y) for leaf in tree]
 
-kwargs = cv.transform(X=X, y=y)
-
-kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
-optim = root.children[1].children[0]
-
-train, test = ParKFold.split_train_test(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2)
-ParKFold.split_train_test(X=1, y=2)
-
-ParKFold.join_train_test(dict(X=1, y=2, a=33), dict(X=-1, y=-2, a=33))
-#self = optim
-
-# reload
-root2 = Epac(store="/tmp/store")
