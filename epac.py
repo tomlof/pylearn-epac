@@ -310,11 +310,20 @@ class Epac(object):
         if keyvals:
             self.map_outputs.update(keyvals)
 
+    def check_recursive(self, recursive):
+        """"""
+        if type(recursive) is bool:
+            if not self.children:
+                return 1
+            if not self.parent:
+                return 2
+        return recursive
+
     # ------------------------------------------ #
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def map(self, rec_up=True, rec_down=False, **kwargs):
+    def map(self, recursive=True, rec_down=False, **kwargs):
         """Top-down data processing method
 
             This method does nothing more that recursively call parent map.
@@ -335,24 +344,22 @@ class Epac(object):
             ------
             A dictionnary of processed data
         """
-        if rec_up and self.parent:  # compose tranfo up to root
+        if rec_up and self.parent:  # Recursively call parent map up to root
             kwargs = self.parent.map(rec_up=True, **kwargs)
+        if rec_down and self.children:  # Call children map down to leaves
+            [child.map(rec_down=True, **kwargs) for child in self.children]
         return kwargs
-
-    def reduce(self, recursive=True, **kwargs):
-        """Dottum-up data processing abstract method"""
-        raise NotImplementedError("reduce method should be imeplented")
 
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
 
-    def aggregate(self):
+    def reduce(self):
         # Terminaison (leaf) node
         if len(self.children) == 0:
             return self.map_outputs
         # 1) Build sub-aggregates over children
-        sub_aggregates = [child.aggregate() for child in self.children]
+        sub_aggregates = [child.reduce() for child in self.children]
         # 2) Agregate children's sub-aggregates
         aggregate = dict()
         for sub_aggregate in sub_aggregates:
@@ -430,7 +437,7 @@ class WrapEstimator(Epac):
             self.estimator.__repr__())
 
     def map(self, rec_up=True, rec_down=False, **kwargs):
-        if rec_up and self.parent:
+        if rec_up and self.parent:  # Recursively call parent map up to root
             kwargs = self.parent.map(rec_up=True, **kwargs)
         kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
         self.estimator.fit(**kwargs_train)            # fit the training data
@@ -439,14 +446,20 @@ class WrapEstimator(Epac):
             kwargs_test_out = self.estimator.transform(**kwargs_test)
             kwargs_out = ParKFold.join_train_test(kwargs_train_out,
                                                   kwargs_test_out)
-            return kwargs_out
+
+            if rec_down and self.children:  # Propagate map down to children
+                [child.map(rec_down=True, **kwargs) for child in self.children]
+            else:
+                return kwargs_out
         else:                 # leaf node: do the prediction predict the test
             y_true = kwargs_test.pop("y")
             y_pred = self.estimator.predict(**kwargs_test)
-            return dict(y_true=y_true, y_pred=y_pred)
+            out = dict(y_true=y_true, y_pred=y_pred)
+            self.add_map_output(keyvals=out)             # collect map output
+            return out
 
-    def reduce(self, recursive=True, **kwargs):
-        pass
+    #def reduce(self, recursive=True, **kwargs):
+    #    pass
 
 
 ## =========================== ##
@@ -629,9 +642,11 @@ class ParPermutation(ParRowSlicer, ParNodeFactory):
         return nodes
 
 
-def reducefunc(key2, val2):
-    mean_pred = np.asarray(val2['pred'])
-    mean_true = np.asarray(val2['true'])
+def reducefunc(key, val):
+    
+    val = r['y_pred']
+    mean_pred = np.asarray(val['y_pred'])
+    mean_true = np.asarray(val['y_true'])
     accuracies = np.sum(mean_true == mean_pred, axis=-1)
     accuracies_cv_mean = np.mean(accuracies, axis=-1)
     accuracies_perm_pval = np.sum(accuracies_cv_mean[1:] >
@@ -650,4 +665,5 @@ steps = (ParKFold(n=X.shape[0], n_folds=4),
 tree = Epac(steps=steps, store="/tmp/store")
 #tree2 = Epac(store="/tmp/store")
 [leaf.map(X=X, y=y) for leaf in tree]
-
+res = tree.reduce()
+tree.map(rec_up=False, rec_down=True)
