@@ -203,6 +203,8 @@ class Epac(object):
         key_path_sep = "/"
         key_prot_path_sep = "://"  # key storage protocol / path separator
         kwargs_data_prefix = ["X", "y"]
+        recursive_up = 1
+        recursive_down = 2
 
     def __init__(self, steps=None, key=None, store=None, **kwargs):
         self.__dict__.update(kwargs)
@@ -311,32 +313,36 @@ class Epac(object):
             self.map_outputs.update(keyvals)
 
     def check_recursive(self, recursive):
-        """"""
-        if type(recursive) is bool:
+        print self.get_key(), recursive
+        if recursive and type(recursive) is bool:
             if not self.children:
-                return 1
+                return Epac.config.recursive_up
             if not self.parent:
-                return 2
+                return Epac.config.recursive_down
+            raise ValueError('recursive is True, but the node is neither a \
+            leaf or the root tree, it then not possible to guess \
+            if recurssion should go up or down')
         return recursive
 
     # ------------------------------------------ #
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def map(self, recursive=True, rec_down=False, **kwargs):
+    def map(self, recursive=True, **kwargs):
         """Top-down data processing method
 
-            This method does nothing more that recursively call parent map.
-            But, most of time, it should be implemented.
+            This method does nothing more that recursively call
+            parent/children map. Most of time, it should be re-defined.
 
             Parameters
             ----------
-            rec_up: boolean
-                if True recursively call parent map up to the
-                tree root.
-            rec_down: boolean
-                if True recursively call children map up to
-                the tree leaves.
+            recursive: boolean
+                if True recursively call parent/children map. If the
+                current node is the root of the tree call the children.
+                This way the whole tree is executed.
+                If it is a leaf, then recursively call the parent before
+                being executed. This a pipeline made of the path from the
+                leaf to the root is executed.
             **kwargs: dict
                 the keyword dictionnary of data flow
 
@@ -344,10 +350,14 @@ class Epac(object):
             ------
             A dictionnary of processed data
         """
-        if rec_up and self.parent:  # Recursively call parent map up to root
-            kwargs = self.parent.map(rec_up=True, **kwargs)
-        if rec_down and self.children:  # Call children map down to leaves
-            [child.map(rec_down=True, **kwargs) for child in self.children]
+        recursive = self.check_recursive(recursive)
+        if recursive is Epac.config.recursive_up:
+            # Recursively call parent map up to root
+            kwargs = self.parent.map(recursive=recursive, **kwargs)
+        if recursive is Epac.config.recursive_down:
+            # Call children map down to leaves
+            [child.map(recursive=recursive, **kwargs) for child
+                in self.children]
         return kwargs
 
     # --------------------------------------------- #
@@ -436,8 +446,11 @@ class WrapEstimator(Epac):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def map(self, rec_up=True, rec_down=False, **kwargs):
-        if rec_up and self.parent:  # Recursively call parent map up to root
+    def map(self, recursive=True, **kwargs):
+        recursive = self.check_recursive(recursive)
+        if recursive is Epac.config.recursive_up:
+            # Should parent map being recursively be called before the
+            # current one?
             kwargs = self.parent.map(rec_up=True, **kwargs)
         kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
         self.estimator.fit(**kwargs_train)            # fit the training data
@@ -446,8 +459,9 @@ class WrapEstimator(Epac):
             kwargs_test_out = self.estimator.transform(**kwargs_test)
             kwargs_out = ParKFold.join_train_test(kwargs_train_out,
                                                   kwargs_test_out)
-
-            if rec_down and self.children:  # Propagate map down to children
+            # Sould children map being recursively be called after the
+            # current node?
+            if recursive is Epac.config.recursive_down:
                 [child.map(rec_down=True, **kwargs) for child in self.children]
             else:
                 return kwargs_out
@@ -503,10 +517,11 @@ class ParRowSlicer(ParSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def map(self, rec_up=True, rec_down=False, **kwargs):
+    def map(self, recursive=True, **kwargs):
         """ Transform inputs kwargs of array, and produce dict of array"""
-        # Recusively compose the tranformations up to root's tree
-        if rec_up and self.parent:
+        recursive = self.check_recursive(recursive)
+        # Should parent map be recursively be called before the current one ?
+        if recursive is Epac.config.recursive_up:
             kwargs = self.parent.map(rec_up=True, **kwargs)
         keys_data = self.transform_only if self.transform_only\
                     else kwargs.keys()
@@ -520,6 +535,10 @@ class ParRowSlicer(ParSlicer):
                         data[self.slices[key_slice]]
             else:
                 data_out[key_data] = data_out[key_data][self.slices]
+        # Sould children map being recursively be called after the
+        # current node?
+        if recursive is Epac.config.recursive_down:
+            [child.map(rec_down=True, **kwargs) for child in self.children]
         return data_out
 
 
