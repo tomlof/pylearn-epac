@@ -1,5 +1,5 @@
 """
-epac : Embarrassingly Parallel Array Computing
+Epac : Embarrassingly Parallel Array Computing
 """
 print __doc__
 
@@ -52,8 +52,8 @@ class StoreFs(Store):
             keyvals2[key2] = val2
         for key2 in keyvals2.keys():
             val2 = keyvals2[key2]
-            filename = Epac.config.store_fs_map_output_prefix + key2 +\
-                Epac.config.store_fs_pickle_suffix
+            filename = Config.store_fs_map_output_prefix + key2 +\
+                Config.store_fs_pickle_suffix
             file_path = os.path.join(path, filename)
             self.save_pickle(val2, file_path)
 
@@ -63,13 +63,13 @@ class StoreFs(Store):
         class_name = str(obj.__class__).split(".")[-1].\
             replace(r"'", "").replace(r">", "")
         # try to save in json format
-        filename = Epac.config.store_fs_node_prefix + class_name +\
-            Epac.config.store_fs_json_suffix
+        filename = Config.store_fs_node_prefix + class_name +\
+            Config.store_fs_json_suffix
         file_path = os.path.join(path, filename)
         if self.save_json(obj, file_path):
             # saving in json failed => pickle
-            filename = Epac.config.store_fs_node_prefix + class_name +\
-            Epac.config.store_fs_pickle_suffix
+            filename = Config.store_fs_node_prefix + class_name +\
+            Config.store_fs_pickle_suffix
             file_path = os.path.join(path, filename)
             self.save_pickle(obj, file_path)
 
@@ -78,20 +78,20 @@ class StoreFs(Store):
         children"""
         path = self.key2path(key)
         import os
-        prefix = os.path.join(path, Epac.config.store_fs_node_prefix)
+        prefix = os.path.join(path, Config.store_fs_node_prefix)
         import glob
         file_path = glob.glob(prefix + '*')
         if len(file_path) != 1:
             raise IOError('Found no or more that one file in %s' % (prefix))
         file_path = file_path[0]
         _, ext = os.path.splitext(file_path)
-        if ext == Epac.config.store_fs_json_suffix:
+        if ext == Config.store_fs_json_suffix:
             obj_dict = self.load_json(file_path)
             class_str = file_path.replace(prefix, "").\
-                replace(Epac.config.store_fs_json_suffix, "")
+                replace(Config.store_fs_json_suffix, "")
             obj = object.__new__(eval(class_str))
             obj.__dict__.update(obj_dict)
-        elif ext == Epac.config.store_fs_pickle_suffix:
+        elif ext == Config.store_fs_pickle_suffix:
             obj = self.load_pickle(file_path)
         else:
             raise IOError('File %s has an unkown extension: %s' %
@@ -103,16 +103,16 @@ class StoreFs(Store):
         import os
         import glob
         map_paths = glob.glob(os.path.join(path,
-            Epac.config.store_fs_map_output_prefix) + '*')
+            Config.store_fs_map_output_prefix) + '*')
         map_outputs = dict()
         for map_path in map_paths:
             ext = os.path.splitext(map_path)[-1]
-            if ext == Epac.config.store_fs_pickle_suffix:
+            if ext == Config.store_fs_pickle_suffix:
                 map_obj = self.load_pickle(map_path)
-            if ext == Epac.config.store_fs_json_suffix:
+            if ext == Config.store_fs_json_suffix:
                 map_obj = self.load_json(map_path)
             key = os.path.splitext(os.path.basename(map_path))[0].\
-                replace(Epac.config.store_fs_map_output_prefix, "", 1)
+                replace(Config.store_fs_map_output_prefix, "", 1)
             map_outputs[key] = map_obj
         return map_outputs
 
@@ -123,7 +123,7 @@ class StoreFs(Store):
             output.close()
 
     def load_pickle(self, file_path):
-            #u'/tmp/store/KFold-0/SVC/__node__WrapEstimator.pkl'
+            #u'/tmp/store/KFold-0/SVC/__node__NodeEstimator.pkl'
             import pickle
             inputf = open(file_path, 'rb')
             obj = pickle.load(inputf)
@@ -155,10 +155,10 @@ def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
     prot, path = key_split(key)
-    if prot == Epac.config.key_prot_fs:
+    if prot == Config.key_prot_fs:
         return StoreFs()
-    elif prot == Epac.config.key_prot_lo:
-        return StoreLo(storage_root=Epac.roots[path])
+    elif prot == Config.key_prot_lo:
+        return StoreLo(storage_root=Node.roots[path])
     else:
         raise ValueError("Invalid value for key: should be:" +\
         "lo for no persistence and storage on living objects or" +\
@@ -166,11 +166,11 @@ def get_store(key):
 
 
 def key_split(key):
-    return key.split(Epac.config.key_prot_path_sep, 1)
+    return key.split(Config.key_prot_path_sep, 1)
 
 
 def key_join(prot="", path=""):
-    return prot + Epac.config.key_prot_path_sep + path
+    return prot + Config.key_prot_path_sep + path
 
 
 def key_pop(key):
@@ -179,7 +179,7 @@ def key_pop(key):
 
 
 def key_push(key, basename):
-    return key + Epac.config.key_path_sep + basename
+    return key + Config.key_path_sep + basename
 
 
 def save_map_output(key1, key2=None, val2=None, keyvals2=None):
@@ -187,24 +187,24 @@ def save_map_output(key1, key2=None, val2=None, keyvals2=None):
     store.save_map_output(key1, key2, val2, keyvals2)
 
 
-class Epac(object):
+class Config:
+    store_fs_pickle_suffix = ".pkl"
+    store_fs_json_suffix = ".json"
+    store_fs_map_output_prefix = "__map__"
+    store_fs_node_prefix = "__node__"
+    key_prot_lo = "mem"  # key storage protocol: living object
+    key_prot_fs = "file"  # key storage protocol: file system
+    key_path_sep = "/"
+    key_prot_path_sep = "://"  # key storage protocol / path separator
+    kwargs_data_prefix = ["X", "y"]
+    recursive_up = 1
+    recursive_down = 2
+
+
+class Node(object):
     """Parallelization node, provide:
         - key/val
         - I/O interface with the store."""
-
-    # Static fields: config
-    class config:
-        store_fs_pickle_suffix = ".pkl"
-        store_fs_json_suffix = ".json"
-        store_fs_map_output_prefix = "__map__"
-        store_fs_node_prefix = "__node__"
-        key_prot_lo = "mem"  # key storage protocol: living object
-        key_prot_fs = "file"  # key storage protocol: file system
-        key_path_sep = "/"
-        key_prot_path_sep = "://"  # key storage protocol / path separator
-        kwargs_data_prefix = ["X", "y"]
-        recursive_up = 1
-        recursive_down = 2
 
     def __init__(self, steps=None, key=None, store=None, **kwargs):
         self.__dict__.update(kwargs)
@@ -216,14 +216,14 @@ class Epac(object):
             if not store:
                 import string
                 import random
-                self.name = key_join(prot=Epac.config.key_prot_lo,
+                self.name = key_join(prot=Config.key_prot_lo,
                     path="".join(random.choice(string.ascii_uppercase +
                         string.digits) for x in range(10)))
                 self.build_tree(steps, **kwargs)
             # store is a string and a valid directory , assume that storage
             # will be done on the file system, ie.: key prefix "fs://"
             elif isinstance(store, str):
-                self.name = key_join(prot=Epac.config.key_prot_fs,
+                self.name = key_join(prot=Config.key_prot_fs,
                                      path=store)
                 self.build_tree(steps, **kwargs)
                 self.save_node()
@@ -280,12 +280,12 @@ class Epac(object):
         if len(steps) == 0:
             return
         # If current step is a Parallelization node: a foactory of ParNode
-        if isinstance(steps[0], ParNodeFactory):
-            for child in steps[0].produceParNodes():
+        if isinstance(steps[0], Splitter):
+            for child in steps[0].produceNodes():
                 self.add_children(child)
                 child.build_tree(steps[1:], **kwargs)
         else:
-            child = WrapEstimator(steps[0])
+            child = NodeEstimator(steps[0])
             self.add_children(child)
             child.build_tree(steps[1:], **kwargs)
 
@@ -312,23 +312,11 @@ class Epac(object):
         if keyvals:
             self.map_outputs.update(keyvals)
 
-    def check_recursive(self, recursive):
-        print self.get_key(), recursive
-        if recursive and type(recursive) is bool:
-            if not self.children:
-                return Epac.config.recursive_up
-            if not self.parent:
-                return Epac.config.recursive_down
-            raise ValueError('recursive is True, but the node is neither a \
-            leaf or the root tree, it then not possible to guess \
-            if recurssion should go up or down')
-        return recursive
-
     # ------------------------------------------ #
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def map(self, recursive=True, **kwargs):
+    def topdown(self, recursive=True, **kwargs):
         """Top-down data processing method
 
             This method does nothing more that recursively call
@@ -350,15 +338,36 @@ class Epac(object):
             ------
             A dictionnary of processed data
         """
+        print "topdown", self.get_key()
         recursive = self.check_recursive(recursive)
-        if recursive is Epac.config.recursive_up:
+        if recursive is Config.recursive_up:
             # Recursively call parent map up to root
-            kwargs = self.parent.map(recursive=recursive, **kwargs)
-        if recursive is Epac.config.recursive_down:
+            kwargs = self.parent.topdown(recursive=recursive, **kwargs)
+        kwargs = self.transform(**kwargs)
+        if recursive is Config.recursive_down:
             # Call children map down to leaves
-            [child.map(recursive=recursive, **kwargs) for child
+            [child.topdown(recursive=recursive, **kwargs) for child
                 in self.children]
         return kwargs
+
+    def transform(self, **kwargs):
+        return kwargs
+
+    def check_recursive(self, recursive):
+        if recursive and type(recursive) is bool:
+            if not self.children:
+                recursive = Config.recursive_up
+            elif not self.parent:
+                recursive = Config.recursive_down
+            else:
+                raise ValueError("recursive is True, but the node is neither"+\
+            "a leaf or the root tree, it then not possible to guess"+ \
+            "if recurssion should go up or down")
+        if recursive is Config.recursive_up and not self.parent:
+            recursive = False
+        elif recursive is Config.recursive_down and not self.children:
+            recursive = False
+        return recursive
 
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
@@ -415,7 +424,7 @@ class Epac(object):
 def load_node(key=None, store=None, recursive=True):
     """I/O (persistance) operation load a node from the store"""
     if key is None:
-        key = key_join(prot=Epac.config.key_prot_fs, path=store)
+        key = key_join(prot=Config.key_prot_fs, path=store)
     #self.add_children(self.build_execution_tree(steps, data))
     store = get_store(key)
     node = store.load_object(key)
@@ -430,74 +439,75 @@ def load_node(key=None, store=None, recursive=True):
     return node
 
 
+def splitter_factory(cls, *args, **kwargs):
+    if cls.__name__ == "KFold":
+        return SplitKFold(*args, **kwargs)
+
+S =  splitter_factory
+
+def node_factory(cls, *args, **kwargs):
+    instance = object.__new__(cls)
+    instance.__init__(*args, **kwargs)
+    return NodeEstimator(instance)
+
+N = node_factory
+
 ## ================================= ##
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-class WrapEstimator(Epac):
+class NodeEstimator(Node):
     """Node that wrap estimators"""
 
     def __init__(self, estimator, **kwargs):
         self.estimator = estimator
-        super(WrapEstimator, self).__init__(
+        super(NodeEstimator, self).__init__(
             name=estimator.__class__.__name__, **kwargs)
 
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def map(self, recursive=True, **kwargs):
-        recursive = self.check_recursive(recursive)
-        if recursive is Epac.config.recursive_up:
-            # Should parent map being recursively be called before the
-            # current one?
-            kwargs = self.parent.map(rec_up=True, **kwargs)
-        kwargs_train, kwargs_test = ParKFold.split_train_test(**kwargs)
+    def transform(self, **kwargs):
+        kwargs_train, kwargs_test = NodeKFold.split_train_test(**kwargs)
         self.estimator.fit(**kwargs_train)            # fit the training data
         if self.children:                         # transform input to output
             kwargs_train_out = self.estimator.transform(**kwargs_train)
             kwargs_test_out = self.estimator.transform(**kwargs_test)
-            kwargs_out = ParKFold.join_train_test(kwargs_train_out,
+            kwargs_out = NodeKFold.join_train_test(kwargs_train_out,
                                                   kwargs_test_out)
-            # Sould children map being recursively be called after the
-            # current node?
-            if recursive is Epac.config.recursive_down:
-                [child.map(rec_down=True, **kwargs) for child in self.children]
-            else:
-                return kwargs_out
         else:                 # leaf node: do the prediction predict the test
             y_true = kwargs_test.pop("y")
             y_pred = self.estimator.predict(**kwargs_test)
-            out = dict(y_true=y_true, y_pred=y_pred)
-            self.add_map_output(keyvals=out)             # collect map output
-            return out
-
-    #def reduce(self, recursive=True, **kwargs):
-    #    pass
-
+            kwargs_out = dict(y_true=y_true, y_pred=y_pred)
+            self.add_map_output(keyvals=kwargs_out)             # collect map output
+        return kwargs_out
 
 ## =========================== ##
 ## == Parallelization nodes == ##
 ## =========================== ##
 
-class ParNodeFactory(object):
+class Splitter(object):
     """Abstract class for Factories of parallelization nodes that implement
-    produceParNodes"""
+    produceNodes"""
 
-    def produceParNodes(self):
+    def produceNodes(self):
         raise NotImplementedError("Cannot call abstract method")
 
-
-class ParSlicer(Epac):
+# -------------------------------- #
+# -- Generic slicing operations -- #
+# -------------------------------- #
+    
+class NodeSlicer(Node):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
     """
     def __init__(self, transform_only=None, **kwargs):
-        super(ParSlicer, self).__init__(**kwargs)
+        super(NodeSlicer, self).__init__(**kwargs)
         self.transform_only = transform_only
 
 
-class ParRowSlicer(ParSlicer):
+class NodeRowSlicer(NodeSlicer):
     """Parallelization is based on several row-wise reslicing of the same
     dataset
 
@@ -507,7 +517,7 @@ class ParRowSlicer(ParSlicer):
     """
 
     def __init__(self, slices, **kwargs):
-        super(ParRowSlicer, self).__init__(**kwargs)
+        super(NodeRowSlicer, self).__init__(**kwargs)
         # convert a as list if required
         if slices and  isinstance(slices, dict):
             self.slices =\
@@ -517,12 +527,7 @@ class ParRowSlicer(ParSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def map(self, recursive=True, **kwargs):
-        """ Transform inputs kwargs of array, and produce dict of array"""
-        recursive = self.check_recursive(recursive)
-        # Should parent map be recursively be called before the current one ?
-        if recursive is Epac.config.recursive_up:
-            kwargs = self.parent.map(rec_up=True, **kwargs)
+    def transform(self, **kwargs):
         keys_data = self.transform_only if self.transform_only\
                     else kwargs.keys()
         data_out = kwargs.copy()
@@ -535,34 +540,22 @@ class ParRowSlicer(ParSlicer):
                         data[self.slices[key_slice]]
             else:
                 data_out[key_data] = data_out[key_data][self.slices]
-        # Sould children map being recursively be called after the
-        # current node?
-        if recursive is Epac.config.recursive_down:
-            [child.map(rec_down=True, **kwargs) for child in self.children]
         return data_out
 
+# ----------------------- #
+# -- Cross-validations -- #
+# ----------------------- #
 
-class ParKFold(ParRowSlicer, ParNodeFactory):
+class NodeKFold(NodeRowSlicer):
     """ KFold parallelization node"""
     train_data_suffix = "train"
     test_data_suffix = "test"
 
     def __init__(self, n=None, n_folds=None, slices=None, nb=None, **kwargs):
-        super(ParKFold, self).__init__(slices=slices,
+        super(NodeKFold, self).__init__(slices=slices,
             name="KFold-" + str(nb), **kwargs)
         self.n = n
         self.n_folds = n_folds
-
-    def produceParNodes(self):
-        nodes = []
-        from sklearn.cross_validation import KFold  # StratifiedKFold
-        nb = 0
-        for train, test in KFold(n=self.n, n_folds=self.n_folds):
-            nodes.append(ParKFold(slices={ParKFold.train_data_suffix: train,
-                                          ParKFold.test_data_suffix: test},
-                                          nb=nb))
-            nb += 1
-        return nodes
 
     @classmethod
     def split_train_test(cls, **kwargs):
@@ -578,18 +571,18 @@ class ParKFold(ParRowSlicer, ParNodeFactory):
 
         Example
         -------
-       >>> ParKFold.split_train_test(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2,
+       >>> NodeKFold.split_train_test(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2,
        ... a=33)
        ({'y': 2, 'X': 1, 'a': 33}, {'y': -2, 'X': -1, 'a': 33})
 
-        >>> ParKFold.split_train_test(X=1, y=2, a=33)
+        >>> NodeKFold.split_train_test(X=1, y=2, a=33)
         ({'y': 2, 'X': 1, 'a': 33}, {'y': 2, 'X': 1, 'a': 33})
         """
         kwargs_train = kwargs.copy()
         kwargs_test = kwargs.copy()
-        for data_key in Epac.config.kwargs_data_prefix:
-            data_key_train = data_key + ParKFold.train_data_suffix
-            data_key_test = data_key + ParKFold.test_data_suffix
+        for data_key in Config.kwargs_data_prefix:
+            data_key_train = data_key + NodeKFold.train_data_suffix
+            data_key_test = data_key + NodeKFold.test_data_suffix
             if data_key_test in kwargs_train:  # Remove [X|y]test from train
                 kwargs_train.pop(data_key_test)
             if data_key_train in kwargs_test:  # Remove [X|y]train from test
@@ -612,77 +605,104 @@ class ParKFold(ParRowSlicer, ParNodeFactory):
 
             Example
             -------
-            >>> ParKFold.join_train_test(dict(X=1, y=2, a=33),
+            >>> NodeKFold.join_train_test(dict(X=1, y=2, a=33),
             ...                          dict(X=-1, y=-2, a=33))
             {'ytest': -2, 'Xtest': -1, 'a': 33, 'Xtrain': 1, 'ytrain': 2}
         """
         kwargs = dict()
-        for data_key in Epac.config.kwargs_data_prefix:
+        for data_key in Config.kwargs_data_prefix:
             if data_key in kwargs_train:  # Get [X|y] from train
-                data_key_train = data_key + ParKFold.train_data_suffix
+                data_key_train = data_key + NodeKFold.train_data_suffix
                 kwargs[data_key_train] = kwargs_train.pop(data_key)
             if data_key in kwargs_test:  # Get [X|y] from train
-                data_key_test = data_key + ParKFold.test_data_suffix
+                data_key_test = data_key + NodeKFold.test_data_suffix
                 kwargs[data_key_test] = kwargs_test.pop(data_key)
         kwargs.update(kwargs_train)
         kwargs.update(kwargs_test)
         return kwargs
 
+class SplitKFold(Splitter):
+    """NodeKfold Factory"""
 
-class ParStratifiedKFold(ParRowSlicer):
-    def __init__(self, slices, nb, **kwargs):
-        super(ParStratifiedKFold, self).__init__(slices=slices,
-            name="KFold-" + str(nb), **kwargs)
-
-
-class ParPermutation(ParRowSlicer, ParNodeFactory):
-    """ Permutation parallelization node
-
-    2. implement the nodes ie.: the methods
-       - fit and transform that modify the data during the "map" phase: the
-         top-down (root to leaves) data flow
-       - reduce that locally agregates the map results during the "reduce"
-         phase: the bottom-up (leaves to root) data-flow.
-    """
-    def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
-                 **kwargs):
-        super(ParPermutation, self).__init__(slices=[permutation],
-            name="Permutation-" + str(nb), **kwargs)
+    def __init__(self, n, n_folds):
+        self.n_folds = n_folds
         self.n = n
-        self.n_perms = n_perms
 
-    def produceParNodes(self):
+    def produceNodes(self):
         nodes = []
-        from addtosklearn import Permutation
+        from sklearn.cross_validation import KFold  # StratifiedKFold
         nb = 0
-        for perm in Permutation(n=self.n, n_perms=self.n_perms):
-            nodes.append(ParPermutation(permutation=perm, nb=nb))
+        for train, test in KFold(n=self.n, n_folds=self.n_folds):
+            nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
+                                          NodeKFold.test_data_suffix: test},
+                                          nb=nb))
             nb += 1
         return nodes
 
 
-def reducefunc(key, val):
-    
-    val = r['y_pred']
-    mean_pred = np.asarray(val['y_pred'])
-    mean_true = np.asarray(val['y_true'])
-    accuracies = np.sum(mean_true == mean_pred, axis=-1)
-    accuracies_cv_mean = np.mean(accuracies, axis=-1)
-    accuracies_perm_pval = np.sum(accuracies_cv_mean[1:] >
-        accuracies_cv_mean[0])
-    return dict(method=key2, accuracies_cv_mean=accuracies_cv_mean,
-                accuracies_perm_pval=accuracies_perm_pval)
+class SplitStratifiedKFold(Splitter):
+    """NodeStratifiedKFold Factory"""
+
+    def __init__(self, y, n_folds):
+        self.n_folds = n_folds
+        self.y = y
+
+    def produceNodes(self):
+        nodes = []
+        from sklearn.cross_validation import KFold  # StratifiedKFold
+        nb = 0
+        ## Re-slice y
+        for train, test in StratifiedKFold(y=self.y, n_folds=self.n_folds):
+            nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
+                                          NodeKFold.test_data_suffix: test},
+                                          nb=nb))
+            nb += 1
+        return nodes
+
+
+class NodePermutation(NodeRowSlicer, Splitter):
+    """ Permutation parallelization node"""
+
+    def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
+                 **kwargs):
+        super(NodePermutation, self).__init__(slices=[permutation],
+            name="Permutation-" + str(nb), **kwargs)
+        self.n = n
+        self.n_perms = n_perms
+
+class SplitPermutation(Splitter):
+    """NodePermutation Factory"""
+
+    def produceNodes(self):
+        nodes = []
+        from addtosklearn import Permutation
+        nb = 0
+        for perm in Permutation(n=self.n, n_perms=self.n_perms):
+            nodes.append(NodePermutation(permutation=perm, nb=nb))
+            nb += 1
+        return nodes
 
 # Data
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import svm
-steps = (ParKFold(n=X.shape[0], n_folds=4),
+from sklearn import lda
+
+S(KFold, n=10, n_folds=2)
+N(svm.SVC, kernel='linear')
+
+steps = (SplitKFold(n=X.shape[0], n_folds=4),
          svm.SVC(kernel='linear'))
 
-tree = Epac(steps=steps, store="/tmp/store")
-#tree2 = Epac(store="/tmp/store")
-[leaf.map(X=X, y=y) for leaf in tree]
+tree = Node(steps=steps, store="/tmp/store")
+#self = leaf
+
+#kwargs = dict(X=X, y=y)
+#cv = tree.children[1]
+
+#tree2 = Node(store="/tmp/store")
+[leaf.topdown(X=X, y=y) for leaf in tree]
+
 res = tree.reduce()
-tree.map(rec_up=False, rec_down=True)
+#tree.map(rec_up=False, rec_down=True)
