@@ -285,7 +285,8 @@ class Node(object):
                 self.add_children(child)
                 child.build_tree(steps[1:], **kwargs)
         else:
-            child = NodeEstimator(steps[0])
+            import copy
+            child = copy.deepcopy(steps[0])
             self.add_children(child)
             child.build_tree(steps[1:], **kwargs)
 
@@ -416,9 +417,14 @@ class Node(object):
         if self.parent:
             clone.parent = ".."
         store.save_object(clone, key)
-        if recursive and len(self.children):
-            for child in self.children:
-                child.save_node(recursive=True)
+        recursive = self.check_recursive(recursive)
+        if recursive is Config.recursive_up:
+            # Recursively call parent save up to root
+            self.parent.save_node(recursive=recursive)
+        if recursive is Config.recursive_down:
+            # Call children save down to leaves
+            [child.save_node(recursive=recursive) for child
+                in self.children]
 
 
 def load_node(key=None, store=None, recursive=True):
@@ -430,27 +436,18 @@ def load_node(key=None, store=None, recursive=True):
     node = store.load_object(key)
     # children contain basename string: Save the string a Recursively
     # walk/load children
-    children = node.children
-    node.children = list()
-    if recursive and len(children):
+    recursive = node.check_recursive(recursive)
+    if recursive is Config.recursive_up:
+        parent_key = key_pop(key)
+        parent = load_node(key=parent_key, recursive=recursive)
+        parent.add_child(node)
+    if recursive is Config.recursive_down:
+        children = node.children
+        node.children = list()
         for child in children:
             child_key = key_push(key, child)
-            node.add_child(load_node(key=child_key, recursive=True))
+            node.add_child(load_node(key=child_key, recursive=recursive))
     return node
-
-
-def splitter_factory(cls, *args, **kwargs):
-    if cls.__name__ == "KFold":
-        return SplitKFold(*args, **kwargs)
-
-S =  splitter_factory
-
-def node_factory(cls, *args, **kwargs):
-    instance = object.__new__(cls)
-    instance.__init__(*args, **kwargs)
-    return NodeEstimator(instance)
-
-N = node_factory
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
@@ -472,16 +469,26 @@ class NodeEstimator(Node):
         kwargs_train, kwargs_test = NodeKFold.split_train_test(**kwargs)
         self.estimator.fit(**kwargs_train)            # fit the training data
         if self.children:                         # transform input to output
-            kwargs_train_out = self.estimator.transform(**kwargs_train)
-            kwargs_test_out = self.estimator.transform(**kwargs_test)
-            kwargs_out = NodeKFold.join_train_test(kwargs_train_out,
-                                                  kwargs_test_out)
+            kwargs_train["X"] = self.estimator.transform(X=kwargs_train.pop("X"))
+            kwargs_test["X"] = self.estimator.transform(X=kwargs_test.pop("X"))
+            kwargs = NodeKFold.join_train_test(kwargs_train, kwargs_test)
         else:                 # leaf node: do the prediction predict the test
             y_true = kwargs_test.pop("y")
             y_pred = self.estimator.predict(**kwargs_test)
-            kwargs_out = dict(y_true=y_true, y_pred=y_pred)
-            self.add_map_output(keyvals=kwargs_out)             # collect map output
-        return kwargs_out
+            kwargs = dict(y_true=y_true, y_pred=y_pred)
+            self.add_map_output(keyvals=kwargs)             # collect map output
+        return kwargs
+
+# ------------ #
+# -- Helper -- #
+# ------------ #
+
+def node_factory(cls, node_kwargs):
+    instance = object.__new__(cls)
+    instance.__init__(**node_kwargs)
+    return NodeEstimator(instance)
+
+N = node_factory
 
 ## =========================== ##
 ## == Parallelization nodes == ##
@@ -519,7 +526,7 @@ class NodeRowSlicer(NodeSlicer):
     def __init__(self, slices, **kwargs):
         super(NodeRowSlicer, self).__init__(**kwargs)
         # convert a as list if required
-        if slices and  isinstance(slices, dict):
+        if isinstance(slices, dict):
             self.slices =\
                 {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
                 else slices[k] for k in slices}
@@ -649,7 +656,7 @@ class SplitStratifiedKFold(Splitter):
 
     def produceNodes(self):
         nodes = []
-        from sklearn.cross_validation import KFold  # StratifiedKFold
+        from sklearn.cross_validation import StratifiedKFold
         nb = 0
         ## Re-slice y
         for train, test in StratifiedKFold(y=self.y, n_folds=self.n_folds):
@@ -660,18 +667,22 @@ class SplitStratifiedKFold(Splitter):
         return nodes
 
 
-class NodePermutation(NodeRowSlicer, Splitter):
+class NodePermutation(NodeRowSlicer):
     """ Permutation parallelization node"""
 
     def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
                  **kwargs):
-        super(NodePermutation, self).__init__(slices=[permutation],
+        super(NodePermutation, self).__init__(slices=permutation,
             name="Permutation-" + str(nb), **kwargs)
         self.n = n
         self.n_perms = n_perms
 
 class SplitPermutation(Splitter):
     """NodePermutation Factory"""
+
+    def __init__(self, n, n_perms):
+        self.n = n
+        self.n_perms = n_perms
 
     def produceNodes(self):
         nodes = []
@@ -682,27 +693,51 @@ class SplitPermutation(Splitter):
             nb += 1
         return nodes
 
+# ------------ #
+# -- Helper -- #
+# ------------ #
+
+def splitter_factory(cls, split_kwargs, job_kwargs):
+    if cls.__name__ == "KFold":
+        return SplitKFold(**split_kwargs)
+    if cls.__name__ == "StratifiedKFold":
+        return SplitStratifiedKFold(**split_kwargs)
+    if cls.__name__ == "Permutation":
+        return SplitPermutation(**split_kwargs)
+    raise ValueError("Do not know how to build a splitter with %s" % (str(cls)))
+        
+PAR =  splitter_factory
+
+
 # Data
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import svm
 from sklearn import lda
+from sklearn.cross_validation import KFold
 
-S(KFold, n=10, n_folds=2)
-N(svm.SVC, kernel='linear')
+if False:
+    steps = (
+    PAR(KFold, dict(n=X.shape[0], n_folds=4), dict()),
+        N(svm.SVC, dict(kernel='linear')))
 
-steps = (SplitKFold(n=X.shape[0], n_folds=4),
-         svm.SVC(kernel='linear'))
+if False:
+    from sklearn.feature_selection import SelectKBest
+    steps = (
+    PAR(KFold, dict(n=X.shape[0], n_folds=4), dict(n_jobs=5)),
+        N(SelectKBest, dict(k=2)),
+        N(svm.SVC, dict(kernel="linear")))
+
+if True:
+    from sklearn.feature_selection import SelectKBest
+    from addtosklearn import Permutation
+    steps = (
+    PAR(Permutation, dict(n=X.shape[0], n_perms=2), dict(n_jobs=5)),
+    PAR(KFold, dict(n=X.shape[0], n_folds=2), dict(n_jobs=5)),
+        N(SelectKBest, dict(k=2)),
+        N(svm.SVC, dict(kernel="linear")))
 
 tree = Node(steps=steps, store="/tmp/store")
-#self = leaf
-
-#kwargs = dict(X=X, y=y)
-#cv = tree.children[1]
-
-#tree2 = Node(store="/tmp/store")
-[leaf.topdown(X=X, y=y) for leaf in tree]
-
-res = tree.reduce()
-#tree.map(rec_up=False, rec_down=True)
+#[leaf.topdown(X=X, y=y) for leaf in tree]
+#tree.reduce()
