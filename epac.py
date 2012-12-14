@@ -5,6 +5,7 @@ print __doc__
 
 
 import numpy as np
+from abc import abstractmethod
 
 
 ## ==================== ##
@@ -74,7 +75,7 @@ class StoreFs(Store):
             self.save_pickle(obj, file_path)
 
     def load_object(self, key):
-        """Load a node given a key, recursive=True recursively walk through
+        """Load a node given a key, recursion=True recursionly walk through
         children"""
         path = self.key2path(key)
         import os
@@ -197,8 +198,10 @@ class Config:
     key_path_sep = "/"
     key_prot_path_sep = "://"  # key storage protocol / path separator
     kwargs_data_prefix = ["X", "y"]
-    recursive_up = 1
-    recursive_down = 2
+
+
+RECURSION_UP = 1
+RECURSION_DOWN = 2
 
 
 class Node(object):
@@ -219,13 +222,13 @@ class Node(object):
                 self.name = key_join(prot=Config.key_prot_lo,
                     path="".join(random.choice(string.ascii_uppercase +
                         string.digits) for x in range(10)))
-                self.build_tree(steps, **kwargs)
+                self.build_tree(steps)
             # store is a string and a valid directory , assume that storage
             # will be done on the file system, ie.: key prefix "fs://"
             elif isinstance(store, str):
                 self.name = key_join(prot=Config.key_prot_fs,
                                      path=store)
-                self.build_tree(steps, **kwargs)
+                self.build_tree(steps)
                 self.save_node()
             else:
                 raise ValueError("Invalid value for store: should be: " +\
@@ -270,7 +273,7 @@ class Node(object):
             return [self]
         return self.parent.get_path_from_root() + [self]
 
-    def build_tree(self, steps, **kwargs):
+    def build_tree(self, steps):
         """Build execution tree.
 
         Parameters
@@ -279,16 +282,16 @@ class Node(object):
         """
         if len(steps) == 0:
             return
-        # If current step is a Parallelization node: a foactory of ParNode
+        # If current step is a Parallelization node: a factory of ParNode
         if isinstance(steps[0], Splitter):
-            for child in steps[0].produceNodes():
+            for child in steps[0].produceNodes(parent=self):
                 self.add_children(child)
-                child.build_tree(steps[1:], **kwargs)
+                child.build_tree(steps[1:])
         else:
             import copy
             child = copy.deepcopy(steps[0])
             self.add_children(child)
-            child.build_tree(steps[1:], **kwargs)
+            child.build_tree(steps[1:])
 
     def __iter__(self):
         """ Iterate over leaves"""
@@ -317,19 +320,19 @@ class Node(object):
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def topdown(self, recursive=True, **kwargs):
+    def topdown(self, recursion=True, **kwargs):
         """Top-down data processing method
 
-            This method does nothing more that recursively call
+            This method does nothing more that recursionly call
             parent/children map. Most of time, it should be re-defined.
 
             Parameters
             ----------
-            recursive: boolean
-                if True recursively call parent/children map. If the
+            recursion: boolean
+                if True recursionly call parent/children map. If the
                 current node is the root of the tree call the children.
                 This way the whole tree is executed.
-                If it is a leaf, then recursively call the parent before
+                If it is a leaf, then recursionly call the parent before
                 being executed. This a pipeline made of the path from the
                 leaf to the root is executed.
             **kwargs: dict
@@ -340,35 +343,42 @@ class Node(object):
             A dictionnary of processed data
         """
         print "topdown", self.get_key()
-        recursive = self.check_recursive(recursive)
-        if recursive is Config.recursive_up:
-            # Recursively call parent map up to root
-            kwargs = self.parent.topdown(recursive=recursive, **kwargs)
+        recursion = self.check_recursion(recursion)
+        if recursion is RECURSION_UP:
+            # recursionly call parent map up to root
+            kwargs = self.parent.topdown(recursion=recursion, **kwargs)
         kwargs = self.transform(**kwargs)
-        if recursive is Config.recursive_down:
+        if recursion is RECURSION_DOWN:
             # Call children map down to leaves
-            [child.topdown(recursive=recursive, **kwargs) for child
+            [child.topdown(recursion=recursion, **kwargs) for child
                 in self.children]
         return kwargs
 
     def transform(self, **kwargs):
         return kwargs
 
-    def check_recursive(self, recursive):
-        if recursive and type(recursive) is bool:
+    def check_recursion(self, recursion):
+        """ Check the way a recursion call can go.
+
+            Parameter
+            ---------
+            recursion: int, bool, function
+            if bool guess the way the recursion can go
+            else do nothing an return recursion."""
+        if recursion and type(recursion) is bool:
             if not self.children:
-                recursive = Config.recursive_up
+                recursion = RECURSION_UP
             elif not self.parent:
-                recursive = Config.recursive_down
+                recursion = RECURSION_DOWN
             else:
-                raise ValueError("recursive is True, but the node is neither"+\
-            "a leaf or the root tree, it then not possible to guess"+ \
-            "if recurssion should go up or down")
-        if recursive is Config.recursive_up and not self.parent:
-            recursive = False
-        elif recursive is Config.recursive_down and not self.children:
-            recursive = False
-        return recursive
+                raise ValueError("recursion is True, but the node is " + \
+            "neither a leaf nor the root tree, it then not possible to " + \
+            "guess if recurssion should go up or down")
+        if recursion is RECURSION_UP and not self.parent:
+            return False
+        if recursion is RECURSION_DOWN and not self.children:
+            return False
+        return recursion
 
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
@@ -405,11 +415,11 @@ class Node(object):
     # -- I/O persistance operations -- #
     # -------------------------------- #
 
-    def save_node(self, recursive=True):
+    def save_node(self, recursion=True):
         """I/O (persistance) operation: save the node on the store"""
         key = self.get_key()
         store = get_store(key)
-        # Prevent recursive saving of children/parent in a single dump:
+        # Prevent recursion saving of children/parent in a single dump:
         # replace reference to chidren/parent by basename strings
         import copy
         clone = copy.copy(self)
@@ -417,37 +427,38 @@ class Node(object):
         if self.parent:
             clone.parent = ".."
         store.save_object(clone, key)
-        recursive = self.check_recursive(recursive)
-        if recursive is Config.recursive_up:
-            # Recursively call parent save up to root
-            self.parent.save_node(recursive=recursive)
-        if recursive is Config.recursive_down:
+        recursion = self.check_recursion(recursion)
+        if recursion is RECURSION_UP:
+            # recursionly call parent save up to root
+            self.parent.save_node(recursion=recursion)
+        if recursion is RECURSION_DOWN:
             # Call children save down to leaves
-            [child.save_node(recursive=recursive) for child
+            [child.save_node(recursion=recursion) for child
                 in self.children]
 
 
-def load_node(key=None, store=None, recursive=True):
+def load_node(key=None, store=None, recursion=True):
     """I/O (persistance) operation load a node from the store"""
     if key is None:
         key = key_join(prot=Config.key_prot_fs, path=store)
     #self.add_children(self.build_execution_tree(steps, data))
     store = get_store(key)
     node = store.load_object(key)
-    # children contain basename string: Save the string a Recursively
+    # children contain basename string: Save the string a recursionly
     # walk/load children
-    recursive = node.check_recursive(recursive)
-    if recursive is Config.recursive_up:
+    recursion = node.check_recursion(recursion)
+    if recursion is RECURSION_UP:
         parent_key = key_pop(key)
-        parent = load_node(key=parent_key, recursive=recursive)
+        parent = load_node(key=parent_key, recursion=recursion)
         parent.add_child(node)
-    if recursive is Config.recursive_down:
+    if recursion is RECURSION_DOWN:
         children = node.children
         node.children = list()
         for child in children:
             child_key = key_push(key, child)
-            node.add_child(load_node(key=child_key, recursive=recursive))
+            node.add_child(load_node(key=child_key, recursion=recursion))
     return node
+
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
@@ -469,15 +480,18 @@ class NodeEstimator(Node):
         kwargs_train, kwargs_test = NodeKFold.split_train_test(**kwargs)
         self.estimator.fit(**kwargs_train)            # fit the training data
         if self.children:                         # transform input to output
-            kwargs_train["X"] = self.estimator.transform(X=kwargs_train.pop("X"))
-            kwargs_test["X"] = self.estimator.transform(X=kwargs_test.pop("X"))
+            kwargs_train["X"] = \
+                self.estimator.transform(X=kwargs_train.pop("X"))
+            kwargs_test["X"] = \
+                self.estimator.transform(X=kwargs_test.pop("X"))
             kwargs = NodeKFold.join_train_test(kwargs_train, kwargs_test)
         else:                 # leaf node: do the prediction predict the test
             y_true = kwargs_test.pop("y")
             y_pred = self.estimator.predict(**kwargs_test)
             kwargs = dict(y_true=y_true, y_pred=y_pred)
-            self.add_map_output(keyvals=kwargs)             # collect map output
+            self.add_map_output(keyvals=kwargs)          # collect map output
         return kwargs
+
 
 # ------------ #
 # -- Helper -- #
@@ -490,6 +504,7 @@ def node_factory(cls, node_kwargs):
 
 N = node_factory
 
+
 ## =========================== ##
 ## == Parallelization nodes == ##
 ## =========================== ##
@@ -498,13 +513,24 @@ class Splitter(object):
     """Abstract class for Factories of parallelization nodes that implement
     produceNodes"""
 
-    def produceNodes(self):
+    @abstractmethod
+    def produceNodes(self, parent):
+        """Produce parallelization nodes such as NodeKFold, NodPermutation,
+
+        Parameter
+        ---------
+        parent: Node
+        The parent node in the tree of the chidren to be created.
+            It is sometime necessary to create children nodes. For example
+            in the case of NodeStratifiedKFold, current "y" should be known
+            and could be permuted or resliced according to parents nodes."""
         raise NotImplementedError("Cannot call abstract method")
+
 
 # -------------------------------- #
 # -- Generic slicing operations -- #
 # -------------------------------- #
-    
+
 class NodeSlicer(Node):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
@@ -548,6 +574,7 @@ class NodeRowSlicer(NodeSlicer):
             else:
                 data_out[key_data] = data_out[key_data][self.slices]
         return data_out
+
 
 # ----------------------- #
 # -- Cross-validations -- #
@@ -628,6 +655,7 @@ class NodeKFold(NodeRowSlicer):
         kwargs.update(kwargs_test)
         return kwargs
 
+
 class SplitKFold(Splitter):
     """NodeKfold Factory"""
 
@@ -635,7 +663,7 @@ class SplitKFold(Splitter):
         self.n_folds = n_folds
         self.n = n
 
-    def produceNodes(self):
+    def produceNodes(self, parent):
         nodes = []
         from sklearn.cross_validation import KFold  # StratifiedKFold
         nb = 0
@@ -654,12 +682,21 @@ class SplitStratifiedKFold(Splitter):
         self.n_folds = n_folds
         self.y = y
 
-    def produceNodes(self):
+    def produceNodes(self, parent):
         nodes = []
         from sklearn.cross_validation import StratifiedKFold
         nb = 0
+        yt = self.y
+        # Apply possible re-slicing by parents nodes on y
+        for node in parent.get_path_from_root():
+            print node,
+            if isinstance(node, NodeRowSlicer):
+                print "transform"
+                yt = node.transform(y=yt)
+                kwargs_train, kwargs_test = NodeKFold.split_train_test(**yt)
+                yt = kwargs_train.pop("y")
         ## Re-slice y
-        for train, test in StratifiedKFold(y=self.y, n_folds=self.n_folds):
+        for train, test in StratifiedKFold(y=yt, n_folds=self.n_folds):
             nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
                                           NodeKFold.test_data_suffix: test},
                                           nb=nb))
@@ -677,6 +714,7 @@ class NodePermutation(NodeRowSlicer):
         self.n = n
         self.n_perms = n_perms
 
+
 class SplitPermutation(Splitter):
     """NodePermutation Factory"""
 
@@ -684,7 +722,7 @@ class SplitPermutation(Splitter):
         self.n = n
         self.n_perms = n_perms
 
-    def produceNodes(self):
+    def produceNodes(self, parent):
         nodes = []
         from addtosklearn import Permutation
         nb = 0
@@ -692,6 +730,7 @@ class SplitPermutation(Splitter):
             nodes.append(NodePermutation(permutation=perm, nb=nb))
             nb += 1
         return nodes
+
 
 # ------------ #
 # -- Helper -- #
@@ -704,10 +743,11 @@ def splitter_factory(cls, split_kwargs, job_kwargs):
         return SplitStratifiedKFold(**split_kwargs)
     if cls.__name__ == "Permutation":
         return SplitPermutation(**split_kwargs)
-    raise ValueError("Do not know how to build a splitter with %s" % (str(cls)))
-        
-PAR =  splitter_factory
+    raise ValueError("Do not know how to build a splitter with %s" % \
+        (str(cls)))
 
+
+PAR = splitter_factory
 
 # Data
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
@@ -716,6 +756,7 @@ y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 from sklearn import svm
 from sklearn import lda
 from sklearn.cross_validation import KFold
+from sklearn.cross_validation import StratifiedKFold
 
 if False:
     steps = (
@@ -725,7 +766,7 @@ if False:
 if False:
     from sklearn.feature_selection import SelectKBest
     steps = (
-    PAR(KFold, dict(n=X.shape[0], n_folds=4), dict(n_jobs=5)),
+    PAR(StratifiedKFold, dict(y="y", n_folds=4), dict(n_jobs=5)),
         N(SelectKBest, dict(k=2)),
         N(svm.SVC, dict(kernel="linear")))
 
@@ -734,10 +775,15 @@ if True:
     from addtosklearn import Permutation
     steps = (
     PAR(Permutation, dict(n=X.shape[0], n_perms=2), dict(n_jobs=5)),
-    PAR(KFold, dict(n=X.shape[0], n_folds=2), dict(n_jobs=5)),
+    PAR(StratifiedKFold, dict(y=y, n_folds=2), dict(n_jobs=5)),
         N(SelectKBest, dict(k=2)),
         N(svm.SVC, dict(kernel="linear")))
 
 tree = Node(steps=steps, store="/tmp/store")
+self=tree
+parent = tree.children[0].children[0]
+
+
+
 #[leaf.topdown(X=X, y=y) for leaf in tree]
 #tree.reduce()
