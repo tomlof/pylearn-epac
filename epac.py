@@ -197,7 +197,7 @@ class Config:
     key_prot_fs = "file"  # key storage protocol: file system
     key_path_sep = "/"
     key_prot_path_sep = "://"  # key storage protocol / path separator
-    kwargs_data_prefix = ["X", "y"]
+    downstream_kwargs_data_prefix = ["X", "y"]
 
 
 RECURSION_UP = 1
@@ -209,8 +209,9 @@ class Node(object):
         - key/val
         - I/O interface with the store."""
 
-    def __init__(self, steps=None, key=None, store=None, **kwargs):
-        self.__dict__.update(kwargs)
+    def __init__(self, name=None, steps=None, key=None, store=None):
+        #self.__dict__.update(kwargs)
+        self.name = name
         self.parent = None
         self.children = list()
         self.map_outputs = dict()
@@ -320,7 +321,7 @@ class Node(object):
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def topdown(self, recursion=True, **kwargs):
+    def top_down(self, recursion=True, **downstream_kwargs):
         """Top-down data processing method
 
             This method does nothing more that recursionly call
@@ -335,24 +336,25 @@ class Node(object):
                 If it is a leaf, then recursionly call the parent before
                 being executed. This a pipeline made of the path from the
                 leaf to the root is executed.
-            **kwargs: dict
+            **downstream_kwargs: dict
                 the keyword dictionnary of data flow
 
             Return
             ------
             A dictionnary of processed data
         """
-        print "topdown", self.get_key()
+        print "top_down", self.get_key()
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursionly call parent map up to root
-            kwargs = self.parent.topdown(recursion=recursion, **kwargs)
-        kwargs = self.transform(**kwargs)
+            downstream_kwargs = self.parent.top_down(recursion=recursion,
+                                                     **downstream_kwargs)
+        downstream_kwargs = self.transform(**downstream_kwargs)
         if recursion is RECURSION_DOWN:
             # Call children map down to leaves
-            [child.topdown(recursion=recursion, **kwargs) for child
-                in self.children]
-        return kwargs
+            [child.top_down(recursion=recursion, **downstream_kwargs)
+                for child in self.children]
+        return downstream_kwargs
 
     def transform(self, **kwargs):
         return kwargs
@@ -384,12 +386,12 @@ class Node(object):
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
 
-    def reduce(self):
+    def bottum_up(self):
         # Terminaison (leaf) node
-        if len(self.children) == 0:
+        if not self.children:
             return self.map_outputs
         # 1) Build sub-aggregates over children
-        sub_aggregates = [child.reduce() for child in self.children]
+        sub_aggregates = [child.bottum_up() for child in self.children]
         # 2) Agregate children's sub-aggregates
         aggregate = dict()
         for sub_aggregate in sub_aggregates:
@@ -467,30 +469,30 @@ def load_node(key=None, store=None, recursion=True):
 class NodeEstimator(Node):
     """Node that wrap estimators"""
 
-    def __init__(self, estimator, **kwargs):
+    def __init__(self, estimator):
         self.estimator = estimator
         super(NodeEstimator, self).__init__(
-            name=estimator.__class__.__name__, **kwargs)
+            name=estimator.__class__.__name__)
 
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def transform(self, **kwargs):
-        kwargs_train, kwargs_test = NodeKFold.split_train_test(**kwargs)
-        self.estimator.fit(**kwargs_train)            # fit the training data
+    def transform(self, **downstream_kwargs):
+        downstream_kwargs_train, downstream_kwargs_test = NodeKFold.split_train_test(**downstream_kwargs)
+        self.estimator.fit(**downstream_kwargs_train)            # fit the training data
         if self.children:                         # transform input to output
-            kwargs_train["X"] = \
-                self.estimator.transform(X=kwargs_train.pop("X"))
-            kwargs_test["X"] = \
-                self.estimator.transform(X=kwargs_test.pop("X"))
-            kwargs = NodeKFold.join_train_test(kwargs_train, kwargs_test)
+            downstream_kwargs_train["X"] = \
+                self.estimator.transform(X=downstream_kwargs_train.pop("X"))
+            downstream_kwargs_test["X"] = \
+                self.estimator.transform(X=downstream_kwargs_test.pop("X"))
+            downstream_kwargs = NodeKFold.join_train_test(downstream_kwargs_train, downstream_kwargs_test)
         else:                 # leaf node: do the prediction predict the test
-            y_true = kwargs_test.pop("y")
-            y_pred = self.estimator.predict(**kwargs_test)
-            kwargs = dict(y_true=y_true, y_pred=y_pred)
-            self.add_map_output(keyvals=kwargs)          # collect map output
-        return kwargs
+            y_true = downstream_kwargs_test.pop("y")
+            y_pred = self.estimator.predict(**downstream_kwargs_test)
+            downstream_kwargs = dict(y_true=y_true, y_pred=y_pred)
+            self.add_map_output(keyvals=downstream_kwargs)          # collect map output
+        return downstream_kwargs
 
 
 # ------------ #
@@ -535,8 +537,8 @@ class NodeSlicer(Node):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
     """
-    def __init__(self, transform_only=None, **kwargs):
-        super(NodeSlicer, self).__init__(**kwargs)
+    def __init__(self, name, transform_only=None):
+        super(NodeSlicer, self).__init__(name=name)
         self.transform_only = transform_only
 
 
@@ -549,8 +551,8 @@ class NodeRowSlicer(NodeSlicer):
     slices: dict of sets of slicing indexes or a single set of slicing indexes
     """
 
-    def __init__(self, slices, **kwargs):
-        super(NodeRowSlicer, self).__init__(**kwargs)
+    def __init__(self, name, slices):
+        super(NodeRowSlicer, self).__init__(name=name)
         # convert a as list if required
         if isinstance(slices, dict):
             self.slices =\
@@ -560,10 +562,10 @@ class NodeRowSlicer(NodeSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def transform(self, **kwargs):
+    def transform(self, **downstream_kwargs):
         keys_data = self.transform_only if self.transform_only\
-                    else kwargs.keys()
-        data_out = kwargs.copy()
+                    else downstream_kwargs.keys()
+        data_out = downstream_kwargs.copy()
         for key_data in keys_data:  # slice input data
             if isinstance(self.slices, dict):
                 # rename output keys according to input keys and slice keys
@@ -585,15 +587,15 @@ class NodeKFold(NodeRowSlicer):
     train_data_suffix = "train"
     test_data_suffix = "test"
 
-    def __init__(self, n=None, n_folds=None, slices=None, nb=None, **kwargs):
-        super(NodeKFold, self).__init__(slices=slices,
-            name="KFold-" + str(nb), **kwargs)
+    def __init__(self, n=None, n_folds=None, slices=None, nb=None):
+        super(NodeKFold, self).__init__(name="KFold-" + str(nb), 
+              slices=slices)
         self.n = n
         self.n_folds = n_folds
 
     @classmethod
-    def split_train_test(cls, **kwargs):
-        """Split kwargs into train dict (that contains train suffix in kw)
+    def split_train_test(cls, **downstream_kwargs):
+        """Split downstream_kwargs into train dict (that contains train suffix in kw)
         and test dict (that contains test suffix in kw).
 
         Returns
@@ -612,26 +614,26 @@ class NodeKFold(NodeRowSlicer):
         >>> NodeKFold.split_train_test(X=1, y=2, a=33)
         ({'y': 2, 'X': 1, 'a': 33}, {'y': 2, 'X': 1, 'a': 33})
         """
-        kwargs_train = kwargs.copy()
-        kwargs_test = kwargs.copy()
-        for data_key in Config.kwargs_data_prefix:
+        downstream_kwargs_train = downstream_kwargs.copy()
+        downstream_kwargs_test = downstream_kwargs.copy()
+        for data_key in Config.downstream_kwargs_data_prefix:
             data_key_train = data_key + NodeKFold.train_data_suffix
             data_key_test = data_key + NodeKFold.test_data_suffix
-            if data_key_test in kwargs_train:  # Remove [X|y]test from train
-                kwargs_train.pop(data_key_test)
-            if data_key_train in kwargs_test:  # Remove [X|y]train from test
-                kwargs_test.pop(data_key_train)
+            if data_key_test in downstream_kwargs_train:  # Remove [X|y]test from train
+                downstream_kwargs_train.pop(data_key_test)
+            if data_key_train in downstream_kwargs_test:  # Remove [X|y]train from test
+                downstream_kwargs_test.pop(data_key_train)
             # [X|y]train becomes [X|y] to be complient with estimator API
-            if data_key_train in kwargs_train:
-                kwargs_train[data_key] = kwargs_train.pop(data_key_train)
+            if data_key_train in downstream_kwargs_train:
+                downstream_kwargs_train[data_key] = downstream_kwargs_train.pop(data_key_train)
             # [X|y]test becomes [X|y] to be complient with estimator API
-            if data_key_test in kwargs_test:
-                kwargs_test[data_key] = kwargs_test.pop(data_key_test)
-        return kwargs_train, kwargs_test
+            if data_key_test in downstream_kwargs_test:
+                downstream_kwargs_test[data_key] = downstream_kwargs_test.pop(data_key_test)
+        return downstream_kwargs_train, downstream_kwargs_test
 
     @classmethod
-    def join_train_test(cls, kwargs_train, kwargs_test):
-        """Merge train test separate kwargs into single dict.
+    def join_train_test(cls, downstream_kwargs_train, downstream_kwargs_test):
+        """Merge train test separate downstream_kwargs into single dict.
 
             Returns
             -------
@@ -643,17 +645,19 @@ class NodeKFold(NodeRowSlicer):
             ...                          dict(X=-1, y=-2, a=33))
             {'ytest': -2, 'Xtest': -1, 'a': 33, 'Xtrain': 1, 'ytrain': 2}
         """
-        kwargs = dict()
-        for data_key in Config.kwargs_data_prefix:
-            if data_key in kwargs_train:  # Get [X|y] from train
+        downstream_kwargs = dict()
+        for data_key in Config.downstream_kwargs_data_prefix:
+            if data_key in downstream_kwargs_train:  # Get [X|y] from train
                 data_key_train = data_key + NodeKFold.train_data_suffix
-                kwargs[data_key_train] = kwargs_train.pop(data_key)
-            if data_key in kwargs_test:  # Get [X|y] from train
+                downstream_kwargs[data_key_train] = \
+                    downstream_kwargs_train.pop(data_key)
+            if data_key in downstream_kwargs_test:  # Get [X|y] from train
                 data_key_test = data_key + NodeKFold.test_data_suffix
-                kwargs[data_key_test] = kwargs_test.pop(data_key)
-        kwargs.update(kwargs_train)
-        kwargs.update(kwargs_test)
-        return kwargs
+                downstream_kwargs[data_key_test] = \
+                    downstream_kwargs_test.pop(data_key)
+        downstream_kwargs.update(downstream_kwargs_train)
+        downstream_kwargs.update(downstream_kwargs_test)
+        return downstream_kwargs
 
 
 class SplitKFold(Splitter):
@@ -693,8 +697,9 @@ class SplitStratifiedKFold(Splitter):
             if isinstance(node, NodeRowSlicer):
                 print "transform"
                 yt = node.transform(y=yt)
-                kwargs_train, kwargs_test = NodeKFold.split_train_test(**yt)
-                yt = kwargs_train.pop("y")
+                downstream_kwargs_train, downstream_kwargs_test = \
+                    NodeKFold.split_train_test(**yt)
+                yt = downstream_kwargs_train.pop("y")
         ## Re-slice y
         for train, test in StratifiedKFold(y=yt, n_folds=self.n_folds):
             nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
@@ -707,10 +712,9 @@ class SplitStratifiedKFold(Splitter):
 class NodePermutation(NodeRowSlicer):
     """ Permutation parallelization node"""
 
-    def __init__(self, n=None, n_perms=None, permutation=None, nb=None,
-                 **kwargs):
-        super(NodePermutation, self).__init__(slices=permutation,
-            name="Permutation-" + str(nb), **kwargs)
+    def __init__(self, n=None, n_perms=None, permutation=None, nb=None):
+        super(NodePermutation, self).__init__(name="Permutation-" + str(nb),
+              slices=permutation)
         self.n = n
         self.n_perms = n_perms
 
@@ -784,6 +788,8 @@ self=tree
 parent = tree.children[0].children[0]
 
 
-
-#[leaf.topdown(X=X, y=y) for leaf in tree]
-#tree.reduce()
+# top-down flow can be triggered from leaves
+[leaf.top_down(X=X, y=y) for leaf in tree]
+# or direclty from the root
+tree.top_down(X=X, y=y)
+tree.bottum_up()
