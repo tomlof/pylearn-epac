@@ -495,18 +495,6 @@ class NodeEstimator(Node):
         return downstream_kwargs
 
 
-# ------------ #
-# -- Helper -- #
-# ------------ #
-
-def node_factory(cls, node_kwargs):
-    instance = object.__new__(cls)
-    instance.__init__(**node_kwargs)
-    return NodeEstimator(instance)
-
-N = node_factory
-
-
 ## =========================== ##
 ## == Parallelization nodes == ##
 ## =========================== ##
@@ -619,16 +607,20 @@ class NodeKFold(NodeRowSlicer):
         for data_key in Config.downstream_kwargs_data_prefix:
             data_key_train = data_key + NodeKFold.train_data_suffix
             data_key_test = data_key + NodeKFold.test_data_suffix
-            if data_key_test in downstream_kwargs_train:  # Remove [X|y]test from train
+            # Remove [X|y]test from train
+            if data_key_test in downstream_kwargs_train:
                 downstream_kwargs_train.pop(data_key_test)
-            if data_key_train in downstream_kwargs_test:  # Remove [X|y]train from test
+            # Remove [X|y]train from test
+            if data_key_train in downstream_kwargs_test:
                 downstream_kwargs_test.pop(data_key_train)
             # [X|y]train becomes [X|y] to be complient with estimator API
             if data_key_train in downstream_kwargs_train:
-                downstream_kwargs_train[data_key] = downstream_kwargs_train.pop(data_key_train)
+                downstream_kwargs_train[data_key] =\
+                    downstream_kwargs_train.pop(data_key_train)
             # [X|y]test becomes [X|y] to be complient with estimator API
             if data_key_test in downstream_kwargs_test:
-                downstream_kwargs_test[data_key] = downstream_kwargs_test.pop(data_key_test)
+                downstream_kwargs_test[data_key] =\
+                    downstream_kwargs_test.pop(data_key_test)
         return downstream_kwargs_train, downstream_kwargs_test
 
     @classmethod
@@ -740,18 +732,32 @@ class SplitPermutation(Splitter):
 # -- Helper -- #
 # ------------ #
 
-def splitter_factory(cls, split_kwargs, job_kwargs):
-    if cls.__name__ == "KFold":
-        return SplitKFold(**split_kwargs)
-    if cls.__name__ == "StratifiedKFold":
-        return SplitStratifiedKFold(**split_kwargs)
-    if cls.__name__ == "Permutation":
-        return SplitPermutation(**split_kwargs)
-    raise ValueError("Do not know how to build a splitter with %s" % \
-        (str(cls)))
+def TASK(cls, node_kwargs):
+    instance = object.__new__(cls)
+    instance.__init__(**node_kwargs)
+    return NodeEstimator(instance)
 
+def PAR(*args):
+    import inspect
+    # PAR ::= PAR(class_iterable, class_iterable_params,  job_params, BRANCH)
+    if len(args) == 3 and inspect.isclass(args[0]):
+        cls = args[0]
+        split_kwargs = args[1]
+        job_kwargs = args[2]
+        if cls.__name__ == "KFold":
+            return SplitKFold(**split_kwargs)
+        if cls.__name__ == "StratifiedKFold":
+            return SplitStratifiedKFold(**split_kwargs)
+        if cls.__name__ == "Permutation":
+            return SplitPermutation(**split_kwargs)
+        raise ValueError("Do not know how to build a splitter with %s" % \
+            (str(cls)))
+    #else:
+        
+def SEQ(*args):
+    pass
 
-PAR = splitter_factory
+# = splitter_factory
 
 # Data
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
@@ -782,6 +788,8 @@ if True:
     PAR(StratifiedKFold, dict(y=y, n_folds=2), dict(n_jobs=5)),
         N(SelectKBest, dict(k=2)),
         N(svm.SVC, dict(kernel="linear")))
+
+PAR(N(svm.SVC, dict(kernel="linear")), N(svm.SVC, dict(kernel="linear")) )
 
 tree = Node(steps=steps, store="/tmp/store")
 self=tree
