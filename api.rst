@@ -81,10 +81,11 @@ N(svm.SVC, dict(kernel="linear"))
 Proposition
 ============
 
-TASK   ::= (class, params)|(func, params)
-SEQ    ::= SEQ(TASK [, TASK]*)
-PAR    ::= PAR(class_iterable, class_iterable_params,  job_params, TASK|SEQ|PAR)
-       ::= PAR(TASK [, TASK]+)
+Node    ::= class|(class, kwargs)|(func, kwargs)|SEQ|PAR
+Splitter::= (KFold|StratifiedKFold|Permutation, kwargs)
+SEQ     ::= SEQ(Node [, Node]*)
+PAR     ::= PAR(Node [, Node]+)
+        ::= PAR(Splitter, Node)
 
 params ::= dict()
 splitter_params ::= dict()

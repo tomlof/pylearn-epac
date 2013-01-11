@@ -274,25 +274,25 @@ class Node(object):
             return [self]
         return self.parent.get_path_from_root() + [self]
 
-    def build_tree(self, steps):
-        """Build execution tree.
-
-        Parameters
-        ----------
-        steps: list
-        """
-        if len(steps) == 0:
-            return
-        # If current step is a Parallelization node: a factory of ParNode
-        if isinstance(steps[0], Splitter):
-            for child in steps[0].produceNodes(parent=self):
-                self.add_children(child)
-                child.build_tree(steps[1:])
-        else:
-            import copy
-            child = copy.deepcopy(steps[0])
-            self.add_children(child)
-            child.build_tree(steps[1:])
+#    def build_tree(self, steps):
+#        """Build execution tree.
+#
+#        Parameters
+#        ----------
+#        steps: list
+#        """
+#        if len(steps) == 0:
+#            return
+#        # If current step is a Parallelization node: a factory of ParNode
+#        if isinstance(steps[0], Splitter):
+#            for child in steps[0].produceNodes(parent=self):
+#                self.add_children(child)
+#                child.build_tree(steps[1:])
+#        else:
+#            import copy
+#            child = copy.deepcopy(steps[0])
+#            self.add_children(child)
+#            child.build_tree(steps[1:])
 
     def __iter__(self):
         """ Iterate over leaves"""
@@ -732,30 +732,107 @@ class SplitPermutation(Splitter):
 # -- Helper -- #
 # ------------ #
 
-def TASK(cls, node_kwargs):
-    instance = object.__new__(cls)
-    instance.__init__(**node_kwargs)
-    return NodeEstimator(instance)
 
-def PAR(*args):
+def PAR2(*args):
     import inspect
     # PAR ::= PAR(class_iterable, class_iterable_params,  job_params, BRANCH)
     if len(args) == 3 and inspect.isclass(args[0]):
         cls = args[0]
         split_kwargs = args[1]
         job_kwargs = args[2]
-        if cls.__name__ == "KFold":
-            return SplitKFold(**split_kwargs)
-        if cls.__name__ == "StratifiedKFold":
-            return SplitStratifiedKFold(**split_kwargs)
-        if cls.__name__ == "Permutation":
-            return SplitPermutation(**split_kwargs)
+
         raise ValueError("Do not know how to build a splitter with %s" % \
             (str(cls)))
-    #else:
-        
+
+def NodeFactory(*args):
+    """
+    Parameters
+    ----------
+    class | (class, dict(kwargs)) | SEQ | PAR
+
+    Examples
+    --------
+        NodeFactory(lda.LDA)
+        NodeFactory(svm.SVC, dict(kernel="linear"))
+        NodeFactory(KFold, dict(n=10, n_folds=4))
+    """
+    # Arg is already a Node return it
+    if len(args) == 1 and isinstance(args[0], Node):  # Node
+        return args[0]
+    # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
+    if args[0].__name__ in ("KFold", "StratifiedKFold", "Permutation") and\
+    len(args) == 2:
+        split_cls = args[0]
+        split_kwargs = args[1]
+        if split_cls.__name__ == "KFold":
+            return SplitKFold(**split_kwargs)
+        if split_cls.__name__ == "StratifiedKFold":
+            return SplitStratifiedKFold(**split_kwargs)
+        if split_cls.__name__ == "Permutation":
+            return SplitPermutation(**split_kwargs)
+    # NodeEstimator: class|(class, kwargs)
+    instance = object.__new__(args[0])
+    if len(args) == 1:  # class 
+        instance.__init__()
+    else:               # class, kwargs
+        instance.__init__(**args[1])
+    return NodeEstimator(instance)
+
+
 def SEQ(*args):
-    pass
+    """
+    SEQ(TASK [, TASK]*)
+    Parameters
+    ----------
+    TASK [, TASK]*
+
+    Examples
+    --------
+        SEQ((SelectKBest, dict(k=2)),  (svm.SVC, dict(kernel="linear")))
+    """
+    # SEQ(Node [, Node]*)
+    root = None
+    for task in args:
+        curr = NodeFactory(*task) if isinstance(task, (list, tuple))\
+          else NodeFactory(task)
+        if not root:
+            root = curr
+        else:
+            prev.add_child(curr)
+        prev = curr
+    return root
+
+
+def PAR(*args):
+    """
+    PAR(TASK [, TASK]*)
+    Parameters
+    ----------
+    a list of TASK
+
+    Examples
+    --------
+        PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")))
+        PAR(Splitter, Node)
+    """
+    root = Node()
+    first = NodeFactory(*args[0]) if isinstance(args[0], (list, tuple))\
+          else NodeFactory(args[0])
+    # PAR(Splitter, Node)
+    if isinstance(first, Splitter):
+        for child in first.produceNodes(parent=root):
+            root.add_child(child)
+        return root
+    # PAR(Node [, Node]+)
+    root.add_child(first)
+    for task in args[1:]:
+        curr = NodeFactory(*task) if isinstance(task, (list, tuple))\
+          else NodeFactory(task)
+        root.add_child(curr)
+    return root
+
+    #else:
+
 
 # = splitter_factory
 
@@ -767,6 +844,15 @@ from sklearn import svm
 from sklearn import lda
 from sklearn.cross_validation import KFold
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.feature_selection import SelectKBest
+
+s = SEQ((SelectKBest, dict(k=2)),  (svm.SVC, dict(kernel="linear")))
+p = PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")))
+p2 = PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")), s)
+
+p3 = PAR((KFold, dict(n=10, n_folds=4)), s)
+
+p3 = PAR((StratifiedKFold, dict(y="y", n_folds=4)), s)
 
 if False:
     steps = (
@@ -780,7 +866,7 @@ if False:
         N(SelectKBest, dict(k=2)),
         N(svm.SVC, dict(kernel="linear")))
 
-if True:
+if False:
     from sklearn.feature_selection import SelectKBest
     from addtosklearn import Permutation
     steps = (
@@ -789,15 +875,15 @@ if True:
         N(SelectKBest, dict(k=2)),
         N(svm.SVC, dict(kernel="linear")))
 
-PAR(N(svm.SVC, dict(kernel="linear")), N(svm.SVC, dict(kernel="linear")) )
+## PAR(N(svm.SVC, dict(kernel="linear")), N(svm.SVC, dict(kernel="linear")) )
 
-tree = Node(steps=steps, store="/tmp/store")
-self=tree
-parent = tree.children[0].children[0]
+## tree = Node(steps=steps, store="/tmp/store")
+## self=tree
+## parent = tree.children[0].children[0]
 
 
 # top-down flow can be triggered from leaves
-[leaf.top_down(X=X, y=y) for leaf in tree]
+# [leaf.top_down(X=X, y=y) for leaf in tree]
 # or direclty from the root
-tree.top_down(X=X, y=y)
-tree.bottum_up()
+# tree.top_down(X=X, y=y)
+#tree.bottum_up()
