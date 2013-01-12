@@ -285,7 +285,7 @@ class Node(object):
 #            return
 #        # If current step is a Parallelization node: a factory of ParNode
 #        if isinstance(steps[0], Splitter):
-#            for child in steps[0].produceNodes(parent=self):
+#            for child in steps[0].nodes_producer(parent=self):
 #                self.add_children(child)
 #                child.build_tree(steps[1:])
 #        else:
@@ -501,10 +501,10 @@ class NodeEstimator(Node):
 
 class Splitter(object):
     """Abstract class for Factories of parallelization nodes that implement
-    produceNodes"""
+    nodes_producer"""
 
     @abstractmethod
-    def produceNodes(self, parent):
+    def nodes_producer(self, parent):
         """Produce parallelization nodes such as NodeKFold, NodPermutation,
 
         Parameter
@@ -659,7 +659,7 @@ class SplitKFold(Splitter):
         self.n_folds = n_folds
         self.n = n
 
-    def produceNodes(self, parent):
+    def nodes_producer(self, parent):
         nodes = []
         from sklearn.cross_validation import KFold  # StratifiedKFold
         nb = 0
@@ -678,7 +678,7 @@ class SplitStratifiedKFold(Splitter):
         self.n_folds = n_folds
         self.y = y
 
-    def produceNodes(self, parent):
+    def nodes_producer(self, parent):
         nodes = []
         from sklearn.cross_validation import StratifiedKFold
         nb = 0
@@ -718,7 +718,7 @@ class SplitPermutation(Splitter):
         self.n = n
         self.n_perms = n_perms
 
-    def produceNodes(self, parent):
+    def nodes_producer(self, parent):
         nodes = []
         from addtosklearn import Permutation
         nb = 0
@@ -733,17 +733,6 @@ class SplitPermutation(Splitter):
 # ------------ #
 
 
-def PAR2(*args):
-    import inspect
-    # PAR ::= PAR(class_iterable, class_iterable_params,  job_params, BRANCH)
-    if len(args) == 3 and inspect.isclass(args[0]):
-        cls = args[0]
-        split_kwargs = args[1]
-        job_kwargs = args[2]
-
-        raise ValueError("Do not know how to build a splitter with %s" % \
-            (str(cls)))
-
 def NodeFactory(*args):
     """
     Parameters
@@ -752,24 +741,31 @@ def NodeFactory(*args):
 
     Examples
     --------
-        NodeFactory(lda.LDA)
-        NodeFactory(svm.SVC, dict(kernel="linear"))
+        NodeFactory(LDA)
+        NodeFactory(SVC, dict(kernel="linear"))
         NodeFactory(KFold, dict(n=10, n_folds=4))
     """
+    # Make it clever enough to deal single argument provided as a tuple
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        args = args[0]
     # Arg is already a Node return it
     if len(args) == 1 and isinstance(args[0], Node):  # Node
         return args[0]
     # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
+    # return a list of nodes (splits)
     if args[0].__name__ in ("KFold", "StratifiedKFold", "Permutation") and\
     len(args) == 2:
-        split_cls = args[0]
-        split_kwargs = args[1]
-        if split_cls.__name__ == "KFold":
-            return SplitKFold(**split_kwargs)
-        if split_cls.__name__ == "StratifiedKFold":
-            return SplitStratifiedKFold(**split_kwargs)
-        if split_cls.__name__ == "Permutation":
-            return SplitPermutation(**split_kwargs)
+        cls = args[0]
+        kwargs = args[1]
+        if cls.__name__ == "KFold":
+            return [NodeKFold(nb=nb, **kwargs) for nb in\
+                xrange(kwargs["n_folds"])]
+        if cls.__name__ == "StratifiedKFold":
+            return [NodeStratifiedKFold(nb=nb, **kwargs) for nb in\
+                xrange(kwargs["n_folds"])]
+        if cls.__name__ == "Permutation":
+            return [NodePermutation(nb=nb, **kwargs) for nb in\
+                xrange(kwargs["n_perms"])]
     # NodeEstimator: class|(class, kwargs)
     instance = object.__new__(args[0])
     if len(args) == 1:  # class 
@@ -788,13 +784,12 @@ def SEQ(*args):
 
     Examples
     --------
-        SEQ((SelectKBest, dict(k=2)),  (svm.SVC, dict(kernel="linear")))
+        SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
     """
     # SEQ(Node [, Node]*)
     root = None
     for task in args:
-        curr = NodeFactory(*task) if isinstance(task, (list, tuple))\
-          else NodeFactory(task)
+        curr = NodeFactory(task)
         if not root:
             root = curr
         else:
@@ -812,26 +807,27 @@ def PAR(*args):
 
     Examples
     --------
-        PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")))
+        PAR(LDA,  (SVC, dict(kernel="linear")))
         PAR(Splitter, Node)
     """
     root = Node()
-    first = NodeFactory(*args[0]) if isinstance(args[0], (list, tuple))\
-          else NodeFactory(args[0])
+    first = NodeFactory(args[0])
     # PAR(Splitter, Node)
-    if isinstance(first, Splitter):
-        for child in first.produceNodes(parent=root):
-            root.add_child(child)
+    if isinstance(first, (list, tuple)):
+        # first is a splitter ie.: a list of nodes
+        splits = first
+        task = args[1]
+        for split in splits:
+            import copy
+            split.add_child(NodeFactory(copy.deepcopy(task)))
+        root.add_children(splits)
         return root
     # PAR(Node [, Node]+)
     root.add_child(first)
     for task in args[1:]:
-        curr = NodeFactory(*task) if isinstance(task, (list, tuple))\
-          else NodeFactory(task)
+        curr = NodeFactory(task)
         root.add_child(curr)
     return root
-
-    #else:
 
 
 # = splitter_factory
@@ -840,31 +836,32 @@ def PAR(*args):
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-from sklearn import svm
-from sklearn import lda
+
 from sklearn.cross_validation import KFold
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import SelectKBest
+from sklearn.svm import SVC
+from sklearn.lda import LDA
 
-s = SEQ((SelectKBest, dict(k=2)),  (svm.SVC, dict(kernel="linear")))
-p = PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")))
-p2 = PAR(lda.LDA,  (svm.SVC, dict(kernel="linear")), s)
+s = SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
+p = PAR(LDA,  (SVC, dict(kernel="linear")))
+p2 = PAR(LDA,  (SVC, dict(kernel="linear")), s)
 
 p3 = PAR((KFold, dict(n=10, n_folds=4)), s)
 
-p3 = PAR((StratifiedKFold, dict(y="y", n_folds=4)), s)
+#p3 = PAR((StratifiedKFold, dict(y="y", n_folds=4)), s)
 
 if False:
     steps = (
     PAR(KFold, dict(n=X.shape[0], n_folds=4), dict()),
-        N(svm.SVC, dict(kernel='linear')))
+        N(SVC, dict(kernel='linear')))
 
 if False:
     from sklearn.feature_selection import SelectKBest
     steps = (
     PAR(StratifiedKFold, dict(y="y", n_folds=4), dict(n_jobs=5)),
         N(SelectKBest, dict(k=2)),
-        N(svm.SVC, dict(kernel="linear")))
+        N(SVC, dict(kernel="linear")))
 
 if False:
     from sklearn.feature_selection import SelectKBest
@@ -873,7 +870,7 @@ if False:
     PAR(Permutation, dict(n=X.shape[0], n_perms=2), dict(n_jobs=5)),
     PAR(StratifiedKFold, dict(y=y, n_folds=2), dict(n_jobs=5)),
         N(SelectKBest, dict(k=2)),
-        N(svm.SVC, dict(kernel="linear")))
+        N(SVC, dict(kernel="linear")))
 
 ## PAR(N(svm.SVC, dict(kernel="linear")), N(svm.SVC, dict(kernel="linear")) )
 
