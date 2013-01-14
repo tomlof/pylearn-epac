@@ -240,6 +240,11 @@ class Node(object):
             root = load_node(key=key, store=store)
             self.__dict__.update(root.__dict__)
 
+    def finalize_init(self, **downstream_kwargs):
+        if self.children:
+            [child.finalize_init(**downstream_kwargs) for child in
+                self.children]
+
     # --------------------- #
     # -- Tree operations -- #
     # --------------------- #
@@ -261,7 +266,7 @@ class Node(object):
         return key_push(self.parent.get_key(), self.get_name())
 
     def get_leaves(self):
-        if not len(self.children):
+        if not self.children:
             return [self]
         else:
             leaves = []
@@ -499,22 +504,22 @@ class NodeEstimator(Node):
 ## == Parallelization nodes == ##
 ## =========================== ##
 
-class Splitter(object):
-    """Abstract class for Factories of parallelization nodes that implement
-    nodes_producer"""
-
-    @abstractmethod
-    def nodes_producer(self, parent):
-        """Produce parallelization nodes such as NodeKFold, NodPermutation,
-
-        Parameter
-        ---------
-        parent: Node
-        The parent node in the tree of the chidren to be created.
-            It is sometime necessary to create children nodes. For example
-            in the case of NodeStratifiedKFold, current "y" should be known
-            and could be permuted or resliced according to parents nodes."""
-        raise NotImplementedError("Cannot call abstract method")
+#class Splitter(object):
+#    """Abstract class for Factories of parallelization nodes that implement
+#    nodes_producer"""
+#
+#    @abstractmethod
+#    def nodes_producer(self, parent):
+#        """Produce parallelization nodes such as NodeKFold, NodPermutation,
+#
+#        Parameter
+#        ---------
+#        parent: Node
+#        The parent node in the tree of the chidren to be created.
+#            It is sometime necessary to create children nodes. For example
+#            in the case of NodeStratifiedKFold, current "y" should be known
+#            and could be permuted or resliced according to parents nodes."""
+#        raise NotImplementedError("Cannot call abstract method")
 
 
 # -------------------------------- #
@@ -539,9 +544,11 @@ class NodeRowSlicer(NodeSlicer):
     slices: dict of sets of slicing indexes or a single set of slicing indexes
     """
 
-    def __init__(self, name, slices):
+    def __init__(self, name):
         super(NodeRowSlicer, self).__init__(name=name)
-        # convert a as list if required
+
+    def set_sclices(self, slices):
+        # convert as a list if required
         if isinstance(slices, dict):
             self.slices =\
                 {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
@@ -580,6 +587,25 @@ class NodeKFold(NodeRowSlicer):
               slices=slices)
         self.n = n
         self.n_folds = n_folds
+
+    def finalize_init(self, **downstream_kwargs):
+        if not self.slices: # initialize brothers sclicing
+            if isinstance(self.n, str): # self.n need to be evaluated
+                self.n = eval(self.n, downstream_kwargs.copy())
+            brothers = self.parent.children
+            from sklearn.cross_validation import KFold
+            nb = 0
+            for train, test in KFold(n=self.n, n_folds=self.n_folds):
+                brothers[nb].set_sclices({NodeKFold.train_data_suffix: train,
+                                     NodeKFold.test_data_suffix: test})
+                brothers[nb].n = self.n
+                nb += 1
+        # resclice downstream
+        downstream_kwargs = self.transform(**downstream_kwargs)
+        # propagate down-way
+        if self.children:
+            [child.finalize_init(**downstream_kwargs) for child in
+                self.children]
 
     @classmethod
     def split_train_test(cls, **downstream_kwargs):
@@ -651,54 +677,62 @@ class NodeKFold(NodeRowSlicer):
         downstream_kwargs.update(downstream_kwargs_test)
         return downstream_kwargs
 
+class NodeStratifiedKFold(NodeKFold):
+    """ StratifiedKFold parallelization node"""
 
-class SplitKFold(Splitter):
-    """NodeKfold Factory"""
-
-    def __init__(self, n, n_folds):
-        self.n_folds = n_folds
-        self.n = n
-
-    def nodes_producer(self, parent):
-        nodes = []
-        from sklearn.cross_validation import KFold  # StratifiedKFold
-        nb = 0
-        for train, test in KFold(n=self.n, n_folds=self.n_folds):
-            nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
-                                          NodeKFold.test_data_suffix: test},
-                                          nb=nb))
-            nb += 1
-        return nodes
-
-
-class SplitStratifiedKFold(Splitter):
-    """NodeStratifiedKFold Factory"""
-
-    def __init__(self, y, n_folds):
-        self.n_folds = n_folds
+    def __init__(self, y=None, n_folds=None, slices=None, nb=None):
+        super(NodeStratifiedKFold, self).__init__(name="StratifiedKFold-" + str(nb), 
+              slices=slices)
         self.y = y
+        self.n_folds = n_folds
 
-    def nodes_producer(self, parent):
-        nodes = []
-        from sklearn.cross_validation import StratifiedKFold
-        nb = 0
-        yt = self.y
-        # Apply possible re-slicing by parents nodes on y
-        for node in parent.get_path_from_root():
-            print node,
-            if isinstance(node, NodeRowSlicer):
-                print "transform"
-                yt = node.transform(y=yt)
-                downstream_kwargs_train, downstream_kwargs_test = \
-                    NodeKFold.split_train_test(**yt)
-                yt = downstream_kwargs_train.pop("y")
-        ## Re-slice y
-        for train, test in StratifiedKFold(y=yt, n_folds=self.n_folds):
-            nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
-                                          NodeKFold.test_data_suffix: test},
-                                          nb=nb))
-            nb += 1
-        return nodes
+    def finalize_init(self, **downstream_kwargs):
+        if not self.slices: # initialize brothers sclicing
+            if isinstance(self.y, str): # self.y need to be evaluated
+                self.y = eval(self.y, downstream_kwargs.copy())
+            brothers = self.parent.children
+            from sklearn.cross_validation import StratifiedKFold
+            nb = 0
+            for train, test in StratifiedKFold(y=self.y, n_folds=self.n_folds):
+                brothers[nb].set_sclices({NodeKFold.train_data_suffix: train,
+                                     NodeKFold.test_data_suffix: test})
+                brothers[nb].y = self.y
+                nb += 1
+        # resclice downstream
+        downstream_kwargs = self.transform(**downstream_kwargs)
+        # propagate down-way
+        if self.children:
+            [child.finalize_init(**downstream_kwargs) for child in
+                self.children]
+
+#class SplitStratifiedKFold(Splitter):
+#    """NodeStratifiedKFold Factory"""
+#
+#    def __init__(self, y, n_folds):
+#        self.n_folds = n_folds
+#        self.y = y
+#
+#    def nodes_producer(self, parent):
+#        nodes = []
+#        from sklearn.cross_validation import StratifiedKFold
+#        nb = 0
+#        yt = self.y
+#        # Apply possible re-slicing by parents nodes on y
+#        for node in parent.get_path_from_root():
+#            print node,
+#            if isinstance(node, NodeRowSlicer):
+#                print "transform"
+#                yt = node.transform(y=yt)
+#                downstream_kwargs_train, downstream_kwargs_test = \
+#                    NodeKFold.split_train_test(**yt)
+#                yt = downstream_kwargs_train.pop("y")
+#        ## Re-slice y
+#        for train, test in StratifiedKFold(y=yt, n_folds=self.n_folds):
+#            nodes.append(NodeKFold(slices={NodeKFold.train_data_suffix: train,
+#                                          NodeKFold.test_data_suffix: test},
+#                                          nb=nb))
+#            nb += 1
+#        return nodes
 
 
 class NodePermutation(NodeRowSlicer):
@@ -710,22 +744,39 @@ class NodePermutation(NodeRowSlicer):
         self.n = n
         self.n_perms = n_perms
 
+    def finalize_init(self, **downstream_kwargs):
+        if not self.slices: # initialize brothers sclicing
+            if isinstance(self.n, str): # self.n need to be evaluated
+                self.n = eval(self.n, downstream_kwargs.copy())
+            brothers = self.parent.children
+            from addtosklearn import Permutation
+            nb = 0
+            for perm in Permutation(n=self.n, n_perms=self.n_perms):
+                brothers[nb].set_sclices(perm)
+                brothers[nb].n = self.n
+                nb += 1
+        # resclice downstream
+        downstream_kwargs = self.transform(**downstream_kwargs)
+        # propagate down-way
+        if self.children:
+            [child.finalize_init(**downstream_kwargs) for child in
+                self.children]
 
-class SplitPermutation(Splitter):
-    """NodePermutation Factory"""
-
-    def __init__(self, n, n_perms):
-        self.n = n
-        self.n_perms = n_perms
-
-    def nodes_producer(self, parent):
-        nodes = []
-        from addtosklearn import Permutation
-        nb = 0
-        for perm in Permutation(n=self.n, n_perms=self.n_perms):
-            nodes.append(NodePermutation(permutation=perm, nb=nb))
-            nb += 1
-        return nodes
+#class SplitPermutation(Splitter):
+#    """NodePermutation Factory"""
+#
+#    def __init__(self, n, n_perms):
+#        self.n = n
+#        self.n_perms = n_perms
+#
+#    def nodes_producer(self, parent):
+#        nodes = []
+#        from addtosklearn import Permutation
+#        nb = 0
+#        for perm in Permutation(n=self.n, n_perms=self.n_perms):
+#            nodes.append(NodePermutation(permutation=perm, nb=nb))
+#            nb += 1
+#        return nodes
 
 
 # ------------ #
@@ -840,6 +891,7 @@ y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 from sklearn.cross_validation import KFold
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import SelectKBest
+from addtosklearn import Permutation
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 
@@ -847,7 +899,19 @@ s = SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
 p = PAR(LDA,  (SVC, dict(kernel="linear")))
 p2 = PAR(LDA,  (SVC, dict(kernel="linear")), s)
 
-p3 = PAR((KFold, dict(n=10, n_folds=4)), s)
+p3 = PAR((KFold, dict(n="y.shape[0]", n_folds=4)), s)
+p3.finalize_init(y=y)
+
+p3.children[0].slices
+p3.children[1].slices
+
+p4 = PAR((Permutation, dict(n="y.shape[0]", n_perms=2)),
+          PAR((KFold, dict(n="y.shape[0]", n_folds=3)),
+              s))
+p4.finalize_init(y=y)
+
+self = p4.children[0]
+
 
 #p3 = PAR((StratifiedKFold, dict(y="y", n_folds=4)), s)
 
