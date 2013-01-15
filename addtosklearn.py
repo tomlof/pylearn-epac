@@ -12,9 +12,9 @@ from sklearn.utils import check_random_state
 
 class Permutation(object):
 
-    def __init__(self, n, n_perms, add_id=True, random_state=None):
+    def __init__(self, n, n_perms, first_perm_is_id=True, random_state=None):
         self.random_state = random_state
-        self.add_id = add_id
+        self.first_perm_is_id = first_perm_is_id
         if abs(n - int(n)) >= np.finfo('f').eps:
             raise ValueError("n must be an integer")
         self.n = int(n)
@@ -23,13 +23,14 @@ class Permutation(object):
         self.n_perms = int(n_perms)
 
     def __iter__(self):
-        if self.add_id:
-            yield np.arange(self.n)
         rng = check_random_state(self.random_state)
-        permutation = rng.permutation(self.n)
-        #n = self.n
-        for i in xrange(self.n_perms):
-            yield permutation
+        if self.first_perm_is_id:
+            yield np.arange(self.n)  # id permutation
+            for i in xrange(self.n_perms - 1): # n_perms-1 random permutations
+                yield rng.permutation(self.n)
+        else:
+            for i in xrange(self.n_perms):  # n_perms random permutations
+                yield rng.permutation(self.n)
 
     def __repr__(self):
         return '%s.%s(n=%i)' % (
@@ -39,8 +40,4 @@ class Permutation(object):
         )
 
     def __len__(self):
-        if self.add_id:
-            return self.n_perms + 1
-        else:
-            return self.n_perms
-##
+        return self.n_perms 

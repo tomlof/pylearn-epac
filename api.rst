@@ -81,8 +81,8 @@ N(svm.SVC, dict(kernel="linear"))
 Proposition
 ============
 
-Node    ::= class|(class, kwargs)|(func, kwargs)|SEQ|PAR
-Splitter::= (KFold|StratifiedKFold|Permutation, kwargs)
+Node    ::= class|class, kwargs|func, kwargs|SEQ|PAR
+Splitter::= KFold|StratifiedKFold|Permutation, kwargs
 SEQ     ::= SEQ(Node [, Node]*)
 PAR     ::= PAR(Node [, Node]+)
         ::= PAR(Splitter, Node)
