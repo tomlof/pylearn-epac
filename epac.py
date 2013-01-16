@@ -254,11 +254,14 @@ class Node(object):
             1 (default) return the primary key
             2 return the intermediate key
         """
-        if isinstance(self, NodeMapper):
-            pass
+        name = self.get_name()
+        #  Only mapper contribute to intermediate key
+        if nb is 2 and not isinstance(self, NodeMapper):
+            name = None
         if not self.parent:
-            return self.get_name()
-        return key_push(self.parent.get_key(nb=nb), self.get_name())
+            return name
+        parent = self.parent.get_key(nb=nb)
+        key_push(parent, name) if name else parent 
 
     def get_leaves(self):
         if not self.children:
@@ -421,7 +424,7 @@ class Node(object):
 
 def load_node(key=None, store=None, recursion=True):
     """I/O (persistance) load a node indexed by key from the store.
-    
+
     Parameters
     ----------
     key: string
@@ -466,7 +469,8 @@ class NodeMapper(Node):
     """Abstract class of Node that contribute to transform the data"""
     def __init__(self, name):
         super(NodeMapper, self).__init__(name=name)
-        
+
+
 class NodeEstimator(NodeMapper):
     """Node that wrap estimators"""
 
@@ -926,6 +930,32 @@ def PAR(*args, **kwargs):
         root.save_node()
     return root
 
+from sklearn.cross_validation import KFold, StratifiedKFold
+from sklearn.feature_selection import SelectKBest
+from addtosklearn import Permutation
+from sklearn.svm import SVC
+from sklearn.lda import LDA        
+PAR(LDA(),  SVC(kernel="linear"))
+PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA())
+# 2 permutations of 3 folds of univariate filtering of SVM and LDA
+import tempfile
+import numpy as np
+store = tempfile.mktemp()
+X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+
+# Design of the exectuion tree
+anova_svm = SEQ(SelectKBest(k=2), SVC(kernel="linear"))
+anova_lda = SEQ(SelectKBest(k=2), LDA())
+algos = PAR(anova_svm, anova_lda)
+algos_cv = PAR(StratifiedKFold, dict(y="y", n_folds=2), algos)
+perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3), algos_cv,
+           data=dict(y=y), store=store)
+perms2 = NodeFactory(store=store)
+# run
+[leaf.top_down(X=X, y=y) for leaf in perms2]
+leaf.get_key()
+leaf.get_key(2)
 
 # = splitter_factory
 
