@@ -75,7 +75,7 @@ class StoreFs(Store):
             self.save_pickle(obj, file_path)
 
     def load_object(self, key):
-        """Load a node given a key, recursion=True recursionly walk through
+        """Load a node given a key, recursion=True recursively walk through
         children"""
         path = self.key2path(key)
         import os
@@ -83,7 +83,7 @@ class StoreFs(Store):
         import glob
         file_path = glob.glob(prefix + '*')
         if len(file_path) != 1:
-            raise IOError('Found no or more that one file in %s' % (prefix))
+            raise IOError('Found no or more that one file in %s*' % (prefix))
         file_path = file_path[0]
         _, ext = os.path.splitext(file_path)
         if ext == Config.store_fs_json_suffix:
@@ -155,7 +155,12 @@ class StoreFs(Store):
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
-    prot, path = key_split(key)
+    splits = key_split(key)
+    if len(splits) != 2 and \
+        not(splits[0] in (Config.key_prot_fs, Config.key_prot_lo)):
+        raise ValueError('No valid storage has been associated with key: "%s"'
+            % key)
+    prot, path = splits
     if prot == Config.key_prot_fs:
         return StoreFs()
     elif prot == Config.key_prot_lo:
@@ -209,38 +214,19 @@ class Node(object):
         - key/val
         - I/O interface with the store."""
 
-    def __init__(self, name=None, steps=None, key=None, store=None):
-        #self.__dict__.update(kwargs)
+    def __init__(self, name=None, key=None, store=None):
+        """
+        Parameter
+        ---------
+        name: the node's name, used to build its key
+        """
         self.name = name
         self.parent = None
         self.children = list()
         self.map_outputs = dict()
-        # If a steps is provided: initial construction of the execution tree
-        if steps:
-            if not store:
-                import string
-                import random
-                self.name = key_join(prot=Config.key_prot_lo,
-                    path="".join(random.choice(string.ascii_uppercase +
-                        string.digits) for x in range(10)))
-                self.build_tree(steps)
-            # store is a string and a valid directory , assume that storage
-            # will be done on the file system, ie.: key prefix "fs://"
-            elif isinstance(store, str):
-                self.name = key_join(prot=Config.key_prot_fs,
-                                     path=store)
-                self.build_tree(steps)
-                self.save_node()
-            else:
-                raise ValueError("Invalid value for store: should be: " +\
-                "None for no persistence and storage on living objects or " +\
-                "a string path for file system based storage")
-        # If not steps but store or key : load from fs store
-        if not steps and (isinstance(store, str) or isinstance(key, str)):
-            root = load_node(key=key, store=store)
-            self.__dict__.update(root.__dict__)
 
     def finalize_init(self, **downstream_kwargs):
+        """Overload this methods if init finalization is required"""
         if self.children:
             [child.finalize_init(**downstream_kwargs) for child in
                 self.children]
@@ -260,10 +246,19 @@ class Node(object):
     def get_name(self):
         return self.name
 
-    def get_key(self):
+    def get_key(self, nb=1):
+        """Return key
+        Argument
+        --------
+        nb: int
+            1 (default) return the primary key
+            2 return the intermediate key
+        """
+        if isinstance(self, NodeMapper):
+            pass
         if not self.parent:
             return self.get_name()
-        return key_push(self.parent.get_key(), self.get_name())
+        return key_push(self.parent.get_key(nb=nb), self.get_name())
 
     def get_leaves(self):
         if not self.children:
@@ -309,16 +304,16 @@ class Node(object):
     def top_down(self, recursion=True, **downstream_kwargs):
         """Top-down data processing method
 
-            This method does nothing more that recursionly call
+            This method does nothing more that recursively call
             parent/children map. Most of time, it should be re-defined.
 
             Parameters
             ----------
             recursion: boolean
-                if True recursionly call parent/children map. If the
+                if True recursively call parent/children map. If the
                 current node is the root of the tree call the children.
                 This way the whole tree is executed.
-                If it is a leaf, then recursionly call the parent before
+                If it is a leaf, then recursively call the parent before
                 being executed. This a pipeline made of the path from the
                 leaf to the root is executed.
             **downstream_kwargs: dict
@@ -331,7 +326,7 @@ class Node(object):
         print "top_down", self.get_key()
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
-            # recursionly call parent map up to root
+            # recursively call parent map up to root
             downstream_kwargs = self.parent.top_down(recursion=recursion,
                                                      **downstream_kwargs)
         downstream_kwargs = self.transform(**downstream_kwargs)
@@ -349,7 +344,7 @@ class Node(object):
 
             Parameter
             ---------
-            recursion: int, bool, function
+            recursion: int, bool
             if bool guess the way the recursion can go
             else do nothing an return recursion."""
         if recursion and type(recursion) is bool:
@@ -416,7 +411,7 @@ class Node(object):
         store.save_object(clone, key)
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
-            # recursionly call parent save up to root
+            # recursively call parent save up to root
             self.parent.save_node(recursion=recursion)
         if recursion is RECURSION_DOWN:
             # Call children save down to leaves
@@ -425,13 +420,30 @@ class Node(object):
 
 
 def load_node(key=None, store=None, recursion=True):
-    """I/O (persistance) operation load a node from the store"""
-    if key is None:
+    """I/O (persistance) load a node indexed by key from the store.
+    
+    Parameters
+    ----------
+    key: string
+        Load the node indexed by its key from the store. If missing then
+        assume file system store and the key will point on the root of the
+        store.
+
+    store: string
+        For fs store juste indicate the path to the store.
+
+    recursion: int, boolean
+        if True, load recursively, trying to guess the way: if node is a
+        leaf then recursively load the path to root int a bottum-up maner.
+        If the node is a root recursively load the whole tree in a top-down
+        manner.
+        if int should be: RECURSION_UP or RECURSION_DOWN
+    """
+    if key is None:  # assume fs store, and point on the root of the store
         key = key_join(prot=Config.key_prot_fs, path=store)
-    #self.add_children(self.build_execution_tree(steps, data))
     store = get_store(key)
     node = store.load_object(key)
-    # children contain basename string: Save the string a recursionly
+    # children contain basename string: Save the string a recursively
     # walk/load children
     recursion = node.check_recursion(recursion)
     if recursion is RECURSION_UP:
@@ -450,27 +462,40 @@ def load_node(key=None, store=None, recursion=True):
 ## ================================= ##
 ## == Wrapper node for estimators == ##
 ## ================================= ##
-
-class NodeEstimator(Node):
+class NodeMapper(Node):
+    """Abstract class of Node that contribute to transform the data"""
+    def __init__(self, name):
+        super(NodeMapper, self).__init__(name=name)
+        
+class NodeEstimator(NodeMapper):
     """Node that wrap estimators"""
 
     def __init__(self, estimator):
         self.estimator = estimator
         super(NodeEstimator, self).__init__(
             name=estimator.__class__.__name__)
+        self.args_fit = _get_args_names(self.estimator.fit) \
+            if hasattr(self.estimator, "fit") else None
+        self.args_predict = _get_args_names(self.estimator.predict) \
+            if hasattr(self.estimator, "predict") else None
+        self.args_transform = _get_args_names(self.estimator.transform) \
+            if hasattr(self.estimator, "transform") else None
 
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
     def transform(self, **downstream_kwargs):
-        downstream_kwargs_train, downstream_kwargs_test = NodeKFold.split_train_test(**downstream_kwargs)
-        self.estimator.fit(**downstream_kwargs_train)            # fit the training data
-        if self.children:                         # transform input to output
-            downstream_kwargs_train["X"] = \
-                self.estimator.transform(X=downstream_kwargs_train.pop("X"))
-            downstream_kwargs_test["X"] = \
-                self.estimator.transform(X=downstream_kwargs_test.pop("X"))
+        downstream_kwargs_train, downstream_kwargs_test = \
+            NodeKFold.split_train_test(**downstream_kwargs)
+        # fit the training data selecting only args_fit in stream
+        self.estimator.fit(**_sub_dict(downstream_kwargs_train, self.args_fit))
+        if self.children: # transform args_transform data of the stream
+            for arg in self.args_transform:
+                downstream_kwargs_train[arg] = \
+                    self.estimator.transform(**{arg:downstream_kwargs_train.pop(arg)})
+                downstream_kwargs_test[arg] = \
+                    self.estimator.transform(**{arg:downstream_kwargs_test.pop(arg)})
             downstream_kwargs = NodeKFold.join_train_test(downstream_kwargs_train, downstream_kwargs_test)
         else:                 # leaf node: do the prediction predict the test
             y_true = downstream_kwargs_test.pop("y")
@@ -479,6 +504,20 @@ class NodeEstimator(Node):
             self.add_map_output(keyvals=downstream_kwargs)          # collect map output
         return downstream_kwargs
 
+
+def _sub_dict(d, subkeys):
+    return {k:d[k] for k in subkeys}
+
+def _get_args_names(f):
+    import inspect
+    a=inspect.getargspec(f)
+    if a.defaults:
+        args_names = a.args[:(len(a.args)-len(a.defaults))]
+    else:
+        args_names = a.args[:len(a.args)]
+    if "self" in args_names:
+        args_names.remove("self")
+    return args_names
 
 ## =========================== ##
 ## == Parallelization nodes == ##
@@ -708,67 +747,96 @@ class MultiMethods(Splitter):
     def __init__(self):
         super(MultiMethods, self).__init__(name="MultiMethods")
         
-def NodeFactory(*args):
+def NodeFactory(*args, **kwargs):
     """
-    Parameters
-    ----------
+    Node builder
+
+    Positional parameters
+    ---------------------
     class | (class, dict(kwargs)) | SEQ | PAR
+
+    Keywords parameters
+    -------------------
+    store: string
+        Load the object(s) from the given store. For file system store,
+        indicates the path to the directory that contains a file prefixed by
+        __node__*.
+
+    key: string
+        Load the node indexed by its key from the store. If missing then
+        assume file system store and the key will point on the root of the
+        store.
 
     Examples
     --------
         NodeFactory(LDA)
-        NodeFactory(SVC, dict(kernel="linear"))
+        NodeFactory(SVC(kernel="linear"))
         NodeFactory(KFold, dict(n=10, n_folds=4))
+        # Persistence:
+        import tempfile
+        store = tempfile.mktemp()
+        n = NodeFactory(SVC(), store=store)
+        n.save_node()
+        n2 = NodeFactory(store=store)
     """
-    # Make it clever enough to deal single argument provided as a tuple
-    if len(args) == 1 and isinstance(args[0], (list, tuple)):
-        args = args[0]
-    # Arg is already a Node return it
-    if len(args) == 1 and isinstance(args[0], Node):  # Node
-        return args[0]
-    # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
-    # return a list of nodes (splits)
-    if args[0].__name__ in ("KFold", "StratifiedKFold", "Permutation") and\
-    len(args) == 2:
-        cls = args[0]
-        kwargs = args[1]
-        if cls.__name__ == "KFold":
-            return NodeKFold(**kwargs)
-        if cls.__name__ == "StratifiedKFold":
-            return NodeStratifiedKFold(**kwargs)
-        if cls.__name__ == "Permutation":
-            return NodePermutation(**kwargs)
-    # NodeEstimator: class|(class, kwargs)
-    instance = object.__new__(args[0])
-    if len(args) == 1:  # class 
-        instance.__init__()
-    else:               # class, kwargs
-        instance.__init__(**args[1])
-    return NodeEstimator(instance)
+    node = None
+    if len(args) > 0: # Build the node from args 
+        ## Make it clever enough to deal single argument provided as a tuple
+        if len(args) == 1 and isinstance(args[0], (list, tuple)):
+            args = args[0]
+        import inspect
+        cls_str = args[0].__name__ if inspect.isclass(args[0]) else args[0]
+        # Arg is already a Node, then do nothing
+        if len(args) == 1 and isinstance(args[0], Node):  # Node
+            node = args[0]        
+        # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
+        elif cls_str in ("KFold", "StratifiedKFold", "Permutation")\
+            and len(args) == 2:
+            kwargs = args[1]
+            if cls_str == "KFold":
+                node = NodeKFold(**kwargs)
+            elif cls_str == "StratifiedKFold":
+                node = NodeStratifiedKFold(**kwargs)
+            elif cls_str == "Permutation":
+                node = NodePermutation(**kwargs)
+        # NodeEstimator: class|class, kwargs
+        elif inspect.isclass(args[0]):
+            instance = object.__new__(args[0])
+            if len(args) == 1:          # class 
+                node = NodeEstimator(instance.__init__())
+            else:                       # class, kwargs
+                node = NodeEstimator(instance.__init__(**args[1]))
+        # NodeEstimator: object
+        else:
+             node = NodeEstimator(args[0])
+    # store or key : load from store
+    if "store" in kwargs and isinstance(kwargs["store"], str):
+        if node:
+            node.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
+        else:
+            key = kwargs["key"] if "key" in kwargs else None
+            node = load_node(key=key, store=kwargs["store"])
+    return(node)
 
-def _check_args(*args):
-    import inspect
+
+def _group_args(*args):
+    """group arguments provided as class, dict into a tuple"""
     args_splitted = list()
     i = 0
     while i < len(args):
-        if not (inspect.isclass(args[i]) or isinstance(args[i], str) or 
-                isinstance(args[i], Node)): 
-            raise ValueError("Syntax error argument %s should be a class or \
-                              a string or a Node" % (args[i]))
         if isinstance(args[i], Node):                           # Node
-            args_splitted.append((args[i],))
+            args_splitted.append(args[i])
             i += 1
         elif i + 1 < len(args) and isinstance(args[i+1], dict): # class, dict
             args_splitted.append((args[i], args[i+1]))
             i += 2
         else:
-            args_splitted.append((args[i],))                    # class
+            args_splitted.append(args[i])                      # class or obj
             i += 1
     return args_splitted
 
 def SEQ(*args):
-    """
-    SEQ(TASK [, TASK]*)
+    """    
     Parameters
     ----------
     TASK [, TASK]*
@@ -778,7 +846,7 @@ def SEQ(*args):
         SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
     """
     # SEQ(Node [, Node]*)
-    args = _check_args(*args)
+    args = _group_args(*args)
     root = None
     for task in args:
         curr = NodeFactory(task)
@@ -792,20 +860,49 @@ def SEQ(*args):
 
 def PAR(*args, **kwargs):
     """
-    Syntax
-    ------
+    Syntax (positional parameters)
+    ------------------------------
     PAR     ::= PAR(Node [, Node]+)
             ::= PAR(Splitter, Node)
     Splitter::= KFold|StratifiedKFold|Permutation, kwargs
-    Parameters
-    ----------
-    
+
+ 
+    Keywords parameters
+    -------------------
+    data: dict
+        Use 
+    store: string
+        Store (recursively) the objects tree on the given store. For file system 
+        store, indicates a path to a directory.
+
     Examples
     --------
-        PAR(LDA,  SVC, dict(kernel="linear"))
-        PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA)
+        from sklearn.cross_validation import KFold, StratifiedKFold
+        from sklearn.feature_selection import SelectKBest
+        from addtosklearn import Permutation
+        from sklearn.svm import SVC
+        from sklearn.lda import LDA        
+        PAR(LDA(),  SVC(kernel="linear"))
+        PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA())
+        # 2 permutations of 3 folds of univariate filtering of SVM and LDA
+        import tempfile
+        import numpy as np
+        store = tempfile.mktemp()
+        X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+        y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+        
+        # Design of the exectuion tree
+        anova_svm = SEQ(SelectKBest(k=2), SVC(kernel="linear"))
+        anova_lda = SEQ(SelectKBest(k=2), LDA())
+        algos = PAR(anova_svm, anova_lda)
+        algos_cv = PAR(StratifiedKFold, dict(y="y", n_folds=2), algos)
+        perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3), algos_cv,
+                   data=dict(y=y), store=store)
+        perms2 = NodeFactory(store=store)
+        # run
+        [leaf.top_down(X=X, y=y) for leaf in perms2]
     """
-    args = _check_args(*args)
+    args = _group_args(*args)
     first = NodeFactory(args[0])
     # PAR(Splitter, Node)
     if isinstance(first, Splitter):
@@ -824,33 +921,37 @@ def PAR(*args, **kwargs):
     # if data is provided finalize the initialization
     if "data" in kwargs:
         root.finalize_init(**kwargs["data"])
+    if "store" in kwargs and isinstance(kwargs["store"], str):
+        root.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
+        root.save_node()
     return root
 
 
 # = splitter_factory
 
 # Data
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 
-from sklearn.cross_validation import KFold
-from sklearn.cross_validation import StratifiedKFold
-from sklearn.feature_selection import SelectKBest
-from addtosklearn import Permutation
-from sklearn.svm import SVC
-from sklearn.lda import LDA
+#
+#NodeFactory(LDA())
+#
+#anova_svm = SEQ(SelectKBest(k=2),  SVC(kernel="linear"))
+#anova_lda = SEQ(SelectKBest(k=2),  LDA())
+#algos = PAR(anova_svm, anova_lda)
+#kfols_algo = PAR(StratifiedKFold, dict(y="y", n_folds=3), algos)
+#
+###
+#tree = PAR(Permutation, dict(n="y.shape[0]", n_perms=2),
+#           kfols_algo,
+#           data=dict(y=y), store="/tmp/store")
 
-anova_svm = SEQ(SelectKBest, dict(k=2),  SVC, dict(kernel="linear"))
-anova_lda = SEQ(SelectKBest, dict(k=2),  LDA)
-algos = PAR(anova_svm, anova_lda)
+#self = tree
+#tree.children[0].children
 
-tree = PAR(Permutation, dict(n="y.shape[0]", n_perms=2),
-           PAR(StratifiedKFold, dict(y="y", n_folds=3),
-               algos),
-           data=dict(y=y))
+#args = (Permutation, dict(n="y.shape[0]", n_perms=2), kfols_algo)
+#kwargs = dict(data=dict(y=y), store="/tmp/store")
 
-
+#tree2 = NodeFactory(store="/tmp/store")
 
 #[y[p4.children[1].slices][sl] for sl in p4.children[1].children[0].children[0].slices.values()]
 ## tree = Node(steps=steps, store="/tmp/store")
@@ -859,7 +960,7 @@ tree = PAR(Permutation, dict(n="y.shape[0]", n_perms=2),
 
 
 # top-down flow can be triggered from leaves
-[leaf.top_down(X=X, y=y) for leaf in tree]
+#[leaf.top_down(X=X, y=y) for leaf in tree2]
 # or direclty from the root
 # tree.top_down(X=X, y=y)
 #tree.bottum_up()
