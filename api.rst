@@ -4,16 +4,6 @@ Created on Tue Dec 11 11:29:53 2012
 
 @author: edouard
 """
-## Propositions
-## ============
-
-## 3 Posibilities:
-## 1) Map(Splitter, Mapper)
-## 2) Mapper(DataSplitter)
-## 3) P(N(S(Iterator), sklearn_obj), sklearn_obj)
-    N: Node(**data, sklearn_obj)
-    S: Split(**data, sklearn_obj)
-    P: Pipe(**data, sklearn_obj)
 
 
 ## Use cases
