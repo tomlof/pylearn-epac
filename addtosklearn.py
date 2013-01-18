@@ -40,4 +40,34 @@ class Permutation(object):
         )
 
     def __len__(self):
-        return self.n_perms 
+        return self.n_perms
+
+from sklearn.feature_selection import SelectKBest
+
+class FeatureRanking():
+
+    def __init__(self, score_func=f_classif):
+        """ Initialize the univariate feature ranking.
+
+        Parameters
+        ----------
+        score_func : callable
+            Function taking two arrays X and y, and returning a pair of arrays
+            (scores, pvalues).
+        """
+        if not callable(score_func):
+            raise TypeError(
+                "The score function should be a callable, %s (%s) "
+                "was passed." % (score_func, type(score_func)))
+        self.score_func = score_func
+
+    def fit(self, X, y):
+        """
+        Evaluate the function
+        """
+        self.scores_, self.pvalues_ = self.score_func(X, y)
+        if len(np.unique(self.pvalues_)) < len(self.pvalues_):
+            warn("Duplicate p-values. Result may depend on feature ordering."
+                 "There are probably duplicate features, or you used a "
+                 "classification score for a regression task.")
+        return self

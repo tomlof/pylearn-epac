@@ -1049,6 +1049,7 @@ perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3, apply_on="y"), algos_cv
            finalize=dict(y=y), store=store)
 perms2 = NodeFactory(store=store)
 
+NFac(fit=f_classif)
 
 # run
 [(leaf.get_key(2), leaf.top_down(X=X, y=y)) for leaf in perms2]
@@ -1057,4 +1058,4 @@ print leaf.get_key(2)
 
 r = perms2.bottum_up()
 r['SelectKBest/LDA']['y_pred']
-np.array(r['SelectKBest/LDA']['y_pred']).squeeze().shape
+np.array(r['SelectKBest/LDA']['y_pred']).shape
