@@ -42,7 +42,18 @@ class Permutation(object):
     def __len__(self):
         return self.n_perms
 
+def _clean_nans(scores):
+    """
+    NaNs can't be properly compared, so change them to the
+    smallest value of scores's dtype. -inf seems to be unreliable.
+    """
+    # XXX where should this function be called? fit? scoring functions
+    # themselves?
+    scores[np.isnan(scores)] = np.finfo(scores.dtype).min
+    return scores
+
 from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_classif
 
 class FeatureRanking():
 
@@ -54,6 +65,19 @@ class FeatureRanking():
         score_func : callable
             Function taking two arrays X and y, and returning a pair of arrays
             (scores, pvalues).
+            
+        Example
+        -------
+        from sklearn import datasets
+        import numpy as np
+        # import some data to play with
+        iris = datasets.load_iris()
+        X = iris.data
+        y = iris.target
+        Xn = np.random.normal(size=X.shape[0]*100).reshape((X.shape[0], 100))
+        X = np.hstack((X, Xn))
+        filter = FeatureRanking()
+        filter.fit(X, y)
         """
         if not callable(score_func):
             raise TypeError(
@@ -65,9 +89,16 @@ class FeatureRanking():
         """
         Evaluate the function
         """
-        self.scores_, self.pvalues_ = self.score_func(X, y)
-        if len(np.unique(self.pvalues_)) < len(self.pvalues_):
+        self.scores, self.pvalues = self.score_func(X, y)
+        self.ranks = np.argsort(self.scores)[::-1]
+        if len(np.unique(self.pvalues)) < len(self.pvalues):
             warn("Duplicate p-values. Result may depend on feature ordering."
                  "There are probably duplicate features, or you used a "
                  "classification score for a regression task.")
         return self
+
+    def transform(self, X):
+        return X
+
+    def toto(self):
+        return dict(fscores=self.scores, pvalues=self.pvalues, ranks=self.ranks)
