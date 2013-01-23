@@ -1027,35 +1027,3 @@ def PAR(*args, **kwargs):
         root.save_node()
     return root
 
-from sklearn.cross_validation import KFold, StratifiedKFold
-from sklearn.feature_selection import SelectKBest
-from addtosklearn import Permutation
-from sklearn.svm import SVC
-from sklearn.lda import LDA        
-PAR(LDA(),  SVC(kernel="linear"))
-PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA())
-# Two permutations of 3 folds of univariate filtering of SVM and LDA
-import tempfile
-import numpy as np
-store = tempfile.mktemp()
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
-
-# Design of the execution tree
-algos = SEQ(SelectKBest(k=2), 
-            PAR(LDA(), SVC(kernel="linear")))
-algos_cv = PAR(StratifiedKFold, dict(y="y", n_folds=2), algos)
-perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3, apply_on="y"), algos_cv,
-           finalize=dict(y=y), store=store)
-perms2 = NodeFactory(store=store)
-
-NFac(fit=f_classif)
-
-# run
-[(leaf.get_key(2), leaf.top_down(X=X, y=y)) for leaf in perms2]
-print leaf.get_key()
-print leaf.get_key(2)
-
-r = perms2.bottum_up()
-r['SelectKBest/LDA']['y_pred']
-np.array(r['SelectKBest/LDA']['y_pred']).shape

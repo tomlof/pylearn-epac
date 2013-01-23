@@ -27,7 +27,7 @@ perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3, apply_on="y"), algos_cv
            finalize=dict(y=y), store=store)
 perms2 = NodeFactory(store=store)
 
-NFac(fit=f_classif)
+#NFac(fit=f_classif)
 
 
 # Avoid unnessary compuations
