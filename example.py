@@ -18,6 +18,29 @@ import numpy as np
 store = tempfile.mktemp()
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+methods = [SVC(kernel="linear"), SVC(kernel="rbf"), SVC(kernel="poly")]
+
+
+def _dict_check_same_keys(dicts):
+    k = set(dicts[0].keys())
+    for d in dicts[1:]:
+        diff = k ^ set(d.keys())
+        if len(diff):
+            return False
+    return True
+
+_dict_check_same_keys([m.__dict__ for m in methods])
+
+
+(k ^ set(d.keys()) for d)
+
+'poly'
+a.__dict__
+b.__dict__
+
+def _list_diff(l1, l2):
+    return [item for item in l1 if not item in l2]
+
 
 # Design of the execution tree
 algos = SEQ(SelectKBest(k=2), 
