@@ -10,7 +10,20 @@ from sklearn.feature_selection import SelectKBest
 from addtosklearn import Permutation
 from sklearn.svm import SVC
 from sklearn.lda import LDA        
-PAR(LDA(),  SVC(kernel="linear"))
+
+# Build sequential Pipeline
+pipe = SEQ(SelectKBest(k=2), SVC(kernel="linear"))
+
+# Parallelization 
+p = PAR(LDA(),  SVC(kernel="linear"))
+p = PAR(*[SelectKBest(k=k) for k in [1, 10, 100]])
+p = PAR(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+# Combine PAR with sequential Pipeline
+p = PAR(LDA(), pipe)
+p = PAR(*[SEQ(SelectKBest(k=k), SVC(kernel="linear")) for k in [1, 10, 100]])
+
+[item.name for item in p.children]
+# Use Splitters
 PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA())
 # Two permutations of 3 folds of univariate filtering of SVM and LDA
 import tempfile
@@ -18,29 +31,13 @@ import numpy as np
 store = tempfile.mktemp()
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+
 methods = [SVC(kernel="linear"), SVC(kernel="rbf"), SVC(kernel="poly")]
 
 
-def _dict_check_same_keys(dicts):
-    k = set(dicts[0].keys())
-    for d in dicts[1:]:
-        diff = k ^ set(d.keys())
-        if len(diff):
-            return False
-    return True
-
-_dict_check_same_keys([m.__dict__ for m in methods])
 
 
-(k ^ set(d.keys()) for d)
-
-'poly'
-a.__dict__
-b.__dict__
-
-def _list_diff(l1, l2):
-    return [item for item in l1 if not item in l2]
-
+_dicts_diff([dict(a=1, b=2, c=3), dict(b=0, c=3)])
 
 # Design of the execution tree
 algos = SEQ(SelectKBest(k=2), 

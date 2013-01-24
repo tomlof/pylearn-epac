@@ -10,11 +10,56 @@ print __doc__
 ## te: test
 
 import numpy as np
-#from abc import abstractmethod
+from abc import abstractmethod
 
 ## =========== ##
 ## == Utils == ##
 ## =========== ##
+
+def _list_diff(l1, l2):
+    return [item for item in l1 if not item in l2]
+
+def _list_contains(l1, l2):
+    return all([item in l1 for item in l2])
+
+def _list_union_inter_diff(*lists):
+    """Return 3 lists: intersection, union and differences of lists
+    """
+    union = set(lists[0])
+    inter = set(lists[0])
+    for l in lists[1:]:
+        s = set(l)
+        union = union | s
+        inter = inter & s
+    diff = union - inter
+    return list(union), list(inter), list(diff)
+
+def _dict_diff(*dicts):
+    """Find the differences in a dictionaries
+
+    Returns
+    -------
+    diff_keys: a list of keys that differ amongs dicts
+    diff_vals: a dict with keys values differences between dictonaries.
+        If some dict differ bay keys (some keys are missing), return
+        the key associated with None value
+
+    Examples
+    --------
+    >>> _dict_diff(dict(a=1, b=2, c=3), dict(b=0, c=3))
+    {'a': None, 'b': [0, 2]}
+    """
+    # Find diff in keys
+    union_keys, inter_keys, diff_keys = _list_union_inter_diff(*[d.keys() for d in dicts])
+    diff_vals = dict()
+    for k in diff_keys:
+        diff_vals[k] = None
+    # Find diff in shared keys
+    for k in inter_keys:
+        s = set([d[k] for d in dicts])
+        if len(s) > 1:
+            diff_vals[k] = list(s)
+    return diff_vals
 
 def _sub_dict(d, subkeys):
     return {k:d[k] for k in subkeys}
@@ -49,12 +94,6 @@ def _sub_dict_set(d, new_vals, subkeys=None):
     for k in new_vals.keys():
         d[k] = new_vals[k]
     return d
-
-def _list_diff(l1, l2):
-    return [item for item in l1 if not item in l2]
-
-def _list_contains(l1, l2):
-    return all([item in l1 for item in l2])
 
 
 def _get_args_names(f):
@@ -317,7 +356,12 @@ class Node(object):
         for child in children:
             self.add_child(child)
 
+    @abstractmethod
+    def get_signature(self):
+        """the signature of the current Node, a tuple class, dict(init params)"""
+
     def get_name(self):
+        """the name of the current Node used to build the keys"""
         return self.name
 
     def get_key(self, nb=1):
@@ -496,7 +540,7 @@ class Node(object):
         # replace reference to chidren/parent by basename strings
         import copy
         clone = copy.copy(self)
-        clone.children = [child.name for child in self.children]
+        clone.children = [child.get_name() for child in self.children]
         if self.parent:
             clone.parent = ".."
         store.save_object(clone, key)
@@ -576,6 +620,9 @@ class NodeEstimator(NodeMapper):
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
+
+    def get_signature(self):
+        return self.estimator.__class__.__name__, self.estimator.__dict__
 
     def transform(self, **ds_kwargs):
         self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
@@ -658,7 +705,10 @@ class NodeRowSlicer(NodeSlicer):
         if self.children:
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
-                
+
+    def get_signature(self):
+        return self.__class__.__name__, dict(slices=self.slices)
+
     def set_sclices(self, slices):
         # convert as a list if required
         if isinstance(slices, dict):
@@ -719,6 +769,9 @@ class NodeKFold(NodeSplitter, NodeReducer):
         if self.children:
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
+
+    def get_signature(self):
+        return "KFold", dict(n=n, n_folds=n_folds)
 
     @classmethod
     def split_tr_te(cls, **ds_kwargs):
@@ -815,6 +868,8 @@ class NodeStratifiedKFold(NodeSplitter, NodeReducer):
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
 
+    def get_signature(self):
+        return "StratifiedKFold", dict(n=n, n_folds=n_folds)
 
 class NodePermutation(NodeSplitter, NodeReducer):
     """ Permutation Splitter"""
@@ -841,13 +896,40 @@ class NodePermutation(NodeSplitter, NodeReducer):
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
 
+    def get_signature(self):
+        return "Permutation", dict(n=self.n, n_perms=self.n_perms,
+                                   appy_on=self.apply_on)
+
 class MultiMethods(NodeSplitter):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
     """
-    def __init__(self):
+    def __init__(self, methods):
         super(MultiMethods, self).__init__(name="MultiMethods")
-        
+        for m in methods:
+            curr = NodeFactory(m)
+            self.add_child(curr)
+        # detect collisions in names
+        signatures = [o.get_signature() for o in self.children]
+        child_cls_names = [s[0] for s in signatures]
+        child_args = [s[1] for s in signatures]
+        if len(child_cls_names) != len(set(child_cls_names)):  # collision
+            # iterate over each level to solve collision
+            for cls in set(child_cls_names):
+                indices = _list_indices(child_cls_names, cls)
+                if len(indices) == 1:  # no collision with this class name
+                    continue
+                diff = _dict_diff(*[child_args[i] for i in indices]).keys()
+                for idx in indices:
+                    import string
+                    arg_str = string.join([str(k)+"="+str(child_args[idx][k])
+                        for k in diff], ",")
+                    self.children[idx].name = child_cls_names[idx] + "(" +\
+                        arg_str + ")"
+
+def _list_indices(l, val):
+    return [i for i in xrange(len(l)) if l[i]==val]
+
 def NodeFactory(*args, **kwargs):
     """
     Node builder
@@ -912,11 +994,11 @@ def NodeFactory(*args, **kwargs):
              node = NodeEstimator(args[0])
     # store or key : load from store
     if "store" in kwargs and isinstance(kwargs["store"], str):
-        if node:
-            node.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
-        else:
-            key = kwargs["key"] if "key" in kwargs else None
-            node = load_node(key=key, store=kwargs["store"])
+#        if node:
+#            node.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
+#        else:
+        key = kwargs["key"] if "key" in kwargs else None
+        node = load_node(key=key, store=kwargs["store"])
     return(node)
 
 
@@ -978,30 +1060,6 @@ def PAR(*args, **kwargs):
 
     Examples
     --------
-        from sklearn.cross_validation import KFold, StratifiedKFold
-        from sklearn.feature_selection import SelectKBest
-        from addtosklearn import Permutation
-        from sklearn.svm import SVC
-        from sklearn.lda import LDA        
-        PAR(LDA(),  SVC(kernel="linear"))
-        PAR(KFold, dict(n="y.shape[0]", n_folds=3), LDA())
-        # 2 permutations of 3 folds of univariate filtering of SVM and LDA
-        import tempfile
-        import numpy as np
-        store = tempfile.mktemp()
-        X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-        y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
-        
-        # Design of the exectuion tree
-        anova_svm = SEQ(SelectKBest(k=2), SVC(kernel="linear"))
-        anova_lda = SEQ(SelectKBest(k=2), LDA())
-        algos = PAR(anova_svm, anova_lda)
-        algos_cv = PAR(StratifiedKFold, dict(y="y", n_folds=2), algos)
-        perms = PAR(Permutation, dict(n="y.shape[0]", n_perms=3), algos_cv,
-                   finalize=dict(y=y), store=store)
-        perms2 = NodeFactory(store=store)
-        # run
-        [leaf.top_down(X=X, y=y) for leaf in perms2]
     """
     args = _group_args(*args)
     first = NodeFactory(args[0])
@@ -1014,11 +1072,7 @@ def PAR(*args, **kwargs):
             split.add_child(NodeFactory(copy.deepcopy(task)))
         root = first
     else: # PAR(Node [, Node]+)
-        root = MultiMethods()
-        root.add_child(first)
-        for task in args[1:]:
-            curr = NodeFactory(task)
-            root.add_child(curr)
+        root = MultiMethods(methods=args)
     # if data is provided finalize the initialization
     if "finalize" in kwargs:
         root.finalize_init(**kwargs["finalize"])
