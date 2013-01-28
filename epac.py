@@ -429,7 +429,7 @@ class _Node(object):
     # -- Top-down data-flow operations (map)  -- #
     # ------------------------------------------ #
 
-    def top_down(self, recursion=True, **ds_kwargs):
+    def top_down(self, func_name, recursion=True, **ds_kwargs):
         """Top-down data processing method
 
             This method does nothing more that recursively call
@@ -437,6 +437,8 @@ class _Node(object):
 
             Parameters
             ----------
+            func_name: str
+                the name of the function to be called
             recursion: boolean
                 if True recursively call parent/children map. If the
                 current node is the root of the tree call the children.
@@ -455,9 +457,11 @@ class _Node(object):
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent map up to root
-            ds_kwargs = self.parent.top_down(recursion=recursion,
+            ds_kwargs = self.parent.top_down(func_name,  recursion=recursion,
                                                      **ds_kwargs)
-        ds_kwargs = self.transform(**ds_kwargs)
+        func = getattr(self, func_name)
+        ds_kwargs = func(recursion=False, **ds_kwargs)
+        #ds_kwargs = self.transform(**ds_kwargs)
         if recursion is RECURSION_DOWN:
             # Call children map down to leaves
             [child.top_down(recursion=recursion, **ds_kwargs)
@@ -627,42 +631,67 @@ class _NodeEstimator(_NodeMapper):
     def get_signature(self):
         return self.estimator.__class__.__name__, self.estimator.__dict__
 
-    def transform(self, **ds_kwargs):
-        self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+    def fit(self, recursion=True, **ds_kwargs):
+        # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+        # fit was called in a top-down recursive context
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion,
+                                 **ds_kwargs)
+        # Regular fit
+        # Split downwtream data-flow in train/test
         ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
         # Fit the training data selecting only args_fit in stream
         self.estimator.fit(**_sub_dict(ds_kwargs_tr, self.args_fit))
-        if self.children: # transform downstream (ds)
-            # train
-            new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_tr,
-                                                 self.args_transform))
-            ds_kwargs_tr = _sub_dict_set(d=ds_kwargs_tr,
-                new_vals=new_vals, subkeys=self.args_transform)
-            # test
-            new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_te,
-                                                 self.args_transform))
-            ds_kwargs_te = _sub_dict_set(d=ds_kwargs_te,
-                new_vals=new_vals, subkeys=self.args_transform)
-            # join train, test into downstream
-            ds_kwargs = CV.join_tr_te(ds_kwargs_tr, ds_kwargs_te)
-            return ds_kwargs
+        if self.children:  # transform downstream data-flow (ds) for children
+            return self.transform(recursion=False, **ds_kwargs)
         else:
-            # leaf node: do the prediction predict the test
-            # get args in fit but not in predict
-            args_predicted = _list_diff(self.args_fit, self.args_predict)
-            true = _sub_dict(ds_kwargs_te, args_predicted)
-            # predict test downstream
-            pred = self.estimator.predict(
-                **_sub_dict(ds_kwargs_te, self.args_predict))
-            pred = _sub_dict_set(true, new_vals=pred, subkeys=args_predicted)
-            both = {k+"_true":true[k] for k in true}
-            for k in pred:
-                both[k+"_pred"]=pred[k]
-            # collect map output
-            self.add_map_output(key=self.get_key(2), val=both)
-            return both
+            return self
 
+    def transform(self, recursion=True, **ds_kwargs):
+        # transform was called in a top-down recursive context
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **ds_kwargs)
+        # Regular transform
+        # Split downwtream data-flow in train/test
+        ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
+        # train
+        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_tr,
+                                             self.args_transform))
+        ds_kwargs_tr = _sub_dict_set(d=ds_kwargs_tr,
+            new_vals=new_vals, subkeys=self.args_transform)
+        # test
+        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_te,
+                                             self.args_transform))
+        ds_kwargs_te = _sub_dict_set(d=ds_kwargs_te,
+            new_vals=new_vals, subkeys=self.args_transform)
+        # join train, test into downstream
+        ds_kwargs = CV.join_tr_te(ds_kwargs_tr, ds_kwargs_te)
+        return ds_kwargs
 
+    def predict(self, recursion=True, **ds_kwargs):
+        # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+        # fit was called in a top-down recursive context
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **ds_kwargs)
+        # leaf node: do the prediction predict the test
+        # get args in fit but not in predict
+        args_predicted = _list_diff(self.args_fit, self.args_predict)
+        true = _sub_dict(ds_kwargs_te, args_predicted)
+        # predict test downstream
+        pred = self.estimator.predict(
+            **_sub_dict(ds_kwargs_te, self.args_predict))
+        pred = _sub_dict_set(true, new_vals=pred, subkeys=args_predicted)
+        both = {k+"_true":true[k] for k in true}
+        for k in pred:
+            both[k+"_pred"]=pred[k]
+        # collect map output
+        self.add_map_output(key=self.get_key(2), val=both)
+        return both
+
+    def fit_predict(self, **ds_kwargs):
+        pass
 
 ## =========================== ##
 ## == Parallelization nodes == ##

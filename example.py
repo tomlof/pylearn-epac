@@ -14,6 +14,10 @@ from sklearn.feature_selection import SelectKBest
 
 # Build sequential Pipeline
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
+func = getattr(pipe, "transform")
+func(X=X, y=y)
+pipe.fit(X, y)
+pipe.predict(X)
 
 # Parallelization 
 p = Par(LDA(),  SVC(kernel="linear"))
