@@ -4,37 +4,94 @@ Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard
 """
+run epac.py
 
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+import numpy as np
+#X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+#y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+
+from sklearn import datasets
+iris = datasets.load_iris()
+
+# Add the noisy data to the informative features
+X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
+y = iris.target
+
 
 from sklearn.svm import SVC
-from sklearn.lda import LDA        
-from sklearn.feature_selection import SelectKBest        
+from sklearn.lda import LDA
+from sklearn.feature_selection import SelectKBest
 
-# Build sequential Pipeline
+## Build sequential Pipeline
+## =========================
+
+#from epac import Seq
+# Simple sequential pipeline
+# 2  SelectKBest
+# |
+# SVM Classifier
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
-func = getattr(pipe, "transform")
-func(X=X, y=y)
-pipe.fit(X, y)
-pipe.predict(X)
+pipe.fit(X=X, y=y).predict(X=X)
 
-# Parallelization 
-p = Par(LDA(),  SVC(kernel="linear"))
-p = Par(*[SelectKBest(k=k) for k in [1, 10, 100]])
-p = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
-# Combine Par with sequential Pipeline
-p = Par(LDA(), pipe)
+## Parallelization
+## ===============
+
+#from epac import Par
+# Multi-classifiers
+# -----------------
+
+#    Par    MultiMethod (Splitter)
+#  /   \
+# LDA  SVM  Classifiers (Estimator)
+multi = Par(LDA(),  SVC(kernel="linear"))
+multi.fit(X=X, y=y)
+multi.predict(X=X)
+
+#           Par          MultiMethod (Splitter)
+#          /  \
+# SVM(linear)  SVM(rbf)  Classifiers (Estimator)
+svms = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+svms.fit(X=X, y=y)
+svms.predict(X=X)
+
+# Combine Par with sequential Pipeline: Anova(k best selection) + SVM
+#     Par      MultiMethod (Splitter)
+#  /   |   \
+# 1    5   10  SelectKBest (Estimator)
+# |    |    |
+# SVM SVM SVM  Classifiers (Estimator)
+anovas_svm = Par(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in [1, 5, 10]])
+anovas_svm.fit(X=X, y=y)
+anovas_svm.predict(X=X)
+
+# Cross-validation
+# ---------------
+# CV of LDA
+#     CV                  (Splitter)
+#  /   |   \
+# 0    1    2  Fold       (Slicer)
+# |    |    |
+# LDA LDA LDA  Classifier (Estimator)
+cv_lda = CV(LDA(), n_folds=3, y=y)
+cv_lda.fit(X=X, y=y)
+cv_lda.predict(X=X)
+
+# CV of Anova(k best selection) + SVM
+cv_anovas_svm = CV(anovas_svm, n_folds=3, y=y)
+cv_anovas_svm.fit(X=X, y=y)
+cv_anovas_svm.predict(X=X)
+
+# Permutation / Cross-validation of a Pipeline 
+# Permutation of CV of Anova(k best selection) + SVM
+perms_cv_anovas_svm = Perm(cv_anovas_svm, n_perms=3, y=y)
+perms_cv_anovas_svm.fit(X=X, y=y)
+perms_cv_anovas_svm.predict(X=X)
+#ds_kwargs = dict(X=X)
+#self = perms_cv_anovas_svm.children[0]
+#self.get_key()
+
 
 [item.name for item in p.children]
-
-# Spiltters
-cv = CV(LDA(), n_folds=3, y=y)
-cv = CV(pipe, n_folds=3, y=y)
-perm = Perm(pipe, n_perms=3, y=y)
-perm = Perm(CV(LDA(), n_folds=3), n_perms=3, y=y)
-
-
 
 # Two permutations of 3 folds of univariate filtering of SVM and LDA
 import tempfile

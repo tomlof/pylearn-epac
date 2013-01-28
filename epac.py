@@ -9,8 +9,12 @@ print __doc__
 ## tr: train
 ## te: test
 
+
+_DEBUG = True
+
 import numpy as np
 from abc import abstractmethod
+
 
 ## =========== ##
 ## == Utils == ##
@@ -19,8 +23,10 @@ from abc import abstractmethod
 def _list_diff(l1, l2):
     return [item for item in l1 if not item in l2]
 
+
 def _list_contains(l1, l2):
     return all([item in l1 for item in l2])
+
 
 def _list_union_inter_diff(*lists):
     """Return 3 lists: intersection, union and differences of lists
@@ -34,8 +40,10 @@ def _list_union_inter_diff(*lists):
     diff = union - inter
     return list(union), list(inter), list(diff)
 
+
 def _list_indices(l, val):
-    return [i for i in xrange(len(l)) if l[i]==val]
+    return [i for i in xrange(len(l)) if l[i] == val]
+
 
 def _dict_diff(*dicts):
     """Find the differences in a dictionaries
@@ -53,7 +61,8 @@ def _dict_diff(*dicts):
     {'a': None, 'b': [0, 2]}
     """
     # Find diff in keys
-    union_keys, inter_keys, diff_keys = _list_union_inter_diff(*[d.keys() for d in dicts])
+    union_keys, inter_keys, diff_keys = _list_union_inter_diff(*[d.keys()
+                                            for d in dicts])
     diff_vals = dict()
     for k in diff_keys:
         diff_vals[k] = None
@@ -64,8 +73,10 @@ def _dict_diff(*dicts):
             diff_vals[k] = list(s)
     return diff_vals
 
+
 def _sub_dict(d, subkeys):
-    return {k:d[k] for k in subkeys}
+    return {k: d[k] for k in subkeys}
+
 
 def _sub_dict_set(d, new_vals, subkeys=None):
     """ Set d[subkeys] to new_vals
@@ -73,26 +84,26 @@ def _sub_dict_set(d, new_vals, subkeys=None):
     Arguments
     ---------
     d: dict
-    
+
     subkeys: list of (sub) keys, if missing use new_vals.keys()
 
     new_vals: singleton, tuple, dict
         if singleton convert it to a tuple of length one
-        if tuple convert it to a dict using "subkeys" keys        
+        if tuple convert it to a dict using "subkeys" keys
     """
     if not subkeys:
         subkeys = new_vals.keys()
     if not _list_contains(d.keys(), subkeys):
         raise ValueError('Some keys of subkeys are not in d.keys()')
-    d = d.copy() # avoid side effect
+    d = d.copy()  # avoid side effect
     # if singleton (and not dict) convert to length one tuple
     if not isinstance(new_vals, (tuple, dict)):
         new_vals = (new_vals,)
     # if tuple convert to dict, with keys matching subkeys
-    if isinstance(new_vals, tuple): # transform list to dict, matching order
+    if isinstance(new_vals, tuple):  # transform list to dict, matching order
         if len(subkeys) is not len(new_vals):
             raise ValueError('Arguments of different lengths')
-        new_vals = {subkeys[i]:new_vals[i] for i in xrange(len(new_vals))}
+        new_vals = {subkeys[i]: new_vals[i] for i in xrange(len(new_vals))}
     # Now new_vals is a dict, replace values in d
     for k in new_vals.keys():
         d[k] = new_vals[k]
@@ -101,9 +112,9 @@ def _sub_dict_set(d, new_vals, subkeys=None):
 
 def _get_args_names(f):
     import inspect
-    a=inspect.getargspec(f)
+    a = inspect.getargspec(f)
     if a.defaults:
-        args_names = a.args[:(len(a.args)-len(a.defaults))]
+        args_names = a.args[:(len(a.args) - len(a.defaults))]
     else:
         args_names = a.args[:len(a.args)]
     if "self" in args_names:
@@ -266,8 +277,9 @@ def get_store(key):
     prot, path = splits
     if prot == Config.key_prot_fs:
         return StoreFs()
-    elif prot == Config.key_prot_lo:
-        return StoreLo(storage_root=Node.roots[path])
+#    FIXME
+#    elif prot == Config.key_prot_lo:
+#        return StoreLo(storage_root=_Node.roots[path])
     else:
         raise ValueError("Invalid value for key: should be:" +\
         "lo for no persistence and storage on living objects or" +\
@@ -276,7 +288,7 @@ def get_store(key):
 
 def key_split(key):
     """Split the key in in two parts: [protocol, path]
-    
+
     Example
     -------
     >>> key_split('file:///tmp/toto')
@@ -284,13 +296,14 @@ def key_split(key):
     """
     return key.split(Config.key_prot_path_sep, 1)
 
+
 def key_join(prot="", path=""):
     """Join protocol and path to create a key
-    
+
     Example
     -------
     >>> key_join("file", "/tmp/toto")
-    'file:///tmp/toto'    
+    'file:///tmp/toto'
     """
     return prot + Config.key_prot_path_sep + path
 
@@ -298,11 +311,13 @@ def key_join(prot="", path=""):
 def key_pop(key):
     return key.rsplit(Config.key_path_sep, 1)[0]
 
+
 def key_push(key, basename):
     if key and basename:
         return key + Config.key_path_sep + basename
     else:
         return key or basename
+
 
 def save_map_output(key1, key2=None, val2=None, keyvals2=None):
     store = get_store(key1)
@@ -361,7 +376,8 @@ class _Node(object):
 
     @abstractmethod
     def get_signature(self):
-        """the signature of the current _Node, a tuple class, dict(init params)"""
+        """the signature of the current _Node, a tuple class,
+        dict(init params)"""
 
     def get_name(self):
         """the name of the current _Node used to build the keys"""
@@ -453,23 +469,22 @@ class _Node(object):
             ------
             A dictionnary of processed data
         """
-        print "top_down", self.get_key()
+        if _DEBUG:
+            print "top_down", self.get_key(), func_name
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent map up to root
-            ds_kwargs = self.parent.top_down(func_name,  recursion=recursion,
-                                                     **ds_kwargs)
+            ds_kwargs = self.parent.top_down(func_name=func_name,
+                                             recursion=recursion, **ds_kwargs)
         func = getattr(self, func_name)
         ds_kwargs = func(recursion=False, **ds_kwargs)
         #ds_kwargs = self.transform(**ds_kwargs)
         if recursion is RECURSION_DOWN:
             # Call children map down to leaves
-            [child.top_down(recursion=recursion, **ds_kwargs)
-                for child in self.children]
+            ret = [child.top_down(func_name=func_name, recursion=recursion,
+                            **ds_kwargs) for child in self.children]
+            ds_kwargs = ret[0] if len(ret) == 1 else ret
         return ds_kwargs
-
-    def transform(self, **kwargs):
-        return kwargs
 
     def check_recursion(self, recursion):
         """ Check the way a recursion call can go.
@@ -632,6 +647,8 @@ class _NodeEstimator(_NodeMapper):
         return self.estimator.__class__.__name__, self.estimator.__dict__
 
     def fit(self, recursion=True, **ds_kwargs):
+        if _DEBUG:
+            print "-", self.get_key(), "fit, rec:", recursion
         # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
@@ -648,6 +665,8 @@ class _NodeEstimator(_NodeMapper):
             return self
 
     def transform(self, recursion=True, **ds_kwargs):
+        if _DEBUG:
+            print "-", self.get_key(),  "transform, rec:", recursion
         # transform was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
@@ -670,100 +689,45 @@ class _NodeEstimator(_NodeMapper):
         return ds_kwargs
 
     def predict(self, recursion=True, **ds_kwargs):
+        if _DEBUG:
+            print "-", self.get_key(), "predict, rec:", recursion
         # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
+            return self.top_down(func_name="predict", recursion=recursion,
                                  **ds_kwargs)
+        if self.children:  # if children call transform
+            return self.transform(recursion=False, **ds_kwargs)
         # leaf node: do the prediction predict the test
-        # get args in fit but not in predict
-        args_predicted = _list_diff(self.args_fit, self.args_predict)
-        true = _sub_dict(ds_kwargs_te, args_predicted)
+        # Split downwtream data-flow in train/test
+        ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
         # predict test downstream
         pred = self.estimator.predict(
             **_sub_dict(ds_kwargs_te, self.args_predict))
-        pred = _sub_dict_set(true, new_vals=pred, subkeys=args_predicted)
-        both = {k+"_true":true[k] for k in true}
-        for k in pred:
-            both[k+"_pred"]=pred[k]
         # collect map output
-        self.add_map_output(key=self.get_key(2), val=both)
-        return both
+        self.add_map_output(key=self.get_key(2), val=dict(y_pred=pred))
+        return pred
 
-    def fit_predict(self, **ds_kwargs):
-        pass
 
-## =========================== ##
-## == Parallelization nodes == ##
-## =========================== ##
+## ======================================================================== ##
+## ==                                                                    == ##
+## == Parallelization nodes
+## ==
+## == Splitters: are non leaf node (degree >= 1) with children.
+## == They split the downstream data-flow to their children
+## == They reduce the upstream data-flow from their children
+## ==
+## == Slicers: are Splitters children
+## == They reslice the downstream data-flow
+## == They do nothing on the upstream data-flow
+## ==                                                                    == ##
+## ======================================================================== ##
 
 class _NodeReducer(_Node):
-    """Abstract class of _Node that contribute to redcue the data"""
+    """Abstract class of _Node that contribute to redcue the upstream
+    data-flow"""
     def __init__(self, name):
         super(_NodeReducer, self).__init__(name=name)
-
-# -------------------------------- #
-# -- Slicers                    -- #
-# -------------------------------- #
-
-class _NodeSlicer(_Node):
-    """ Slicers are Splitters' children, they re-sclice the downstream blocs.
-    """
-    def __init__(self, name):
-        super(_NodeSlicer, self).__init__(name=name)
-
-
-class _NodeRowSlicer(_NodeSlicer):
-    """Row-wise reslicing of the downstream blocs.
-
-    Parameters
-    ----------
-    name: string
-    
-    apply_on: string or list of strings
-        The name(s) of the downstream blocs to be rescliced. If
-        None, all downstream blocs are rescliced.
-    """
-
-    def __init__(self, name, apply_on):
-        super(_NodeRowSlicer, self).__init__(name=name)
-        self.slices = None
-        self.apply_on = apply_on
-
-    def finalize_init(self, **ds_kwargs):
-        ds_kwargs = self.transform(**ds_kwargs)
-        # print self, "(",self.parent,")", self.slices, ds_kwargs
-        # propagate down-way
-        if self.children:
-            [child.finalize_init(**ds_kwargs) for child in
-                self.children]
-
-    def get_signature(self):
-        return self.__class__.__name__, dict(slices=self.slices)
-
-    def set_sclices(self, slices):
-        # convert as a list if required
-        if isinstance(slices, dict):
-            self.slices =\
-                {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
-                else slices[k] for k in slices}
-        else:
-            self.slices = \
-                slices.tolist() if isinstance(slices, np.ndarray) else slices
-
-    def transform(self, **ds_kwargs):
-        keys_data = self.apply_on if self.apply_on else ds_kwargs.keys()
-        data_out = ds_kwargs.copy()
-        for key_data in keys_data:  # slice input data
-            if isinstance(self.slices, dict):
-                # rename output keys according to input keys and slice keys
-                data = data_out.pop(key_data)
-                for key_slice in self.slices:
-                    data_out[key_data + key_slice] = \
-                        data[self.slices[key_slice]]
-            else:
-                data_out[key_data] = data_out[key_data][self.slices]
-        return data_out
 
 
 # -------------------------------- #
@@ -771,9 +735,32 @@ class _NodeRowSlicer(_NodeSlicer):
 # -------------------------------- #
 
 class _NodeSplitter(_Node):
-    """Splitters"""
+    """Splitters are are non leaf node (degree >= 1) with children.
+    They split the downstream data-flow to their children.
+    They reduce the upstream data-flow from their children. Thus they are
+    Reducers
+    """
     def __init__(self, name):
         super(_NodeSplitter, self).__init__(name=name)
+
+    def fit(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
+    def transform(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
+    def predict(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="predict", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
 
 class CV(_NodeSplitter, _NodeReducer):
     """KFold CV splitter"""
@@ -795,7 +782,7 @@ class CV(_NodeSplitter, _NodeReducer):
         if not "y" in ds_kwargs:
             raise KeyError("y ins not provided to finalize the initialization")
         y = ds_kwargs["y"]
-        ## Classification task:  StratifiedKFold or Regressgion Kfold       
+        ## Classification task:  StratifiedKFold or Regressgion Kfold
         _, y_sorted = np.unique(y, return_inverse=True)
         min_labels = np.min(np.bincount(y_sorted))
         if self.n_folds <= min_labels:
@@ -815,7 +802,7 @@ class CV(_NodeSplitter, _NodeReducer):
                 self.children]
 
     def get_signature(self):
-        return "CV", dict(n_folds=n_folds)
+        return "CV", dict(n_folds=self.n_folds)
 
     @classmethod
     def split_tr_te(cls, **ds_kwargs):
@@ -894,7 +881,7 @@ class Perm(_NodeSplitter, _NodeReducer):
     def __init__(self, task, n_perms, permute="y", **kwargs):
         super(Perm, self).__init__(name="Permutation")
         self.n_perms = n_perms
-        self.permute = permute # the name of the bloc to be permuted
+        self.permute = permute  # the name of the bloc to be permuted
         self.add_children([_NodeRowSlicer(name=str(nb), apply_on=permute) \
             for nb in xrange(n_perms)])
         for perm in self.children:
@@ -921,6 +908,7 @@ class Perm(_NodeSplitter, _NodeReducer):
         return "Permutation", dict(n_perms=self.n_perms,
                                    permute=self.permute)
 
+
 class MultiMethods(_NodeSplitter):
     """Parallelization is based on several reslicing of the same dataset:
     Slices can be split (shards) or a resampling of the original datasets.
@@ -943,10 +931,92 @@ class MultiMethods(_NodeSplitter):
                 diff = _dict_diff(*[child_args[i] for i in indices]).keys()
                 for idx in indices:
                     import string
-                    arg_str = string.join([str(k)+"="+str(child_args[idx][k])
-                        for k in diff], ",")
+                    arg_str = string.join([str(k) + "=" + \
+                        str(child_args[idx][k]) for k in diff], ",")
                     self.children[idx].name = child_cls_names[idx] + "(" +\
                         arg_str + ")"
+
+
+# -------------------------------- #
+# -- Slicers                    -- #
+# -------------------------------- #
+
+class _NodeSlicer(_Node):
+    """ Slicers are Splitters' children, they re-sclice the downstream blocs.
+    """
+    def __init__(self, name):
+        super(_NodeSlicer, self).__init__(name=name)
+
+
+class _NodeRowSlicer(_NodeSlicer):
+    """Row-wise reslicing of the downstream blocs.
+
+    Parameters
+    ----------
+    name: string
+
+    apply_on: string or list of strings
+        The name(s) of the downstream blocs to be rescliced. If
+        None, all downstream blocs are rescliced.
+    """
+
+    def __init__(self, name, apply_on):
+        super(_NodeRowSlicer, self).__init__(name=name)
+        self.slices = None
+        self.apply_on = apply_on
+
+    def finalize_init(self, **ds_kwargs):
+        ds_kwargs = self.transform(recursion=False, **ds_kwargs)
+        # print self, "(",self.parent,")", self.slices, ds_kwargs
+        # propagate down-way
+        if self.children:
+            [child.finalize_init(**ds_kwargs) for child in
+                self.children]
+
+    def get_signature(self):
+        return self.__class__.__name__, dict(slices=self.slices)
+
+    def set_sclices(self, slices):
+        # convert as a list if required
+        if isinstance(slices, dict):
+            self.slices =\
+                {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
+                else slices[k] for k in slices}
+        else:
+            self.slices = \
+                slices.tolist() if isinstance(slices, np.ndarray) else slices
+
+    def transform(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **ds_kwargs)
+        data_keys = self.apply_on if self.apply_on else ds_kwargs.keys()
+        for data_key in data_keys:  # slice input data
+            if not data_key is ds_kwargs:
+                continue
+            if isinstance(self.slices, dict):
+                # rename output keys according to input keys and slice keys
+                data = ds_kwargs.pop(data_key)
+                for key_slice in self.slices:
+                    ds_kwargs[data_key + key_slice] = \
+                        data[self.slices[key_slice]]
+            else:
+                ds_kwargs[data_key] = ds_kwargs[data_key][self.slices]
+        return ds_kwargs
+
+    def fit(self, recursion=True, **ds_kwargs):
+        """Call transform"""
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion,
+                                 **ds_kwargs)
+        return self.transform(recursion=False, **ds_kwargs)
+
+    def predict(self, recursion=True, **ds_kwargs):
+        """Call transform"""
+        if recursion:
+            return self.top_down(func_name="predict", recursion=recursion,
+                                 **ds_kwargs)
+        return self.transform(recursion=False, **ds_kwargs)
 
 
 def _NodeFactory(*args, **kwargs):
@@ -981,7 +1051,7 @@ def _NodeFactory(*args, **kwargs):
         n2 = _NodeFactory(store=store)
     """
     node = None
-    if len(args) > 0: # Build the node from args 
+    if len(args) > 0:  # Build the node from args
         ## Make it clever enough to deal single argument provided as a tuple
         if len(args) == 1 and isinstance(args[0], (list, tuple)):
             args = args[0]
@@ -989,7 +1059,7 @@ def _NodeFactory(*args, **kwargs):
         #cls_str = args[0].__name__ if inspect.isclass(args[0]) else args[0]
         # Arg is already a _Node, then do nothing
         if len(args) == 1 and isinstance(args[0], _Node):  # _Node
-            node = args[0]        
+            node = args[0]
         # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
         # _NodeEstimator: object
         else:
@@ -1012,16 +1082,17 @@ def _group_args(*args):
         if isinstance(args[i], _Node):                           # _Node
             args_splitted.append(args[i])
             i += 1
-        elif i + 1 < len(args) and isinstance(args[i+1], dict): # class, dict
-            args_splitted.append((args[i], args[i+1]))
+        elif i + 1 < len(args) and isinstance(args[i + 1], dict): # class, dict
+            args_splitted.append((args[i], args[i + 1]))
             i += 2
         else:
             args_splitted.append(args[i])                      # class or obj
             i += 1
     return args_splitted
 
+
 def Seq(*args):
-    """    
+    """
     Parameters
     ----------
     TASK [, TASK]*
@@ -1048,14 +1119,14 @@ def Par(*args, **kwargs):
     Syntax (positional parameters)
     ------------------------------
 
- 
+
     Keywords parameters
     -------------------
     data: dict
-        Use 
+        Use
     store: string
-        Store (recursively) the objects tree on the given store. For file system 
-        store, indicates a path to a directory.
+        Store (recursively) the objects tree on the given store.
+        For file system store, indicates a path to a directory.
 
     Examples
     --------
@@ -1069,4 +1140,3 @@ def Par(*args, **kwargs):
         root.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
         root.save_node()
     return root
-
