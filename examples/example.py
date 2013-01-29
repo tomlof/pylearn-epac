@@ -76,6 +76,9 @@ cv_lda = CV(LDA(), n_folds=3, y=y)
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X)
 
+self = cv_lda.children[0]
+ds_kwargs = dict(X=X, y=y)
+
 # CV of Anova(k best selection) + SVM
 cv_anovas_svm = CV(anovas_svm, n_folds=3, y=y)
 cv_anovas_svm.fit(X=X, y=y)
@@ -89,9 +92,9 @@ perms_cv_anovas_svm.predict(X=X)
 #ds_kwargs = dict(X=X)
 #self = perms_cv_anovas_svm.children[0]
 #self.get_key()
+[self for self in perms_cv_anovas_svm]
+self.map_outputs
 
-
-[item.name for item in p.children]
 
 # Two permutations of 3 folds of univariate filtering of SVM and LDA
 import tempfile

@@ -6,19 +6,16 @@ Created on Wed Jan 23 13:58:21 2013
 """
 
 """
-The :mod:`sklearn.feature_selection` module implements feature selection
-algorithms. It currently includes univariate filter selection methods and the
-recursive feature elimination algorithm.
 """
 
-from .epac import SEQ
-from .epac import PAR
-from .epac import NodeFactory
-from .addtosklearn import Permutation
+from .epac import Seq
+from .epac import Par
+from .epac import CV
+from .epac import Perm
+#from .addtosklearn import Permutation
 
 
-__all__ = ['SEQ',
-           'PAR',
-           'RFECV',
-           'NodeFactory',
-           'Permutation']
+__all__ = ['Seq',
+           'Par',
+           'CV',
+           'Perm']

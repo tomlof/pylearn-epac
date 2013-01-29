@@ -655,10 +655,7 @@ class _NodeEstimator(_NodeMapper):
             return self.top_down(func_name="fit", recursion=recursion,
                                  **ds_kwargs)
         # Regular fit
-        # Split downwtream data-flow in train/test
-        ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
-        # Fit the training data selecting only args_fit in stream
-        self.estimator.fit(**_sub_dict(ds_kwargs_tr, self.args_fit))
+        self.estimator.fit(**_sub_dict(ds_kwargs, self.args_fit))
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **ds_kwargs)
         else:
@@ -672,20 +669,10 @@ class _NodeEstimator(_NodeMapper):
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)
         # Regular transform
-        # Split downwtream data-flow in train/test
-        ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
-        # train
-        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_tr,
+        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs,
                                              self.args_transform))
-        ds_kwargs_tr = _sub_dict_set(d=ds_kwargs_tr,
+        ds_kwargs = _sub_dict_set(d=ds_kwargs,
             new_vals=new_vals, subkeys=self.args_transform)
-        # test
-        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs_te,
-                                             self.args_transform))
-        ds_kwargs_te = _sub_dict_set(d=ds_kwargs_te,
-            new_vals=new_vals, subkeys=self.args_transform)
-        # join train, test into downstream
-        ds_kwargs = CV.join_tr_te(ds_kwargs_tr, ds_kwargs_te)
         return ds_kwargs
 
     def predict(self, recursion=True, **ds_kwargs):
@@ -699,13 +686,17 @@ class _NodeEstimator(_NodeMapper):
         if self.children:  # if children call transform
             return self.transform(recursion=False, **ds_kwargs)
         # leaf node: do the prediction predict the test
-        # Split downwtream data-flow in train/test
-        ds_kwargs_tr, ds_kwargs_te = CV.split_tr_te(**ds_kwargs)
-        # predict test downstream
         pred = self.estimator.predict(
-            **_sub_dict(ds_kwargs_te, self.args_predict))
+            **_sub_dict(ds_kwargs, self.args_predict))
+
+        ds_kwargs = _sub_dict_set(d=ds_kwargs,
+            new_vals=new_vals, subkeys=self.args_transform)
+            
+         = _sub_dict(ds_kwargs, _list_diff(self.args_fit, self.args_predict))
+
+        
         # collect map output
-        self.add_map_output(key=self.get_key(2), val=dict(y_pred=pred))
+        self.add_map_output(key=self.get_key(2), val=dict(pred=pred, true=true))
         return pred
 
 
@@ -713,18 +704,14 @@ class _NodeEstimator(_NodeMapper):
 ## ==                                                                    == ##
 ## == Parallelization nodes
 ## ==
-## == Splitters: are non leaf node (degree >= 1) with children.
-## == They split the downstream data-flow to their children
-## == They reduce the upstream data-flow from their children
-## ==
-## == Slicers: are Splitters children
-## == They reslice the downstream data-flow
-## == They do nothing on the upstream data-flow
-## ==                                                                    == ##
 ## ======================================================================== ##
 
+# -------------------------------- #
+# -- Reducer:  upstream data-flow                -- #
+# -------------------------------- #
+
 class _NodeReducer(_Node):
-    """Abstract class of _Node that contribute to redcue the upstream
+    """Abstract class of _Nodes that process (reduce) the upstream data-flow.
     data-flow"""
     def __init__(self, name):
         super(_NodeReducer, self).__init__(name=name)
@@ -803,76 +790,6 @@ class CV(_NodeSplitter, _NodeReducer):
 
     def get_signature(self):
         return "CV", dict(n_folds=self.n_folds)
-
-    @classmethod
-    def split_tr_te(cls, **ds_kwargs):
-        """Split ds_kwargs into train dict (that contains train suffix in kw)
-        and test dict (that contains test suffix in kw).
-
-        Returns
-        -------
-        Two dictionaries without the train and test suffix into kw. Outputs
-        are then compliant with estimator API that takes only X, y paramaters.
-        If only "X" an "y" kw are found they are replicated into the both
-        outputs.
-
-        Example
-        -------
-       >>> CV.split_tr_te(Xtrain=1, ytrain=2, Xtest=-1, ytest=-2,
-       ... a=33)
-       ({'y': 2, 'X': 1, 'a': 33}, {'y': -2, 'X': -1, 'a': 33})
-
-        >>> CV.split_tr_te(X=1, y=2, a=33)
-        ({'y': 2, 'X': 1, 'a': 33}, {'y': 2, 'X': 1, 'a': 33})
-        """
-        ds_kwargs_tr = ds_kwargs.copy()
-        ds_kwargs_te = ds_kwargs.copy()
-        for data_key in Config.ds_kwargs_data_prefix:
-            data_key_tr = data_key + CV.train_data_suffix
-            data_key_te = data_key + CV.test_data_suffix
-            # Remove [X|y]test from train
-            if data_key_te in ds_kwargs_tr:
-                ds_kwargs_tr.pop(data_key_te)
-            # Remove [X|y]train from test
-            if data_key_tr in ds_kwargs_te:
-                ds_kwargs_te.pop(data_key_tr)
-            # [X|y]train becomes [X|y] to be complient with estimator API
-            if data_key_tr in ds_kwargs_tr:
-                ds_kwargs_tr[data_key] =\
-                    ds_kwargs_tr.pop(data_key_tr)
-            # [X|y]test becomes [X|y] to be complient with estimator API
-            if data_key_te in ds_kwargs_te:
-                ds_kwargs_te[data_key] =\
-                    ds_kwargs_te.pop(data_key_te)
-        return ds_kwargs_tr, ds_kwargs_te
-
-    @classmethod
-    def join_tr_te(cls, ds_kwargs_tr, ds_kwargs_te):
-        """Merge train test separate ds_kwargs into single dict.
-
-            Returns
-            -------
-            A single dictionary with train and test suffix as kw.
-
-            Example
-            -------
-            >>> CV.join_tr_te(dict(X=1, y=2, a=33),
-            ...                          dict(X=-1, y=-2, a=33))
-            {'ytest': -2, 'Xtest': -1, 'a': 33, 'Xtrain': 1, 'ytrain': 2}
-        """
-        ds_kwargs = dict()
-        for data_key in Config.ds_kwargs_data_prefix:
-            if data_key in ds_kwargs_tr:  # Get [X|y] from train
-                data_key_tr = data_key + CV.train_data_suffix
-                ds_kwargs[data_key_tr] = \
-                    ds_kwargs_tr.pop(data_key)
-            if data_key in ds_kwargs_te:  # Get [X|y] from train
-                data_key_te = data_key + CV.test_data_suffix
-                ds_kwargs[data_key_te] = \
-                    ds_kwargs_te.pop(data_key)
-        ds_kwargs.update(ds_kwargs_tr)
-        ds_kwargs.update(ds_kwargs_te)
-        return ds_kwargs
 
 
 class Perm(_NodeSplitter, _NodeReducer):
@@ -986,7 +903,7 @@ class _NodeRowSlicer(_NodeSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def transform(self, recursion=True, **ds_kwargs):
+    def transform(self, recursion=True, slice_name=None, **ds_kwargs):
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)
@@ -995,28 +912,30 @@ class _NodeRowSlicer(_NodeSlicer):
             if not data_key is ds_kwargs:
                 continue
             if isinstance(self.slices, dict):
-                # rename output keys according to input keys and slice keys
-                data = ds_kwargs.pop(data_key)
-                for key_slice in self.slices:
-                    ds_kwargs[data_key + key_slice] = \
-                        data[self.slices[key_slice]]
+                if not slice_name:
+                    raise ValueError("slice_name should be provided"
+                    "self.slices is a dict with several slices, one should"
+                    "indiquates which slices to use among %s" %
+                    self.slices.keys())
+                indices = self.slices[slice_name]
             else:
-                ds_kwargs[data_key] = ds_kwargs[data_key][self.slices]
+                indices = self.slices
+            ds_kwargs[data_key] = ds_kwargs[data_key][indices]
         return ds_kwargs
 
     def fit(self, recursion=True, **ds_kwargs):
-        """Call transform"""
+        """Call transform with slice_name="train" """
         if recursion:
             return self.top_down(func_name="fit", recursion=recursion,
                                  **ds_kwargs)
-        return self.transform(recursion=False, **ds_kwargs)
+        return self.transform(recursion=False, slice_name="train", **ds_kwargs)
 
     def predict(self, recursion=True, **ds_kwargs):
-        """Call transform"""
+        """Call transform  with slice_name="test" """
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
                                  **ds_kwargs)
-        return self.transform(recursion=False, **ds_kwargs)
+        return self.transform(recursion=False, slice_name="test", **ds_kwargs)
 
 
 def _NodeFactory(*args, **kwargs):
