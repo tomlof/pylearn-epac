@@ -76,7 +76,9 @@ cv_lda = CV(LDA(), n_folds=3, y=y)
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X)
 
+self = cv_lda.children[0].children[0]
 self = cv_lda.children[0]
+
 ds_kwargs = dict(X=X, y=y)
 
 # CV of Anova(k best selection) + SVM

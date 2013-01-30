@@ -98,7 +98,7 @@ def _sub_dict_set(d, new_vals, subkeys=None):
     d = d.copy()  # avoid side effect
     # if singleton (and not dict) convert to length one tuple
     if not isinstance(new_vals, (tuple, dict)):
-        new_vals = (new_vals,)
+        new_vals = (new_vals, )
     # if tuple convert to dict, with keys matching subkeys
     if isinstance(new_vals, tuple):  # transform list to dict, matching order
         if len(subkeys) is not len(new_vals):
@@ -686,13 +686,16 @@ class _NodeEstimator(_NodeMapper):
         if self.children:  # if children call transform
             return self.transform(recursion=False, **ds_kwargs)
         # leaf node: do the prediction predict the test
-        pred = self.estimator.predict(
+        pred_arr = self.estimator.predict(
             **_sub_dict(ds_kwargs, self.args_predict))
-
-        ds_kwargs = _sub_dict_set(d=ds_kwargs,
-            new_vals=new_vals, subkeys=self.args_transform)
-            
-         = _sub_dict(ds_kwargs, _list_diff(self.args_fit, self.args_predict))
+        pred_names = _list_diff(self.args_fit, self.args_predict)
+        true_dict = _sub_dict(ds_kwargs, pred_names)
+        both = {"true_"+str(k):true_dict[k] for k in true_dict}
+        #[both["pred_"+str(pred_names[i])] = ]
+        ds_kwargs = _sub_dict_set(d=both,
+            new_vals=pred_arr, subkeys=pred_names)
+#            
+#         = _sub_dict(ds_kwargs, )
 
         
         # collect map output
