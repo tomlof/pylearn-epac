@@ -4,11 +4,11 @@ Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard
 """
-run epac.py
+# run epac.py
 
 import numpy as np
-#X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-#y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import datasets
 iris = datasets.load_iris()
@@ -32,6 +32,15 @@ from sklearn.feature_selection import SelectKBest
 # SVM Classifier
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
 pipe.fit(X=X, y=y).predict(X=X)
+# The downstream data-flow is a keyword arguments (dict) containing X and y.
+# It will pass through each processing node, SelectKBest(k=2) and SVC.
+# The Fit:
+# Each non-leaf (here SelectKBest  node call the fit method, then apply
+# the transforation on the downstream and pass it to the next node. The leaf
+# node (here SVC) do not call the transformation.
+# The predict:
+# Similar sequential tranformation are applied on X, except that the leaf node
+# call the predict method.
 
 ## Parallelization
 ## ===============
@@ -69,28 +78,46 @@ anovas_svm.predict(X=X)
 # CV of LDA
 #     CV                  (Splitter)
 #  /   |   \
-# 0    1    2  Fold       (Slicer)
+# 0    1    2  Folds      (Slicer)
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
 cv_lda = CV(LDA(), n_folds=3, y=y)
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X)
+# A CV node is a Splitter: it as one child per fold. Each child is a slicer
+# ie.: it re-slices the downstream data-flow according into train or test
+# sample. When it is called with "fit" it uses the train samples. When it is 
+# called with "predict" it uses the test samples.
+# If it is called with transform, user has to precise wich sample to use. To
+# do that just add a argument sample_set="train" or "test" in the downstream
+# data-flow. This argument will be catched by the slicer.
+cv_lda.transform(X=X, sample_set="train")
+cv_lda.transform(X=X, sample_set="test")
 
-self = cv_lda.children[0].children[0]
-self = cv_lda.children[0]
 
-ds_kwargs = dict(X=X, y=y)
+## Reducing results
+## ===============
 
+cv_lda.predict(X=X, y=y)
+
+[self.map_outputs for self in cv_lda]
+r = cv_lda.bottum_up()
+r["LDA"]['pred_y']
+r["LDA"]['true_y']
+
+np.asarray(r["LDA"]['pred_y'][0]).shape
 # CV of Anova(k best selection) + SVM
+# User can provide a whole sequential pipeline (here anovas_svm) to CV.
 cv_anovas_svm = CV(anovas_svm, n_folds=3, y=y)
 cv_anovas_svm.fit(X=X, y=y)
 cv_anovas_svm.predict(X=X)
 
-# Permutation / Cross-validation of a Pipeline 
-# Permutation of CV of Anova(k best selection) + SVM
+# Permutation of Cross-validation of Anova(k best selection) + SVM
+# User can provide a whole execution tree to permutation
 perms_cv_anovas_svm = Perm(cv_anovas_svm, n_perms=3, y=y)
 perms_cv_anovas_svm.fit(X=X, y=y)
 perms_cv_anovas_svm.predict(X=X)
+
 #ds_kwargs = dict(X=X)
 #self = perms_cv_anovas_svm.children[0]
 #self.get_key()

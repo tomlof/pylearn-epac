@@ -78,36 +78,21 @@ def _sub_dict(d, subkeys):
     return {k: d[k] for k in subkeys}
 
 
-def _sub_dict_set(d, new_vals, subkeys=None):
-    """ Set d[subkeys] to new_vals
-
-    Arguments
-    ---------
-    d: dict
-
-    subkeys: list of (sub) keys, if missing use new_vals.keys()
-
-    new_vals: singleton, tuple, dict
-        if singleton convert it to a tuple of length one
-        if tuple convert it to a dict using "subkeys" keys
+def _as_dict(v, keys):
     """
-    if not subkeys:
-        subkeys = new_vals.keys()
-    if not _list_contains(d.keys(), subkeys):
-        raise ValueError('Some keys of subkeys are not in d.keys()')
-    d = d.copy()  # avoid side effect
-    # if singleton (and not dict) convert to length one tuple
-    if not isinstance(new_vals, (tuple, dict)):
-        new_vals = (new_vals, )
-    # if tuple convert to dict, with keys matching subkeys
-    if isinstance(new_vals, tuple):  # transform list to dict, matching order
-        if len(subkeys) is not len(new_vals):
-            raise ValueError('Arguments of different lengths')
-        new_vals = {subkeys[i]: new_vals[i] for i in xrange(len(new_vals))}
-    # Now new_vals is a dict, replace values in d
-    for k in new_vals.keys():
-        d[k] = new_vals[k]
-    return d
+    Ensure that v is a dict, if not create one using keys.
+    Example
+    -------
+    _as_dict(([1, 2], [3, 1]), ["x", "y"])
+    """
+    if isinstance(v, dict):
+        return v
+    if len(keys) == 1:
+        return {keys[0] :v}
+    if len(keys) != len(v):
+        raise ValueError("Do not know how to build a dictionnary with keys %s"
+            % keys)
+    return {keys[i]:v[i] for i in xrange(len(keys))}
 
 
 def _get_args_names(f):
@@ -514,7 +499,7 @@ class _Node(object):
     # --------------------------------------------- #
 
     def bottum_up(self):
-        # Terminaison (leaf) node
+        # Terminaison (leaf) node return map_outputs
         if not self.children:
             return self.map_outputs
         # 1) Build sub-aggregates over children
@@ -668,39 +653,39 @@ class _NodeEstimator(_NodeMapper):
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)
-        # Regular transform
-        new_vals = self.estimator.transform(**_sub_dict(ds_kwargs,
-                                             self.args_transform))
-        ds_kwargs = _sub_dict_set(d=ds_kwargs,
-            new_vals=new_vals, subkeys=self.args_transform)
+        # Regular transform:
+        # catch args_transform in ds, transform, store output in a dict
+        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(ds_kwargs,
+                                             self.args_transform)),
+                       keys=self.args_transform)
+        # update ds with transformed values
+        ds_kwargs.update(trn_dict)
         return ds_kwargs
 
     def predict(self, recursion=True, **ds_kwargs):
         if _DEBUG:
             print "-", self.get_key(), "predict, rec:", recursion
-        # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+        self.ds_kwargs = ds_kwargs  # self = leaf; ds_kwargs = self.ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
                                  **ds_kwargs)
         if self.children:  # if children call transform
             return self.transform(recursion=False, **ds_kwargs)
-        # leaf node: do the prediction predict the test
-        pred_arr = self.estimator.predict(
-            **_sub_dict(ds_kwargs, self.args_predict))
+        # leaf node: do the prediction
+        pred_arr = self.estimator.predict(**_sub_dict(ds_kwargs,
+                                                    self.args_predict))
         pred_names = _list_diff(self.args_fit, self.args_predict)
-        true_dict = _sub_dict(ds_kwargs, pred_names)
-        both = {"true_"+str(k):true_dict[k] for k in true_dict}
-        #[both["pred_"+str(pred_names[i])] = ]
-        ds_kwargs = _sub_dict_set(d=both,
-            new_vals=pred_arr, subkeys=pred_names)
-#            
-#         = _sub_dict(ds_kwargs, )
-
-        
-        # collect map output
-        self.add_map_output(key=self.get_key(2), val=dict(pred=pred, true=true))
-        return pred
+        pred_dict = _as_dict(pred_arr, keys=pred_names)
+        # If true values are provided in ds then store them
+        if set(pred_names).issubset(set(ds_kwargs.keys())):
+            true_dict = _sub_dict(ds_kwargs, pred_names)
+            both = {"pred_" + str(k): true_dict[k] for k in pred_dict}
+            both.update({"true_" + str(k): true_dict[k] for k in true_dict})
+            self.add_map_output(key=self.get_key(2), val=both)
+        else:  # store only predicted values
+            self.add_map_output(key=self.get_key(2), val=pred_dict)
+        return pred_arr
 
 
 ## ======================================================================== ##
@@ -886,7 +871,8 @@ class _NodeRowSlicer(_NodeSlicer):
         self.apply_on = apply_on
 
     def finalize_init(self, **ds_kwargs):
-        ds_kwargs = self.transform(recursion=False, **ds_kwargs)
+        ds_kwargs = self.transform(recursion=False, sample_set="train",
+                                   **ds_kwargs)
         # print self, "(",self.parent,")", self.slices, ds_kwargs
         # propagate down-way
         if self.children:
@@ -906,39 +892,40 @@ class _NodeRowSlicer(_NodeSlicer):
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
-    def transform(self, recursion=True, slice_name=None, **ds_kwargs):
+    def transform(self, recursion=True, sample_set=None, **ds_kwargs):
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)
         data_keys = self.apply_on if self.apply_on else ds_kwargs.keys()
         for data_key in data_keys:  # slice input data
-            if not data_key is ds_kwargs:
+            if not data_key in ds_kwargs:
                 continue
             if isinstance(self.slices, dict):
-                if not slice_name:
-                    raise ValueError("slice_name should be provided"
-                    "self.slices is a dict with several slices, one should"
+                if not sample_set:
+                    raise ValueError("sample_set should be provided. "
+                    "self.slices is a dict with several slices, one should "
                     "indiquates which slices to use among %s" %
                     self.slices.keys())
-                indices = self.slices[slice_name]
+                indices = self.slices[sample_set]
             else:
                 indices = self.slices
             ds_kwargs[data_key] = ds_kwargs[data_key][indices]
+        print ds_kwargs
         return ds_kwargs
 
     def fit(self, recursion=True, **ds_kwargs):
-        """Call transform with slice_name="train" """
+        """Call transform with sample_set="train" """
         if recursion:
             return self.top_down(func_name="fit", recursion=recursion,
                                  **ds_kwargs)
-        return self.transform(recursion=False, slice_name="train", **ds_kwargs)
+        return self.transform(recursion=False, sample_set="train", **ds_kwargs)
 
     def predict(self, recursion=True, **ds_kwargs):
-        """Call transform  with slice_name="test" """
+        """Call transform  with sample_set="test" """
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
                                  **ds_kwargs)
-        return self.transform(recursion=False, slice_name="test", **ds_kwargs)
+        return self.transform(recursion=False, sample_set="test", **ds_kwargs)
 
 
 def _NodeFactory(*args, **kwargs):
