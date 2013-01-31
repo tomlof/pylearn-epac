@@ -331,17 +331,9 @@ RECURSION_DOWN = 2
 
 
 class _Node(object):
-    """Parallelization node, provide:
-        - key/val
-        - I/O interface with the store."""
+    """Nodes base class"""
 
-    def __init__(self, key=None, store=None):
-        """
-        Parameter
-        ---------
-        name: the node's name, used to build its key
-        """
-        #self.name = name
+    def __init__(self):
         self.signature_args = None  # dict of args to build the node signature
         self.parent = None
         self.children = list()
@@ -365,10 +357,33 @@ class _Node(object):
         for child in children:
             self.add_child(child)
 
-#    @abstractmethod
-#    def get_signature(self):
-#        """the signature of the current _Node, a tuple class,
-#        dict(init params)"""
+    def get_leaves(self):
+        if not self.children:
+            return [self]
+        else:
+            leaves = []
+            for child in self.children:
+                leaves = leaves + child.get_leaves()
+            return leaves
+
+    def get_path_from_root(self):
+        if self.parent is None:
+            return [self]
+        return self.parent.get_path_from_root() + [self]
+
+    def __iter__(self):
+        """ Iterate over leaves"""
+        for leaf in self.get_leaves():
+            yield leaf
+
+    # --------------------- #
+    # -- Key             -- #
+    # -- key can be primary or intermediate key
+    # -- * Primary key is a unique identifier of a node in the tree, it is
+    # --   used to store leaf outputs at the end of the downstream flow.
+    # -- * Intermediate key is a unique identifier of a node in the tree.
+    # --   It is used to identify 
+    # --------------------- #
 
     def get_key(self, nb=1):
         """Return primary or intermediate key.
@@ -413,25 +428,6 @@ class _Node(object):
     @abstractmethod
     def get_state(self):
         """Return the state of the object"""
-
-    def get_leaves(self):
-        if not self.children:
-            return [self]
-        else:
-            leaves = []
-            for child in self.children:
-                leaves = leaves + child.get_leaves()
-            return leaves
-
-    def get_path_from_root(self):
-        if self.parent is None:
-            return [self]
-        return self.parent.get_path_from_root() + [self]
-
-    def __iter__(self):
-        """ Iterate over leaves"""
-        for leaf in self.get_leaves():
-            yield leaf
 
     def add_map_output(self, key=None, val=None, keyvals=None):
         """ Collect map output

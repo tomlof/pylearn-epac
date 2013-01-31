@@ -63,6 +63,7 @@ svms = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
+self = svms
 
 # Combine Par with sequential Pipeline: Anova(k best selection) + SVM
 #     Par      MultiMethod (Splitter)
