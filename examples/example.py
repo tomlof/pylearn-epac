@@ -62,6 +62,7 @@ multi.predict(X=X)
 svms = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
+svms.bottum_up()
 
 # Combine Par with sequential Pipeline: Anova(k best selection) + SVM
 #     Par      MultiMethod (Splitter)
@@ -72,7 +73,9 @@ svms.predict(X=X)
 anovas_svm = Par(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in [1, 5, 10]])
 anovas_svm.fit(X=X, y=y)
 anovas_svm.predict(X=X)
+anovas_svm.bottum_up()
 
+[l.get_signature() for l in anovas_svm]
 # Cross-validation
 # ---------------
 # CV of LDA

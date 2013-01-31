@@ -10,7 +10,8 @@ print __doc__
 ## te: test
 
 
-_DEBUG = True
+_VERBOSE = True
+_DEBUG = False
 
 import numpy as np
 from abc import abstractmethod
@@ -81,21 +82,25 @@ def _sub_dict(d, subkeys):
 def _as_dict(v, keys):
     """
     Ensure that v is a dict, if not create one using keys.
+
     Example
     -------
-    _as_dict(([1, 2], [3, 1]), ["x", "y"])
+    >>> _as_dict(([1, 2], [3, 1]), ["x", "y"])
+    {'y': [3, 1], 'x': [1, 2]}
     """
     if isinstance(v, dict):
         return v
     if len(keys) == 1:
-        return {keys[0] :v}
+        return {keys[0]: v}
     if len(keys) != len(v):
         raise ValueError("Do not know how to build a dictionnary with keys %s"
             % keys)
-    return {keys[i]:v[i] for i in xrange(len(keys))}
+    return {keys[i]: v[i] for i in xrange(len(keys))}
 
 
-def _get_args_names(f):
+def _func_get_args_names(f):
+    """Return non defaults function args names
+    """
     import inspect
     a = inspect.getargspec(f)
     if a.defaults:
@@ -160,8 +165,9 @@ class StoreFs(Store):
     def save_object(self, obj, key):
         path = self.key2path(key)
         import os
-        class_name = str(obj.__class__).split(".")[-1].\
-            replace(r"'", "").replace(r">", "")
+#        class_name = str(obj.__class__).split(".")[-1].\
+#            replace(r"'", "").replace(r">", "")
+        class_name = obj.__class__.__name__
         # try to save in json format
         filename = Config.store_fs_node_prefix + class_name +\
             Config.store_fs_json_suffix
@@ -318,7 +324,6 @@ class Config:
     key_prot_fs = "file"  # key storage protocol: file system
     key_path_sep = "/"
     key_prot_path_sep = "://"  # key storage protocol / path separator
-    ds_kwargs_data_prefix = ["X", "y"]
 
 
 RECURSION_UP = 1
@@ -330,13 +335,14 @@ class _Node(object):
         - key/val
         - I/O interface with the store."""
 
-    def __init__(self, name=None, key=None, store=None):
+    def __init__(self, key=None, store=None):
         """
         Parameter
         ---------
         name: the node's name, used to build its key
         """
-        self.name = name
+        #self.name = name
+        self.signature_args = None  # dict of args to build the node signature
         self.parent = None
         self.children = list()
         self.map_outputs = dict()
@@ -359,14 +365,10 @@ class _Node(object):
         for child in children:
             self.add_child(child)
 
-    @abstractmethod
-    def get_signature(self):
-        """the signature of the current _Node, a tuple class,
-        dict(init params)"""
-
-    def get_name(self):
-        """the name of the current _Node used to build the keys"""
-        return self.name
+#    @abstractmethod
+#    def get_signature(self):
+#        """the signature of the current _Node, a tuple class,
+#        dict(init params)"""
 
     def get_key(self, nb=1):
         """Return primary or intermediate key.
@@ -382,12 +384,35 @@ class _Node(object):
         """
         if nb is 1 or (nb is 2 and isinstance(self, _NodeMapper)):
             if not self.parent:
-                return self.get_name()
-            return key_push(self.parent.get_key(nb=nb), self.get_name())
+                return self.get_signature()
+            return key_push(self.parent.get_key(nb=nb), self.get_signature())
         else:
             if not self.parent:
                 return ""
             return self.parent.get_key(nb=nb)
+
+    def get_signature(self):
+        """The signature of the current Node, used to build the key"""
+        args_str = self.get_args_str()
+        args_str = "(" + args_str + ")" if args_str else ""
+        return self.get_class_str() + args_str
+
+    def get_class_str(self):
+        """The class name of the current node, used to build the signature"""
+        return self.__class__.__name__
+
+    def get_args_str(self):
+        """The arguments names/values of the current node, used to build
+        the signature"""
+        if not self.signature_args:
+            return ""
+        else:
+            return ",".join([str(k) + "=" + str(self.signature_args[k]) for k
+                                in self.signature_args])
+
+    @abstractmethod
+    def get_state(self):
+        """Return the state of the object"""
 
     def get_leaves(self):
         if not self.children:
@@ -454,8 +479,8 @@ class _Node(object):
             ------
             A dictionnary of processed data
         """
-        if _DEBUG:
-            print "top_down", self.get_key(), func_name
+        if _VERBOSE:
+            print self.get_key(), func_name
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent map up to root
@@ -512,7 +537,10 @@ class _Node(object):
             merge = dict()
             [merge.update(item) for item in sub_aggregates]
             if len(merge) != np.sum([len(item) for item in sub_aggregates]):
-                ValueError("Collision occured between intermediary keys")
+                import warnings
+                warnings.warn("Collision occured between intermediary keys. "
+                "It may be due to the fact that you are running several time "
+                "the same algorithm.")
             return merge
         # 2) Agregate children's sub-aggregates
         aggregate = dict()
@@ -547,7 +575,7 @@ class _Node(object):
         # replace reference to chidren/parent by basename strings
         import copy
         clone = copy.copy(self)
-        clone.children = [child.get_name() for child in self.children]
+        clone.children = [child.get_signature() for child in self.children]
         if self.parent:
             clone.parent = ".."
         store.save_object(clone, key)
@@ -606,8 +634,8 @@ def load_node(key=None, store=None, recursion=True):
 ## ================================= ##
 class _NodeMapper(_Node):
     """Abstract class of _Node that contribute to transform the data"""
-    def __init__(self, name):
-        super(_NodeMapper, self).__init__(name=name)
+    def __init__(self):
+        super(_NodeMapper, self).__init__()
 
 
 class _NodeEstimator(_NodeMapper):
@@ -615,21 +643,23 @@ class _NodeEstimator(_NodeMapper):
 
     def __init__(self, estimator):
         self.estimator = estimator
-        super(_NodeEstimator, self).__init__(
-            name=estimator.__class__.__name__)
-        self.args_fit = _get_args_names(self.estimator.fit) \
+        super(_NodeEstimator, self).__init__()
+        self.args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
-        self.args_predict = _get_args_names(self.estimator.predict) \
+        self.args_predict = _func_get_args_names(self.estimator.predict) \
             if hasattr(self.estimator, "predict") else None
-        self.args_transform = _get_args_names(self.estimator.transform) \
+        self.args_transform = _func_get_args_names(self.estimator.transform) \
             if hasattr(self.estimator, "transform") else None
 
     def __repr__(self):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def get_signature(self):
-        return self.estimator.__class__.__name__, self.estimator.__dict__
+    def get_class_str(self):
+        return self.estimator.__class__.__name__
+
+    def get_state(self):
+        return self.estimator.__dict__
 
     def fit(self, recursion=True, **ds_kwargs):
         if _DEBUG:
@@ -701,8 +731,8 @@ class _NodeEstimator(_NodeMapper):
 class _NodeReducer(_Node):
     """Abstract class of _Nodes that process (reduce) the upstream data-flow.
     data-flow"""
-    def __init__(self, name):
-        super(_NodeReducer, self).__init__(name=name)
+    def __init__(self):
+        super(_NodeReducer, self).__init__()
 
 
 # -------------------------------- #
@@ -715,8 +745,8 @@ class _NodeSplitter(_Node):
     They reduce the upstream data-flow from their children. Thus they are
     Reducers
     """
-    def __init__(self, name):
-        super(_NodeSplitter, self).__init__(name=name)
+    def __init__(self):
+        super(_NodeSplitter, self).__init__()
 
     def fit(self, recursion=True, **ds_kwargs):
         if recursion:
@@ -743,7 +773,7 @@ class CV(_NodeSplitter, _NodeReducer):
     test_data_suffix = "test"
 
     def __init__(self, task, n_folds, **kwargs):
-        super(CV, self).__init__(name="CV")
+        super(CV, self).__init__()
         self.n_folds = n_folds
         self.add_children([_NodeRowSlicer(name=str(nb), apply_on=None) for nb\
                 in xrange(n_folds)])
@@ -776,15 +806,15 @@ class CV(_NodeSplitter, _NodeReducer):
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
 
-    def get_signature(self):
-        return "CV", dict(n_folds=self.n_folds)
+    def get_state(self):
+        return dict(n_folds=self.n_folds)
 
 
 class Perm(_NodeSplitter, _NodeReducer):
     """ Permutation Splitter"""
 
     def __init__(self, task, n_perms, permute="y", **kwargs):
-        super(Perm, self).__init__(name="Permutation")
+        super(Perm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
         self.add_children([_NodeRowSlicer(name=str(nb), apply_on=permute) \
@@ -809,9 +839,8 @@ class Perm(_NodeSplitter, _NodeReducer):
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
 
-    def get_signature(self):
-        return "Permutation", dict(n_perms=self.n_perms,
-                                   permute=self.permute)
+    def get_state(self):
+        return dict(n_perms=self.n_perms, permute=self.permute)
 
 
 class MultiMethods(_NodeSplitter):
@@ -819,27 +848,34 @@ class MultiMethods(_NodeSplitter):
     Slices can be split (shards) or a resampling of the original datasets.
     """
     def __init__(self, methods):
-        super(MultiMethods, self).__init__(name="MultiMethods")
+        super(MultiMethods, self).__init__()
         for m in methods:
             curr = _NodeFactory(m)
             self.add_child(curr)
-        # detect collisions in names
-        signatures = [o.get_signature() for o in self.children]
-        child_cls_names = [s[0] for s in signatures]
-        child_args = [s[1] for s in signatures]
-        if len(child_cls_names) != len(set(child_cls_names)):  # collision
+        # detect collisions in children signature
+        signatures = [c.get_signature() for c in self.children]
+        if len(signatures) != len(set(signatures)):  # collision
+            # in this case complete the signature finding differences
+            # in children states and put it in the args attribute
+            child_cls_str = [c.get_class_str() for c in self.children]
+            child_states = [c.get_state() for c in self.children]
             # iterate over each level to solve collision
-            for cls in set(child_cls_names):
-                indices = _list_indices(child_cls_names, cls)
-                if len(indices) == 1:  # no collision with this class name
+            for cls in set(child_cls_str):
+                collision_indices = _list_indices(child_cls_str, cls)
+                if len(collision_indices) == 1:  # no collision for this cls
                     continue
-                diff = _dict_diff(*[child_args[i] for i in indices]).keys()
-                for idx in indices:
-                    import string
-                    arg_str = string.join([str(k) + "=" + \
-                        str(child_args[idx][k]) for k in diff], ",")
-                    self.children[idx].name = child_cls_names[idx] + "(" +\
-                        arg_str + ")"
+                # Collision: add differences in states in the signature_args
+                diff_arg_keys = _dict_diff(*[child_states[i] for i
+                                            in collision_indices]).keys()
+                for child_idx in collision_indices:
+                    self.children[child_idx].signature_args = \
+                        _sub_dict(child_states[child_idx], diff_arg_keys)
+#                    self.children[idx] self.signature_args
+#                    import string
+#                    arg_str = string.join([str(k) + "=" + \
+#                        str(child_states[idx][k]) for k in diff_arg_keys], ",")
+#                    self.children[idx].name = child_cls_names[idx] + "(" +\
+#                        arg_str + ")"
 
 
 # -------------------------------- #
@@ -849,8 +885,8 @@ class MultiMethods(_NodeSplitter):
 class _NodeSlicer(_Node):
     """ Slicers are Splitters' children, they re-sclice the downstream blocs.
     """
-    def __init__(self, name):
-        super(_NodeSlicer, self).__init__(name=name)
+    def __init__(self):
+        super(_NodeSlicer, self).__init__()
 
 
 class _NodeRowSlicer(_NodeSlicer):
@@ -865,8 +901,8 @@ class _NodeRowSlicer(_NodeSlicer):
         None, all downstream blocs are rescliced.
     """
 
-    def __init__(self, name, apply_on):
-        super(_NodeRowSlicer, self).__init__(name=name)
+    def __init__(self, apply_on):
+        super(_NodeRowSlicer, self).__init__()
         self.slices = None
         self.apply_on = apply_on
 
@@ -879,8 +915,8 @@ class _NodeRowSlicer(_NodeSlicer):
             [child.finalize_init(**ds_kwargs) for child in
                 self.children]
 
-    def get_signature(self):
-        return self.__class__.__name__, dict(slices=self.slices)
+    def get_state(self):
+        return dict(slices=self.slices)
 
     def set_sclices(self, slices):
         # convert as a list if required
