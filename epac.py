@@ -410,9 +410,9 @@ class _Node(object):
         """The signature of the current Node, used to build the key"""
         args_str = self.get_args_str()
         args_str = "(" + args_str + ")" if args_str else ""
-        return self.get_class_str() + args_str
+        return self.get_name() + args_str
 
-    def get_class_str(self):
+    def get_name(self):
         """The class name of the current node, used to build the signature"""
         return self.__class__.__name__
 
@@ -651,7 +651,7 @@ class _NodeEstimator(_NodeMapper):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def get_class_str(self):
+    def get_name(self):
         return self.estimator.__class__.__name__
 
     def get_state(self):
@@ -853,7 +853,7 @@ class MultiMethods(_NodeSplitter):
         if len(signatures) != len(set(signatures)):  # collision
             # in this case complete the signature finding differences
             # in children states and put it in the args attribute
-            child_cls_str = [c.get_class_str() for c in self.children]
+            child_cls_str = [c.get_name() for c in self.children]
             child_states = [c.get_state() for c in self.children]
             # iterate over each level to solve collision
             for cls in set(child_cls_str):
