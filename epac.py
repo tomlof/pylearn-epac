@@ -408,15 +408,15 @@ class _Node(object):
 
     def get_signature(self):
         """The signature of the current Node, used to build the key"""
-        args_str = self.get_args_str()
+        args_str = self.get_signature_args_str()
         args_str = "(" + args_str + ")" if args_str else ""
-        return self.get_name() + args_str
+        return self.get_signature_name() + args_str
 
-    def get_name(self):
-        """The class name of the current node, used to build the signature"""
+    def get_signature_name(self):
+        """The name of the current node, used to build the signature"""
         return self.__class__.__name__
 
-    def get_args_str(self):
+    def get_signature_args_str(self):
         """The arguments names/values of the current node, used to build
         the signature"""
         if not self.signature_args:
@@ -651,7 +651,7 @@ class _NodeEstimator(_NodeMapper):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def get_name(self):
+    def get_signature_name(self):
         return self.estimator.__class__.__name__
 
     def get_state(self):
@@ -853,7 +853,7 @@ class MultiMethods(_NodeSplitter):
         if len(signatures) != len(set(signatures)):  # collision
             # in this case complete the signature finding differences
             # in children states and put it in the args attribute
-            child_cls_str = [c.get_name() for c in self.children]
+            child_cls_str = [c.get_signature_name() for c in self.children]
             child_states = [c.get_state() for c in self.children]
             # iterate over each level to solve collision
             for cls in set(child_cls_str):
@@ -897,8 +897,10 @@ class _NodeRowSlicer(_NodeSlicer):
         None, all downstream blocs are rescliced.
     """
 
-    def __init__(self, apply_on):
+    def __init__(self, signature_name, signature_args, apply_on):
         super(_NodeRowSlicer, self).__init__()
+        self.signature_name = signature_name
+        self.signature_args = dict(nb=signature_args)
         self.slices = None
         self.apply_on = apply_on
 
@@ -913,6 +915,10 @@ class _NodeRowSlicer(_NodeSlicer):
 
     def get_state(self):
         return dict(slices=self.slices)
+
+    def get_signature_name(self):
+        """Overload the base name method"""
+        return self.signature_name
 
     def set_sclices(self, slices):
         # convert as a list if required
