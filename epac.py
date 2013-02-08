@@ -771,8 +771,8 @@ class CV(_NodeSplitter, _NodeReducer):
     def __init__(self, task, n_folds, **kwargs):
         super(CV, self).__init__()
         self.n_folds = n_folds
-        self.add_children([_NodeRowSlicer(name=str(nb), apply_on=None) for nb\
-                in xrange(n_folds)])
+        self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
+                               apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
             import copy
             split.add_child(_NodeFactory(copy.deepcopy(task)))
@@ -813,8 +813,8 @@ class Perm(_NodeSplitter, _NodeReducer):
         super(Perm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
-        self.add_children([_NodeRowSlicer(name=str(nb), apply_on=permute) \
-            for nb in xrange(n_perms)])
+        self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
+                              apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
             import copy
             perm.add_child(_NodeFactory(copy.deepcopy(task)))
@@ -897,10 +897,10 @@ class _NodeRowSlicer(_NodeSlicer):
         None, all downstream blocs are rescliced.
     """
 
-    def __init__(self, signature_name, signature_args, apply_on):
+    def __init__(self, signature_name, nb, apply_on):
         super(_NodeRowSlicer, self).__init__()
         self.signature_name = signature_name
-        self.signature_args = dict(nb=signature_args)
+        self.signature_args = dict(nb=nb)
         self.slices = None
         self.apply_on = apply_on
 
