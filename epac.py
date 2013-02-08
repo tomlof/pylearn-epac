@@ -416,6 +416,9 @@ class _Node(object):
         """The name of the current node, used to build the signature"""
         return self.__class__.__name__
 
+    def get_signature_args(self):
+        return self.signature_args
+
     def get_signature_args_str(self):
         """The arguments names/values of the current node, used to build
         the signature"""
@@ -539,8 +542,31 @@ class _Node(object):
                 "the same algorithm.")
             return merge
         # 2) Agregate children's sub-aggregates
+        children_name, children_args  = zip(*[(child.get_signature_name(), 
+                                               child.get_signature_args())
+                                               for child in self.children])
+        # Cheack that children have the same name, and same argument name
+        # ie.: they differ only on argument values
+        if len(set(children_name)) != 1:    
+            raise ValueError("Children of a Reducer have different names")
+        _, args_names, diff_args_names = _list_union_inter_diff(*[d.keys()
+                                                for d in children_args])
+        if diff_keys:
+            raise ValueError("Children of a Reducer have different arguements"
+            "keys")
+        # args_names 
+        for arg_name in args_names:
+            
         aggregate = dict()
-        for sub_aggregate in sub_aggregates:
+        for child_idx in xrange(len(sub_aggregates)):
+            if not sig_name:
+                sig_name = self.children[child_idx].get_signature_name()
+            if sig_name != self.children[child_idx].get_signature_name():
+                raise ValueError("Children of a Reducer have different names")
+            sig_args = self.children[child_idx].get_signature_args()
+            sub_aggregate = sub_aggregates[child_idx]
+            
+            #self.children[child_idx].signature_args
             #sub_aggregate = sub_aggregates[0]
             for key2 in sub_aggregate.keys():
                 #key2 = sub_aggregate.keys()[0]

@@ -104,6 +104,7 @@ cv_lda.transform(X=X, sample_set="test")
 
 cv_lda.predict(X=X, y=y)
 
+self = cv_lda
 [self.map_outputs for self in cv_lda]
 r = cv_lda.bottum_up()
 r["LDA"]['pred_y']
