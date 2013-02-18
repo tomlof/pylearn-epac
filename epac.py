@@ -46,6 +46,36 @@ def _list_indices(l, val):
     return [i for i in xrange(len(l)) if l[i] == val]
 
 
+def _list_of_dicts_2_dict_of_lists(list_of_dict):
+    """Convert a list of dicts to a dictionnary of lists.
+
+    Example
+    -------
+   >>> _list_of_dicts_2_dict_of_lists([dict(a=1, b=2), dict(a=10, b=20)])
+   {'a': [1, 10], 'b': [2, 20]}
+    """
+    dict_of_list = dict()
+    for d in list_of_dict:
+        #self.children[child_idx].signature_args
+        #sub_aggregate = sub_aggregates[0]
+        for key2 in d.keys():
+            #key2 = sub_aggregate.keys()[0]
+            map_out = d[key2]
+            # map_out is a dictionary
+            if isinstance(map_out, dict):
+                if not key2 in d.keys():
+                    dict_of_list[key2] = dict()
+                for key3 in map_out.keys():
+                    if not key3 in dict_of_list[key2].keys():
+                        dict_of_list[key2][key3] = list()
+                    dict_of_list[key2][key3].append(map_out[key3])
+            else:  # simply concatenate
+                if not key2 in dict_of_list.keys():
+                    dict_of_list[key2] = list()
+                dict_of_list[key2].append(map_out)
+    return dict_of_list
+
+
 def _dict_diff(*dicts):
     """Find the differences in a dictionaries
 
@@ -549,23 +579,35 @@ class _Node(object):
         # ie.: they differ only on argument values
         if len(set(children_name)) != 1:    
             raise ValueError("Children of a Reducer have different names")
-        _, args_names, diff_args_names = _list_union_inter_diff(*[d.keys()
+        _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
-        if diff_keys:
+        if diff_args_names:
             raise ValueError("Children of a Reducer have different arguements"
             "keys")
         # args_names 
-        for arg_name in args_names:
-            
+#        for arg_name in args_names:
+
+axis_names = ['kernel', 'C']
+
+cur_arg_name = arg_names[0]
+child_cur_arg_vals = [child_arg[cur_arg_name] for child_arg in children_args]
+for val in set(child_arg_vals)
+    children_idx = _list_indices(child_arg_vals, val)
+
+vals = list(set([child_arg[name] for child_arg in children_args]))
+
+for val in vals:
+    
+arg_names = arg_names[1:]
+
+name = 
+children_args
+
+        aggregate = _list_of_dicts_2_dict_of_lists(sub_aggregates)
+
+
         aggregate = dict()
-        for child_idx in xrange(len(sub_aggregates)):
-            if not sig_name:
-                sig_name = self.children[child_idx].get_signature_name()
-            if sig_name != self.children[child_idx].get_signature_name():
-                raise ValueError("Children of a Reducer have different names")
-            sig_args = self.children[child_idx].get_signature_args()
-            sub_aggregate = sub_aggregates[child_idx]
-            
+        for sub_aggregate in sub_aggregates:
             #self.children[child_idx].signature_args
             #sub_aggregate = sub_aggregates[0]
             for key2 in sub_aggregate.keys():

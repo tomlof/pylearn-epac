@@ -36,7 +36,7 @@ pipe.fit(X=X, y=y).predict(X=X)
 # It will pass through each processing node, SelectKBest(k=2) and SVC.
 # The Fit:
 # Each non-leaf (here SelectKBest  node call the fit method, then apply
-# the transforation on the downstream and pass it to the next node. The leaf
+# the transformation on the downstream and pass it to the next node. The leaf
 # node (here SVC) do not call the transformation.
 # The predict:
 # Similar sequential tranformation are applied on X, except that the leaf node
@@ -60,6 +60,13 @@ multi.predict(X=X)
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 svms = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+svms.fit(X=X, y=y)
+svms.predict(X=X)
+svms.bottum_up()
+self = svms
+
+
+svms = Par(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
