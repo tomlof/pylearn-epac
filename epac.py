@@ -63,7 +63,7 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict):
             map_out = d[key2]
             # map_out is a dictionary
             if isinstance(map_out, dict):
-                if not key2 in d.keys():
+                if not key2 in dict_of_list.keys():
                     dict_of_list[key2] = dict()
                 for key3 in map_out.keys():
                     if not key3 in dict_of_list[key2].keys():
@@ -557,15 +557,15 @@ class _Node(object):
         if not self.children:
             return self.map_outputs
         # 1) Build sub-aggregates over children
-        sub_aggregates = [child.bottum_up() for child in self.children]
+        children_aggregates = [child.bottum_up() for child in self.children]
         # If not reducer, act transparently
         if not isinstance(self, _NodeReducer):
-            if len(sub_aggregates) == 1:
-                return sub_aggregates[0]
+            if len(children_aggregates) == 1:
+                return children_aggregates[0]
             # if no collision in intermediary keys, merge dict and return
             merge = dict()
-            [merge.update(item) for item in sub_aggregates]
-            if len(merge) != np.sum([len(item) for item in sub_aggregates]):
+            [merge.update(item) for item in children_aggregates]
+            if len(merge) != np.sum([len(item) for item in children_aggregates]):
                 import warnings
                 warnings.warn("Collision occured between intermediary keys. "
                 "It may be due to the fact that you are running several time "
@@ -586,25 +586,30 @@ class _Node(object):
             "keys")
         # args_names 
 #        for arg_name in args_names:
+#
+#
+def stack(arg_names, children_aggregates, children_args):
+    if not arg_names:
+        return children_aggregates# _list_of_dicts_2_dict_of_lists(children_aggregates)
+    arg_name = arg_names[0]
+    stack_arg = list()
+    children_arg = [child_arg[arg_name] for child_arg in children_args]
+    for val in set(children_arg):
+        children_select = _list_indices(children_arg, val)
+        children_aggregates_select = [children_aggregates[i] for i
+                                        in children_select]
+        children_args_select = [children_args[i] for i in children_select]
+        sub_stacked = stack(arg_names=arg_names[1:],
+                          children_aggregates=children_aggregates_select,
+                          children_args=children_args_select)
+        stack_arg.append(sub_stacked)
+    return _list_of_dicts_2_dict_of_lists(stack_arg)
+       
+arg_names = arg_names1 = arg_names
+children_aggregates = children_aggregates1 = children_aggregates
+children_args = children_args1 = children_args
 
-axis_names = ['kernel', 'C']
-
-cur_arg_name = arg_names[0]
-child_cur_arg_vals = [child_arg[cur_arg_name] for child_arg in children_args]
-for val in set(child_arg_vals)
-    children_idx = _list_indices(child_arg_vals, val)
-
-vals = list(set([child_arg[name] for child_arg in children_args]))
-
-for val in vals:
-    
-arg_names = arg_names[1:]
-
-name = 
-children_args
-
-        aggregate = _list_of_dicts_2_dict_of_lists(sub_aggregates)
-
+stack(arg_names, children_aggregates, children_args)
 
         aggregate = dict()
         for sub_aggregate in sub_aggregates:
