@@ -46,7 +46,8 @@ def _list_indices(l, val):
     return [i for i in xrange(len(l)) if l[i] == val]
 
 
-def _list_of_dicts_2_dict_of_lists(list_of_dict):
+def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
+                                   axis_values=[]):
     """Convert a list of dicts to a dictionnary of lists.
 
     Example
@@ -54,6 +55,9 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict):
    >>> _list_of_dicts_2_dict_of_lists([dict(a=1, b=2), dict(a=10, b=20)])
    {'a': [1, 10], 'b': [2, 20]}
     """
+    class ListWithMetaInfo(list):
+        __axis_name = None
+        __axis_value = None
     dict_of_list = dict()
     for d in list_of_dict:
         #self.children[child_idx].signature_args
@@ -67,11 +71,15 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict):
                     dict_of_list[key2] = dict()
                 for key3 in map_out.keys():
                     if not key3 in dict_of_list[key2].keys():
-                        dict_of_list[key2][key3] = list()
+                        dict_of_list[key2][key3] = ListWithMetaInfo()
+                        dict_of_list[key2][key3].__axis_name = axis_name
+                        dict_of_list[key2][key3].__axis_value =axis_values
                     dict_of_list[key2][key3].append(map_out[key3])
             else:  # simply concatenate
                 if not key2 in dict_of_list.keys():
-                    dict_of_list[key2] = list()
+                    dict_of_list[key2] = ListWithMetaInfo()
+                    dict_of_list[key2].__axis_name = axis_name
+                    dict_of_list[key2].__axis_value =axis_values
                 dict_of_list[key2].append(map_out)
     return dict_of_list
 
@@ -412,7 +420,7 @@ class _Node(object):
     # -- * Primary key is a unique identifier of a node in the tree, it is
     # --   used to store leaf outputs at the end of the downstream flow.
     # -- * Intermediate key is a unique identifier of a node in the tree.
-    # --   It is used to identify 
+    # --   It is used to identify
     # --------------------- #
 
     def get_key(self, nb=1):
@@ -557,80 +565,80 @@ class _Node(object):
         if not self.children:
             return self.map_outputs
         # 1) Build sub-aggregates over children
-        children_aggregates = [child.bottum_up() for child in self.children]
-        # If not reducer, act transparently
-        if not isinstance(self, _NodeReducer):
-            if len(children_aggregates) == 1:
-                return children_aggregates[0]
+        children_results = [child.bottum_up() for child in self.children]
+        #axis_names, axis_values, us_dict = zip(*results)
+        # 2) If not a reducer, act transparently, just warm if collisions
+        # between secondary keys
+        if not isinstance(self, _NodeAggregator):
+            if len(children_results) == 1:
+                return children_results[0]
             # if no collision in intermediary keys, merge dict and return
             merge = dict()
-            [merge.update(item) for item in children_aggregates]
-            if len(merge) != np.sum([len(item) for item in children_aggregates]):
+            [merge.update(item) for item in children_results]
+            if len(merge) != np.sum([len(item) for item in children_results]):
                 import warnings
                 warnings.warn("Collision occured between intermediary keys. "
                 "It may be due to the fact that you are running several time "
                 "the same algorithm.")
             return merge
-        # 2) Agregate children's sub-aggregates
-        children_name, children_args  = zip(*[(child.get_signature_name(), 
+        # 2) Aggregator: Aggregate (stack) all children results with identical
+        # secondary key, by stacking them according to
+        # argumnents. Ex.: stack for a CV stack folds, for a ParGrid
+        # stack results over sevral values of each arguments
+        children_name, children_args = zip(*[(child.get_signature_name(),
                                                child.get_signature_args())
                                                for child in self.children])
         # Cheack that children have the same name, and same argument name
         # ie.: they differ only on argument values
-        if len(set(children_name)) != 1:    
+        if len(set(children_name)) != 1:
             raise ValueError("Children of a Reducer have different names")
         _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
-        if diff_args_names:
+        if diff_arg_names:
             raise ValueError("Children of a Reducer have different arguements"
             "keys")
-        # args_names 
-#        for arg_name in args_names:
-#
-#
-def stack(arg_names, children_aggregates, children_args):
-    if not arg_names:
-        return children_aggregates# _list_of_dicts_2_dict_of_lists(children_aggregates)
-    arg_name = arg_names[0]
-    stack_arg = list()
-    children_arg = [child_arg[arg_name] for child_arg in children_args]
-    for val in set(children_arg):
-        children_select = _list_indices(children_arg, val)
-        children_aggregates_select = [children_aggregates[i] for i
-                                        in children_select]
-        children_args_select = [children_args[i] for i in children_select]
-        sub_stacked = stack(arg_names=arg_names[1:],
-                          children_aggregates=children_aggregates_select,
-                          children_args=children_args_select)
-        stack_arg.append(sub_stacked)
-    return _list_of_dicts_2_dict_of_lists(stack_arg)
-       
-arg_names = arg_names1 = arg_names
-children_aggregates = children_aggregates1 = children_aggregates
-children_args = children_args1 = children_args
+    # arg_names1 = arg_names
+    # children_results1 = children_results
+    # children_args1 = children_args
+    #arg_names = arg_names1
+    #children_results = children_results1
+    #children_args = children_args1
+        sub_arg_names, sub_arg_values, sub_stacked =\
+            self._stack_results_over_argvalues(arg_names, children_results,
+                                          children_args)
+        return sub_stacked
 
-stack(arg_names, children_aggregates, children_args)
+    def _stack_results_over_argvalues(self, arg_names, children_results,
+                                      children_args):
+        if not arg_names:
+            # Should correspond to a single results
+            if len(children_results) != 1:
+                raise ValueError("Many results were only one expected")
+            return [], [], children_results[0]
+        arg_name = arg_names[0]
+        stack_arg = list()
+        children_arg = [child_arg[arg_name] for child_arg in children_args]
+        arg_values = list(set(sorted(children_arg)))
+        for val in arg_values:
+            children_select = _list_indices(children_arg, val)
+            children_results_select = [children_results[i] for i
+                                            in children_select]
+            children_args_select = [children_args[i] for i in children_select]
+            sub_arg_names, sub_arg_values, sub_stacked = \
+                self._stack_results_over_argvalues(
+                              arg_names=arg_names[1:],
+                              children_results=children_results_select,
+                              children_args=children_args_select)
+            stack_arg.append(sub_stacked)
+        #arg_names = sub_arg_names
+        #arg_names.insert(0, arg_name)
+        #arg_values = [arg_values] + sub_arg_values
+        stacked = _list_of_dicts_2_dict_of_lists(stack_arg,
+                                                 axis_name=arg_name,
+                                                 axis_values=arg_values)
+        return arg_names, arg_values, stacked
 
-        aggregate = dict()
-        for sub_aggregate in sub_aggregates:
-            #self.children[child_idx].signature_args
-            #sub_aggregate = sub_aggregates[0]
-            for key2 in sub_aggregate.keys():
-                #key2 = sub_aggregate.keys()[0]
-                map_out = sub_aggregate[key2]
-                # map_out is a dictionary
-                if isinstance(map_out, dict):
-                    if not key2 in aggregate.keys():
-                        aggregate[key2] = dict()
-                    for key3 in map_out.keys():
-                        if not key3 in aggregate[key2].keys():
-                            aggregate[key2][key3] = list()
-                        aggregate[key2][key3].append(map_out[key3])
-                else:  # simply concatenate
-                    if not key2 in aggregate.keys():
-                        aggregate[key2] = list()
-                    aggregate[key2].append(map_out)
-        return aggregate
+
 
     # -------------------------------- #
     # -- I/O persistance operations -- #
@@ -803,6 +811,11 @@ class _NodeReducer(_Node):
     def __init__(self):
         super(_NodeReducer, self).__init__()
 
+class _NodeAggregator(_Node):
+    """Abstract class of _Nodes that process (reduce) the upstream data-flow.
+    data-flow"""
+    def __init__(self):
+        super(_NodeAggregator, self).__init__()
 
 # -------------------------------- #
 # -- Splitter                   -- #
@@ -836,7 +849,7 @@ class _NodeSplitter(_Node):
         return ds_kwargs
 
 
-class CV(_NodeSplitter, _NodeReducer):
+class CV(_NodeSplitter, _NodeAggregator):
     """KFold CV splitter"""
     train_data_suffix = "train"
     test_data_suffix = "test"
@@ -879,7 +892,7 @@ class CV(_NodeSplitter, _NodeReducer):
         return dict(n_folds=self.n_folds)
 
 
-class Perm(_NodeSplitter, _NodeReducer):
+class Perm(_NodeSplitter, _NodeAggregator):
     """ Permutation Splitter"""
 
     def __init__(self, task, n_perms, permute="y", **kwargs):
@@ -913,8 +926,7 @@ class Perm(_NodeSplitter, _NodeReducer):
 
 
 class MultiMethods(_NodeSplitter):
-    """Parallelization is based on several reslicing of the same dataset:
-    Slices can be split (shards) or a resampling of the original datasets.
+    """Parallelization is based on several runs of different methods
     """
     def __init__(self, methods):
         super(MultiMethods, self).__init__()
@@ -946,7 +958,13 @@ class MultiMethods(_NodeSplitter):
 #                    self.children[idx].name = child_cls_names[idx] + "(" +\
 #                        arg_str + ")"
 
-
+class ParGrid(MultiMethods, _NodeAggregator):
+    """Similar to MultiMethods except the way that the upstream data-flow is
+    processed.
+    """
+    def __init__(self, methods):
+        super(ParGrid, self).__init__(methods=methods)
+        
 # -------------------------------- #
 # -- Slicers                    -- #
 # -------------------------------- #
