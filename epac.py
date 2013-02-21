@@ -372,10 +372,22 @@ class _Node(object):
     """Nodes base class"""
 
     def __init__(self):
-        self.signature_args = None  # dict of args to build the node signature
         self.parent = None
         self.children = list()
         self.map_outputs = dict()
+
+        # The Key is the concantenation of nodes signatures from root to
+        # Leaf.
+        # Arguments are used to avoid collisions between keys.
+        # In downstream flow collisions should always be avoided, so if
+        # several children have the same name, use argument to sign the node.
+        # In upstream flow collisions lead to aggregation of children node
+        # with the same signature.
+        self.signature_args = None  # dict of args to build the node signature
+        # In upstream flow, sometime we wants to avoid collision
+        # (no aggregation) so we set this flag to True. Sometime (ParGrid)
+        # we want to creat collision and agregate children of the same name.
+        self.sign_upstream_with_args = True
 
     def finalize_init(self, **ds_kwargs):
         """Overload this methods if init finalization is required"""
@@ -435,20 +447,25 @@ class _Node(object):
             1 (default) return the primary key
             2 return the intermediate key
         """
+        # All nodes contributes to the primary key (ds data-flow).
+        # Only Mappers contributes to secondary key (us data-flow)
         if nb is 1 or (nb is 2 and isinstance(self, _NodeMapper)):
             if not self.parent:
-                return self.get_signature()
-            return key_push(self.parent.get_key(nb=nb), self.get_signature())
+                return self.get_signature(nb=nb)
+            return key_push(self.parent.get_key(nb=nb), self.get_signature(nb=nb))
         else:
             if not self.parent:
                 return ""
             return self.parent.get_key(nb=nb)
 
-    def get_signature(self):
+    def get_signature(self, nb=1):
         """The signature of the current Node, used to build the key"""
-        args_str = self.get_signature_args_str()
-        args_str = "(" + args_str + ")" if args_str else ""
-        return self.get_signature_name() + args_str
+        sig = self.get_signature_name()
+        if nb is 1 or (nb is 2 and self.sign_upstream_with_args):
+            args_str = self.get_signature_args_str()
+            args_str = "(" + args_str + ")" if args_str else ""
+            sig += args_str
+        return sig
 
     def get_signature_name(self):
         """The name of the current node, used to build the signature"""
@@ -925,12 +942,12 @@ class Perm(_NodeSplitter, _NodeAggregator):
         return dict(n_perms=self.n_perms, permute=self.permute)
 
 
-class MultiMethods(_NodeSplitter):
+class ParMethods(_NodeSplitter):
     """Parallelization is based on several runs of different methods
     """
-    def __init__(self, methods):
-        super(MultiMethods, self).__init__()
-        for m in methods:
+    def __init__(self, *args):
+        super(ParMethods, self).__init__()
+        for m in args:
             curr = _NodeFactory(m)
             self.add_child(curr)
         # detect collisions in children signature
@@ -958,14 +975,17 @@ class MultiMethods(_NodeSplitter):
 #                    self.children[idx].name = child_cls_names[idx] + "(" +\
 #                        arg_str + ")"
 
-class ParGrid(MultiMethods, _NodeAggregator):
-    """Similar to MultiMethods except the way that the upstream data-flow is
+class ParGrid(ParMethods, _NodeAggregator):
+    """Similar to ParMethods except the way that the upstream data-flow is
     processed.
     """
-    def __init__(self, methods):
-        super(ParGrid, self).__init__(methods=methods)
-        
-# -------------------------------- #
+    def __init__(self, *args):
+        #methods = _group_args(*args)
+        super(ParGrid, self).__init__(*args)
+        for c in self.children:
+            c.sign_upstream_with_args = False
+
+    # -------------------------------- #
 # -- Slicers                    -- #
 # -------------------------------- #
 
@@ -1039,7 +1059,7 @@ class _NodeRowSlicer(_NodeSlicer):
             else:
                 indices = self.slices
             ds_kwargs[data_key] = ds_kwargs[data_key][indices]
-        print ds_kwargs
+        # print ds_kwargs
         return ds_kwargs
 
     def fit(self, recursion=True, **ds_kwargs):
@@ -1152,29 +1172,3 @@ def Seq(*args):
     return root
 
 
-def Par(*args, **kwargs):
-    """
-    Syntax (positional parameters)
-    ------------------------------
-
-
-    Keywords parameters
-    -------------------
-    data: dict
-        Use
-    store: string
-        Store (recursively) the objects tree on the given store.
-        For file system store, indicates a path to a directory.
-
-    Examples
-    --------
-    """
-    args = _group_args(*args)
-    root = MultiMethods(methods=args)
-    # if data is provided finalize the initialization
-    if "finalize" in kwargs:
-        root.finalize_init(**kwargs["finalize"])
-    if "store" in kwargs and isinstance(kwargs["store"], str):
-        root.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
-        root.save_node()
-    return root

@@ -49,24 +49,30 @@ pipe.fit(X=X, y=y).predict(X=X)
 # Multi-classifiers
 # -----------------
 
-#    Par    MultiMethod (Splitter)
+#    Par    ParMethods (Splitter)
 #  /   \
 # LDA  SVM  Classifiers (Estimator)
-multi = Par(LDA(),  SVC(kernel="linear"))
+multi = ParMethods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
 
-#           Par          MultiMethod (Splitter)
+#           Par          ParMethods (Splitter)
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
-svms = Par(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
 self = svms
 
-
-svms = Par(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+#                    Par                ParGrid (Splitter)
+#                  /     \
+# SVM(linear, C=1)  .... SVM(rbf, C=10) Classifiers (Estimator)
+# ParGrid and PArMethods differ onlys the way they process the upstream
+# flow. With ParGrid Children differs only by theire arguments, and thus
+# are aggregated toggether
+svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
+    kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
@@ -78,7 +84,8 @@ self = svms
 # 1    5   10  SelectKBest (Estimator)
 # |    |    |
 # SVM SVM SVM  Classifiers (Estimator)
-anovas_svm = Par(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in [1, 5, 10]])
+anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
+    [1, 5, 10]])
 anovas_svm.fit(X=X, y=y)
 anovas_svm.predict(X=X)
 anovas_svm.bottum_up()
@@ -95,6 +102,7 @@ anovas_svm.bottum_up()
 cv_lda = CV(LDA(), n_folds=3, y=y)
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X)
+
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test
 # sample. When it is called with "fit" it uses the train samples. When it is 
