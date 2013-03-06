@@ -64,23 +64,23 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
         #sub_aggregate = sub_aggregates[0]
         for key2 in d.keys():
             #key2 = sub_aggregate.keys()[0]
-            map_out = d[key2]
-            # map_out is a dictionary
-            if isinstance(map_out, dict):
+            result = d[key2]
+            # result is a dictionary
+            if isinstance(result, dict):
                 if not key2 in dict_of_list.keys():
                     dict_of_list[key2] = dict()
-                for key3 in map_out.keys():
+                for key3 in result.keys():
                     if not key3 in dict_of_list[key2].keys():
                         dict_of_list[key2][key3] = ListWithMetaInfo()
                         dict_of_list[key2][key3].__axis_name = axis_name
                         dict_of_list[key2][key3].__axis_value =axis_values
-                    dict_of_list[key2][key3].append(map_out[key3])
+                    dict_of_list[key2][key3].append(result[key3])
             else:  # simply concatenate
                 if not key2 in dict_of_list.keys():
                     dict_of_list[key2] = ListWithMetaInfo()
                     dict_of_list[key2].__axis_name = axis_name
                     dict_of_list[key2].__axis_value =axis_values
-                dict_of_list[key2].append(map_out)
+                dict_of_list[key2].append(result)
     return dict_of_list
 
 
@@ -160,7 +160,7 @@ class Store(object):
     def __init__(self):
         pass
 
-    def save_map_output(key1, key2=None, val2=None, keyvals2=None):
+    def save_results(key1, key2=None, val2=None, keyvals2=None):
         pass
 
 
@@ -170,7 +170,7 @@ class StoreLo(Store):
     def __init__(self, storage_root):
         pass
 
-    def save_map_output(self, key1, key2=None, val2=None, keyvals2=None):
+    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
         pass
 
 
@@ -187,7 +187,7 @@ class StoreFs(Store):
             os.makedirs(path)
         return path
 
-    def save_map_output(self, key1, key2=None, val2=None, keyvals2=None):
+    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
         path = self.key2path(key1)
         import os
         if key2 and val2:
@@ -195,7 +195,7 @@ class StoreFs(Store):
             keyvals2[key2] = val2
         for key2 in keyvals2.keys():
             val2 = keyvals2[key2]
-            filename = Config.store_fs_map_output_prefix + key2 +\
+            filename = Config.store_fs_results_prefix + key2 +\
                 Config.store_fs_pickle_suffix
             file_path = os.path.join(path, filename)
             self.save_pickle(val2, file_path)
@@ -242,23 +242,23 @@ class StoreFs(Store):
                 (file_path, ext))
         return obj
 
-    def load_map_output(self, key):
+    def load_results(self, key):
         path = self.key2path(key)
         import os
         import glob
-        map_paths = glob.glob(os.path.join(path,
-            Config.store_fs_map_output_prefix) + '*')
-        map_outputs = dict()
-        for map_path in map_paths:
-            ext = os.path.splitext(map_path)[-1]
+        result_paths = glob.glob(os.path.join(path,
+            Config.store_fs_results_prefix) + '*')
+        results = dict()
+        for result_path in result_paths:
+            ext = os.path.splitext(result_path)[-1]
             if ext == Config.store_fs_pickle_suffix:
-                map_obj = self.load_pickle(map_path)
+                result_obj = self.load_pickle(result_path)
             if ext == Config.store_fs_json_suffix:
-                map_obj = self.load_json(map_path)
-            key = os.path.splitext(os.path.basename(map_path))[0].\
-                replace(Config.store_fs_map_output_prefix, "", 1)
-            map_outputs[key] = map_obj
-        return map_outputs
+                result_obj = self.load_json(result_path)
+            key = os.path.splitext(os.path.basename(result_path))[0].\
+                replace(Config.store_fs_results_prefix, "", 1)
+            results[key] = result_obj
+        return results
 
     def save_pickle(self, obj, file_path):
             import pickle
@@ -348,15 +348,15 @@ def key_push(key, basename):
         return key or basename
 
 
-def save_map_output(key1, key2=None, val2=None, keyvals2=None):
+def save_results(key1, key2=None, val2=None, keyvals2=None):
     store = get_store(key1)
-    store.save_map_output(key1, key2, val2, keyvals2)
+    store.save_results(key1, key2, val2, keyvals2)
 
 
 class Config:
     store_fs_pickle_suffix = ".pkl"
     store_fs_json_suffix = ".json"
-    store_fs_map_output_prefix = "__map__"
+    store_fs_results_prefix = "__result__"
     store_fs_node_prefix = "__node__"
     key_prot_lo = "mem"  # key storage protocol: living object
     key_prot_fs = "file"  # key storage protocol: file system
@@ -374,7 +374,7 @@ class _Node(object):
     def __init__(self):
         self.parent = None
         self.children = list()
-        self.map_outputs = dict()
+        self.results = dict()
 
         # The Key is the concantenation of nodes signatures from root to
         # Leaf.
@@ -491,40 +491,40 @@ class _Node(object):
     def get_state(self):
         """Return the state of the object"""
 
-    def add_map_output(self, key=None, val=None, keyvals=None):
-        """ Collect map output
+    def add_results(self, key=None, val=None, keyvals=None):
+        """ Collect result output
 
         Parameters
         ----------
         key : (string) the intermediary key
         val : (dictionary, list, tuple or array) the intermediary value
-        produced by the mapper.
-                If key/val are provided a single map output is added
+        produced by the leaf node.
+                If key/val are provided a single result is added
 
         keyvals : a dictionary of intermediary keys/values produced by the
-        mapper.
+        leaf node.
         """
         if key and val:
-            self.map_outputs[key] = val
+            self.results[key] = val
         if keyvals:
-            self.map_outputs.update(keyvals)
+            self.results.update(keyvals)
 
     # ------------------------------------------ #
-    # -- Top-down data-flow operations (map)  -- #
+    # -- Top-down data-flow operations        -- #
     # ------------------------------------------ #
 
     def top_down(self, func_name, recursion=True, **ds_kwargs):
         """Top-down data processing method
 
             This method does nothing more that recursively call
-            parent/children map. Most of time, it should be re-defined.
+            parent/children func_name. Most of time, it should be re-defined.
 
             Parameters
             ----------
             func_name: str
                 the name of the function to be called
             recursion: boolean
-                if True recursively call parent/children map. If the
+                if True recursively call parent/children func_name. If the
                 current node is the root of the tree call the children.
                 This way the whole tree is executed.
                 If it is a leaf, then recursively call the parent before
@@ -541,14 +541,14 @@ class _Node(object):
             print self.get_key(), func_name
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
-            # recursively call parent map up to root
+            # recursively call parent func_name up to root
             ds_kwargs = self.parent.top_down(func_name=func_name,
                                              recursion=recursion, **ds_kwargs)
         func = getattr(self, func_name)
         ds_kwargs = func(recursion=False, **ds_kwargs)
         #ds_kwargs = self.transform(**ds_kwargs)
         if recursion is RECURSION_DOWN:
-            # Call children map down to leaves
+            # Call children func_name down to leaves
             ret = [child.top_down(func_name=func_name, recursion=recursion,
                             **ds_kwargs) for child in self.children]
             ds_kwargs = ret[0] if len(ret) == 1 else ret
@@ -582,9 +582,9 @@ class _Node(object):
     # --------------------------------------------- #
 
     def bottum_up(self):
-        # Terminaison (leaf) node return map_outputs
+        # Terminaison (leaf) node return results
         if not self.children:
-            return self.map_outputs
+            return self.results
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up() for child in self.children]
         if len(children_results) == 1:
@@ -719,13 +719,8 @@ def load_node(key=None, store=None, recursion=True):
 ## ================================= ##
 ## == Wrapper node for estimators == ##
 ## ================================= ##
-class _NodeMapper(_Node):
-    """Abstract class of _Node that contribute to transform the data"""
-    def __init__(self):
-        super(_NodeMapper, self).__init__()
 
-
-class _NodeEstimator(_NodeMapper):
+class _NodeEstimator(_Node):
     """Node that wrap estimators"""
 
     def __init__(self, estimator):
@@ -799,9 +794,9 @@ class _NodeEstimator(_NodeMapper):
             true_dict = _sub_dict(ds_kwargs, pred_names)
             both = {"pred_" + str(k): true_dict[k] for k in pred_dict}
             both.update({"true_" + str(k): true_dict[k] for k in true_dict})
-            self.add_map_output(key=self.get_key(2), val=both)
+            self.add_results(key=self.get_key(2), val=both)
         else:  # store only predicted values
-            self.add_map_output(key=self.get_key(2), val=pred_dict)
+            self.add_results(key=self.get_key(2), val=pred_dict)
         return pred_arr
 
 
