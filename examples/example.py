@@ -63,7 +63,25 @@ svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
-self = svms
+
+# Parallelize sequential Pipeline: Anova(k best selection) + SVM.
+# No collisions between upstream keys, then no aggretation.
+#     Par      MultiMethod (Splitter)
+#  /   |   \
+# 1    5   10  SelectKBest (Estimator)
+# |    |    |
+# SVM SVM SVM  Classifiers (Estimator)
+anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
+    [1, 5, 10]])
+anovas_svm.fit(X=X, y=y)
+anovas_svm.predict(X=X)
+anovas_svm.bottum_up()
+[l.get_key() for l in anovas_svm]
+[l.get_key(2) for l in anovas_svm]  # No key 2 collisions, no aggregation
+
+
+# Parallelize SVM with several parameters.
+# Collisions between upstream keys, trig aggretation.
 
 #                    Par                ParGrid (Splitter)
 #                  /     \
@@ -76,21 +94,10 @@ svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
 svms.fit(X=X, y=y)
 svms.predict(X=X)
 svms.bottum_up()
-self = svms
+[l.get_key() for l in svms]
+[l.get_key(2) for l in svms] # key 2 collisions trig aggregation
 
-# Combine Par with sequential Pipeline: Anova(k best selection) + SVM
-#     Par      MultiMethod (Splitter)
-#  /   |   \
-# 1    5   10  SelectKBest (Estimator)
-# |    |    |
-# SVM SVM SVM  Classifiers (Estimator)
-anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
-    [1, 5, 10]])
-anovas_svm.fit(X=X, y=y)
-anovas_svm.predict(X=X)
-anovas_svm.bottum_up()
 
-[l.get_signature() for l in anovas_svm]
 # Cross-validation
 # ---------------
 # CV of LDA
@@ -102,6 +109,7 @@ anovas_svm.bottum_up()
 cv_lda = CV(LDA(), n_folds=3, y=y)
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X)
+
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test

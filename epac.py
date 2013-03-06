@@ -428,44 +428,48 @@ class _Node(object):
 
     # --------------------- #
     # -- Key             -- #
-    # -- key can be primary or intermediate key
-    # -- * Primary key is a unique identifier of a node in the tree, it is
-    # --   used to store leaf outputs at the end of the downstream flow.
-    # -- * Intermediate key is a unique identifier of a node in the tree.
-    # --   It is used to identify
+
     # --------------------- #
 
     def get_key(self, nb=1):
         """Return primary or intermediate key.
 
-        All nodes contribute to primary key (key=1). Only Mapper nodes
-        contribute to intermediate key (key=2)
+        Primary key is a unique identifier of a node in the tree, it is
+        used to store leaf outputs at the end of the downstream flow.
+        Intermediate key identify upstream results. Collisions between
+        intermediate trig an aggregation of all results having the same key.
 
         Argument
         --------
         nb: int
-            1 (default) return the primary key
-            2 return the intermediate key
+            1 (default) return the primary key (ds data-flow).
+            2 return the intermediate key (us data-flow).
         """
-        # All nodes contributes to the primary key (ds data-flow).
-        # Only Mappers contributes to secondary key (us data-flow)
-        if nb is 1 or (nb is 2 and isinstance(self, _NodeMapper)):
-            if not self.parent:
-                return self.get_signature(nb=nb)
-            return key_push(self.parent.get_key(nb=nb), self.get_signature(nb=nb))
+        if not self.parent:
+            return self.get_signature(nb=nb)
         else:
-            if not self.parent:
-                return ""
-            return self.parent.get_key(nb=nb)
+            return key_push(self.parent.get_key(nb=nb),
+                            self.get_signature(nb=nb))
 
     def get_signature(self, nb=1):
-        """The signature of the current Node, used to build the key"""
-        sig = self.get_signature_name()
-        if nb is 1 or (nb is 2 and self.sign_upstream_with_args):
+        """The signature of the current Node, used to build the key.
+
+        By default primary and intermediate signatures are identical. If we
+        want to change this behavior in order to trig agregation this function
+        should be overloaded as in _NodeSlicer.
+
+        """
+        if nb is 1:  # primary signature, always sign with args if presents
             args_str = self.get_signature_args_str()
             args_str = "(" + args_str + ")" if args_str else ""
-            sig += args_str
-        return sig
+            return self.get_signature_name() + args_str
+        elif nb is 2:  # intermediate signature, test if args should be used.
+            if self.sign_upstream_with_args:
+                args_str = self.get_signature_args_str()
+                args_str = "(" + args_str + ")" if args_str else ""
+                return self.get_signature_name() + args_str
+            else:
+                return self.get_signature_name()
 
     def get_signature_name(self):
         """The name of the current node, used to build the signature"""
@@ -583,23 +587,21 @@ class _Node(object):
             return self.map_outputs
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up() for child in self.children]
-        #axis_names, axis_values, us_dict = zip(*results)
-        # 2) If not a reducer, act transparently, just warm if collisions
-        # between secondary keys
-        if not isinstance(self, _NodeAggregator):
-            if len(children_results) == 1:
+        if len(children_results) == 1:
                 return children_results[0]
-            # if no collision in intermediary keys, merge dict and return
+        # 2) Test if for collision between intermediary keys
+        keys_all = [r.keys() for r in children_results]
+        np.sum([len(ks) for ks in keys_all])
+        keys_set = set()
+        [keys_set.update(ks) for ks in keys_all]
+        # 3) If no collision , simply merge results in a lager dict an return it
+        if len(keys_set) == len(keys_all):
             merge = dict()
             [merge.update(item) for item in children_results]
-            if len(merge) != np.sum([len(item) for item in children_results]):
-                import warnings
-                warnings.warn("Collision occured between intermediary keys. "
-                "It may be due to the fact that you are running several time "
-                "the same algorithm.")
             return merge
-        # 2) Aggregator: Aggregate (stack) all children results with identical
-        # secondary key, by stacking them according to
+        # 4) Collision occurs
+        # Aggregate (stack) all children results with identical
+        # intermediary key, by stacking them according to
         # argumnents. Ex.: stack for a CV stack folds, for a ParGrid
         # stack results over sevral values of each arguments
         children_name, children_args = zip(*[(child.get_signature_name(),
@@ -614,12 +616,6 @@ class _Node(object):
         if diff_arg_names:
             raise ValueError("Children of a Reducer have different arguements"
             "keys")
-    # arg_names1 = arg_names
-    # children_results1 = children_results
-    # children_args1 = children_args
-    #arg_names = arg_names1
-    #children_results = children_results1
-    #children_args = children_args1
         sub_arg_names, sub_arg_values, sub_stacked =\
             self._stack_results_over_argvalues(arg_names, children_results,
                                           children_args)
@@ -647,9 +643,6 @@ class _Node(object):
                               children_results=children_results_select,
                               children_args=children_args_select)
             stack_arg.append(sub_stacked)
-        #arg_names = sub_arg_names
-        #arg_names.insert(0, arg_name)
-        #arg_values = [arg_values] + sub_arg_values
         stacked = _list_of_dicts_2_dict_of_lists(stack_arg,
                                                  axis_name=arg_name,
                                                  axis_values=arg_values)
@@ -828,11 +821,6 @@ class _NodeReducer(_Node):
     def __init__(self):
         super(_NodeReducer, self).__init__()
 
-class _NodeAggregator(_Node):
-    """Abstract class of _Nodes that process (reduce) the upstream data-flow.
-    data-flow"""
-    def __init__(self):
-        super(_NodeAggregator, self).__init__()
 
 # -------------------------------- #
 # -- Splitter                   -- #
@@ -841,8 +829,7 @@ class _NodeAggregator(_Node):
 class _NodeSplitter(_Node):
     """Splitters are are non leaf node (degree >= 1) with children.
     They split the downstream data-flow to their children.
-    They reduce the upstream data-flow from their children. Thus they are
-    Reducers
+    They agregate upstream data-flow from their children.
     """
     def __init__(self):
         super(_NodeSplitter, self).__init__()
@@ -866,7 +853,7 @@ class _NodeSplitter(_Node):
         return ds_kwargs
 
 
-class CV(_NodeSplitter, _NodeAggregator):
+class CV(_NodeSplitter):
     """KFold CV splitter"""
     train_data_suffix = "train"
     test_data_suffix = "test"
@@ -909,7 +896,7 @@ class CV(_NodeSplitter, _NodeAggregator):
         return dict(n_folds=self.n_folds)
 
 
-class Perm(_NodeSplitter, _NodeAggregator):
+class Perm(_NodeSplitter):
     """ Permutation Splitter"""
 
     def __init__(self, task, n_perms, permute="y", **kwargs):
@@ -968,14 +955,9 @@ class ParMethods(_NodeSplitter):
                 for child_idx in collision_indices:
                     self.children[child_idx].signature_args = \
                         _sub_dict(child_states[child_idx], diff_arg_keys)
-#                    self.children[idx] self.signature_args
-#                    import string
-#                    arg_str = string.join([str(k) + "=" + \
-#                        str(child_states[idx][k]) for k in diff_arg_keys], ",")
-#                    self.children[idx].name = child_cls_names[idx] + "(" +\
-#                        arg_str + ")"
 
-class ParGrid(ParMethods, _NodeAggregator):
+
+class ParGrid(ParMethods):
     """Similar to ParMethods except the way that the upstream data-flow is
     processed.
     """
@@ -985,7 +967,8 @@ class ParGrid(ParMethods, _NodeAggregator):
         for c in self.children:
             c.sign_upstream_with_args = False
 
-    # -------------------------------- #
+
+# -------------------------------- #
 # -- Slicers                    -- #
 # -------------------------------- #
 
@@ -994,6 +977,13 @@ class _NodeSlicer(_Node):
     """
     def __init__(self):
         super(_NodeSlicer, self).__init__()
+
+    def get_signature(self, nb=1):
+        """Overload for secondary key (us data-flow), return empty str."""
+        if nb is 1:  # primary key (ds data-flow)
+            return super(_NodeSlicer, self).get_signature(nb=1)
+        else:  # secondary key (us data-flow)
+            return ""
 
 
 class _NodeRowSlicer(_NodeSlicer):
@@ -1124,9 +1114,6 @@ def _NodeFactory(*args, **kwargs):
             node = _NodeEstimator(args[0])
     # store or key : load from store
     if "store" in kwargs and isinstance(kwargs["store"], str):
-#        if node:
-#            node.name = key_join(prot=Config.key_prot_fs, path=kwargs["store"])
-#        else:
         key = kwargs["key"] if "key" in kwargs else None
         node = load_node(key=key, store=kwargs["store"])
     return(node)
