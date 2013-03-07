@@ -92,11 +92,14 @@ anovas_svm.bottum_up()
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
     kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit(X=X, y=y)
-svms.predict(X=X)
+svms.predict(X=X, y=y)
 svms.bottum_up()
 [l.get_key() for l in svms]
 [l.get_key(2) for l in svms] # key 2 collisions trig aggregation
-
+sub_stacked = svms.bottum_up()
+res = sub_stacked['ParGrid/SVC']
+p = res['pred_y']
+t = res['true_y']
 
 # Cross-validation
 # ---------------

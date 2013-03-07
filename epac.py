@@ -785,18 +785,22 @@ class _NodeEstimator(_Node):
         if self.children:  # if children call transform
             return self.transform(recursion=False, **ds_kwargs)
         # leaf node: do the prediction
-        pred_arr = self.estimator.predict(**_sub_dict(ds_kwargs,
-                                                    self.args_predict))
-        pred_names = _list_diff(self.args_fit, self.args_predict)
-        pred_dict = _as_dict(pred_arr, keys=pred_names)
+        X_dict = _sub_dict(ds_kwargs, self.args_predict)
+        y_pred_arr = self.estimator.predict(**X_dict)
+        y_pred_names = _list_diff(self.args_fit, self.args_predict)
+        y_pred_dict = _as_dict(y_pred_arr, keys=y_pred_names)
         # If true values are provided in ds then store them
-        if set(pred_names).issubset(set(ds_kwargs.keys())):
-            true_dict = _sub_dict(ds_kwargs, pred_names)
-            both = {"pred_" + str(k): true_dict[k] for k in pred_dict}
-            both.update({"true_" + str(k): true_dict[k] for k in true_dict})
+        if set(y_pred_names).issubset(set(ds_kwargs.keys())):
+            y_true_dict = _sub_dict(ds_kwargs, y_pred_names)
+            both = {"pred_" + str(k): y_true_dict[k] for k in y_pred_dict}
+            both.update({"true_" + str(k): y_true_dict[k] for k in y_true_dict})
+            # compute scores
+            X_dict.update(y_true_dict)
+            test_score = self.estimator.score(**X_dict)
+            both["test_score"] = test_score
             self.add_results(key=self.get_key(2), val=both)
         else:  # store only predicted values
-            self.add_results(key=self.get_key(2), val=pred_dict)
+            self.add_results(key=self.get_key(2), val=y_pred_dict)
         return pred_arr
 
 
@@ -1154,3 +1158,25 @@ def Seq(*args):
     return root
 
 
+class Reducer:
+    """ Reducer abstract class, inherited classes should implement
+    reduce(results). Where results is a dictionnary of aggregated results.
+    the reduce method should return a dictionnary. This  dictionnary should
+    contains the same of reduced keys with reduced values."""
+
+    @abstractmethod
+    def reduce(self, results):
+        pass
+
+
+class SelectAndDoStats(Reducer):
+    """toto"""
+    def __init__(self, select="test_score", stat="mean"):
+        self.select = select
+        self.stat = stat
+
+    def reduce(self, results):
+        out = dict()
+        # iterate over intermediaries keys
+        for key2 in results.keys():
+            pass
