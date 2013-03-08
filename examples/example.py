@@ -96,10 +96,6 @@ svms.predict(X=X, y=y)
 svms.bottum_up()
 [l.get_key() for l in svms]
 [l.get_key(2) for l in svms] # key 2 collisions trig aggregation
-sub_stacked = svms.bottum_up()
-res = sub_stacked['ParGrid/SVC']
-p = res['pred_y']
-t = res['true_y']
 
 # Cross-validation
 # ---------------
@@ -109,10 +105,10 @@ t = res['true_y']
 # 0    1    2  Folds      (Slicer)
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
-cv_lda = CV(LDA(), n_folds=3, y=y)
+cv_lda = CV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats())
 cv_lda.fit(X=X, y=y)
-cv_lda.predict(X=X)
-
+cv_lda.predict(X=X, y=y)
+cv_lda.bottum_up()
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test
@@ -124,65 +120,23 @@ cv_lda.predict(X=X)
 cv_lda.transform(X=X, sample_set="train")
 cv_lda.transform(X=X, sample_set="test")
 
+# Permutations + Cross-validation
+# -------------------------------
+#              Perm                  CV (Splitter)
+#         /     |       \
+#        0      1       2            Samples (Slicer)
+#       |
+#     CV                             CV (Splitter)
+#  /   |   \
+# 0    1    2                        Folds (Slicer)
+# |    |    |
+# LDA LDA LDA                        Classifier (Estimator)
 
-## Reducing results
-## ===============
+perms_cv_lda = Perm(CV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats()),
+                    n_perms=3, permute="y")
+perms_cv_lda.fit(X=X, y=y)
+perms_cv_lda.predict(X=X, y=y)
+perms_cv_lda.bottum_up()
 
-cv_lda.predict(X=X, y=y)
-
-self = cv_lda
-#[self.map_outputs for self in cv_lda]
-r = cv_lda.bottum_up()
-l= r["LDA"]['pred_y']
-l.__axis_name
-l.__axis_value
-r["LDA"]['true_y']
-
-np.asarray(r["LDA"]['pred_y'][0]).shape
-# CV of Anova(k best selection) + SVM
-# User can provide a whole sequential pipeline (here anovas_svm) to CV.
-cv_anovas_svm = CV(anovas_svm, n_folds=3, y=y)
-cv_anovas_svm.fit(X=X, y=y)
-cv_anovas_svm.predict(X=X)
-
-# Permutation of Cross-validation of Anova(k best selection) + SVM
-# User can provide a whole execution tree to permutation
-perms_cv_anovas_svm = Perm(cv_anovas_svm, n_perms=3, y=y)
-perms_cv_anovas_svm.fit(X=X, y=y)
-perms_cv_anovas_svm.predict(X=X)
-
-#ds_kwargs = dict(X=X)
-#self = perms_cv_anovas_svm.children[0]
-#self.get_key()
-[self for self in perms_cv_anovas_svm]
-self.map_outputs
-
-
-# Two permutations of 3 folds of univariate filtering of SVM and LDA
-import tempfile
-import numpy as np
-store = tempfile.mktemp()
-
-# Design of the execution tree
-algos = Seq(SelectKBest(k=2), 
-            Par(LDA(), SVC(kernel="linear")))
-algos_cv = Par(StratifiedKFold, dict(y="y", n_folds=2), algos)
-perms = Par(Permutation, dict(n="y.shape[0]", n_perms=3, apply_on="y"), algos_cv,
-           finalize=dict(y=y), store=store)
-perms2 = NodeFactory(store=store)
-
-#NFac(fit=f_classif)
-
-
-# Avoid unnessary compuations
-algos = Seq(Par(SelectKBest, dict(k=[1, 2, 3]),
-                SVC(kernel="linear")))
-
-# run
-[(leaf.get_key(2), leaf.top_down(X=X, y=y)) for leaf in perms2]
-print leaf.get_key()
-print leaf.get_key(2)
-
-r = perms2.bottum_up()
-r['SelectKBest/LDA']['y_pred']
-np.array(r['SelectKBest/LDA']['y_pred']).shape
+[l.get_key() for l in perms_cv_lda]
+self = l

@@ -136,6 +136,10 @@ def _as_dict(v, keys):
     return {keys[i]: v[i] for i in xrange(len(keys))}
 
 
+def _dict_prefix_keys(prefix, d):
+    return {prefix + str(k): d[k] for k in d}
+
+
 def _func_get_args_names(f):
     """Return non defaults function args names
     """
@@ -358,6 +362,11 @@ class Config:
     store_fs_json_suffix = ".json"
     store_fs_results_prefix = "__result__"
     store_fs_node_prefix = "__node__"
+    PREFIX_PRED = "pred_"
+    PREFIX_TRUE = "true_"
+    PREFIX_TEST = "test_"
+    PREFIX_TRAIN = "train_"
+    PREFIX_SCORE = "score_"
     key_prot_lo = "mem"  # key storage protocol: living object
     key_prot_fs = "file"  # key storage protocol: file system
     key_path_sep = "/"
@@ -374,9 +383,10 @@ class _Node(object):
     def __init__(self):
         self.parent = None
         self.children = list()
+        # Results are indexed by intermediary keys. Each item is itself
+        # a dictionnary
         self.results = dict()
-
-        # The Key is the concantenation of nodes signatures from root to
+        # The Key is the concatenation of nodes signatures from root to
         # Leaf.
         # Arguments are used to avoid collisions between keys.
         # In downstream flow collisions should always be avoided, so if
@@ -388,7 +398,9 @@ class _Node(object):
         # (no aggregation) so we set this flag to True. Sometime (ParGrid)
         # we want to creat collision and agregate children of the same name.
         self.sign_upstream_with_args = True
-
+        self.combiner = None
+        self.reducer = None
+        
     def finalize_init(self, **ds_kwargs):
         """Overload this methods if init finalization is required"""
         if self.children:
@@ -491,23 +503,19 @@ class _Node(object):
     def get_state(self):
         """Return the state of the object"""
 
-    def add_results(self, key=None, val=None, keyvals=None):
+    def add_results(self, key2=None, val_dict=None):
         """ Collect result output
 
         Parameters
         ----------
-        key : (string) the intermediary key
-        val : (dictionary, list, tuple or array) the intermediary value
-        produced by the leaf node.
-                If key/val are provided a single result is added
-
-        keyvals : a dictionary of intermediary keys/values produced by the
-        leaf node.
+        key2 : (string) the intermediary key
+        val_dict : dictionary of the intermediary value produced by the leaf
+        nodes.
         """
-        if key and val:
-            self.results[key] = val
-        if keyvals:
-            self.results.update(keyvals)
+        if not key2 in self.results:
+            self.results[key2] = dict()
+        self.results[key2].update(val_dict)
+
 
     # ------------------------------------------ #
     # -- Top-down data-flow operations        -- #
@@ -581,23 +589,29 @@ class _Node(object):
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
 
-    def bottum_up(self):
+    def bottum_up(self, store_results=True):
         # Terminaison (leaf) node return results
         if not self.children:
             return self.results
         # 1) Build sub-aggregates over children
-        children_results = [child.bottum_up() for child in self.children]
+        children_results = [child.bottum_up(store_results=False) for
+            child in self.children]
         if len(children_results) == 1:
-                return children_results[0]
+            if store_results:
+                self.add_results(self.get_key(2), children_results[0])
+            return children_results[0]
         # 2) Test if for collision between intermediary keys
         keys_all = [r.keys() for r in children_results]
         np.sum([len(ks) for ks in keys_all])
         keys_set = set()
         [keys_set.update(ks) for ks in keys_all]
-        # 3) If no collision , simply merge results in a lager dict an return it
+        # 3) If no collision , simply merge results in a lager dict an return
+        # it
         if len(keys_set) == len(keys_all):
             merge = dict()
             [merge.update(item) for item in children_results]
+            if store_results:
+                [self.add_results(key2, merge[key2]) for key2 in merge]
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -616,10 +630,17 @@ class _Node(object):
         if diff_arg_names:
             raise ValueError("Children of a Reducer have different arguements"
             "keys")
-        sub_arg_names, sub_arg_values, sub_stacked =\
+        sub_arg_names, sub_arg_values, results =\
             self._stack_results_over_argvalues(arg_names, children_results,
                                           children_args)
-        return sub_stacked
+        # Reduce results if there is a reducer
+        if self.reducer:
+            results = {key2: self.reducer.reduce(key2, results[key2]) for
+                key2 in results}
+        if store_results:
+            [self.add_results(key2, results[key2]) for key2 in results]
+        
+        return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
                                       children_args):
@@ -647,8 +668,6 @@ class _Node(object):
                                                  axis_name=arg_name,
                                                  axis_values=arg_values)
         return arg_names, arg_values, stacked
-
-
 
     # -------------------------------- #
     # -- I/O persistance operations -- #
@@ -746,13 +765,21 @@ class _NodeEstimator(_Node):
     def fit(self, recursion=True, **ds_kwargs):
         if _DEBUG:
             print "-", self.get_key(), "fit, rec:", recursion
-        # self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+        self.fit_ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.fit_ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="fit", recursion=recursion,
                                  **ds_kwargs)
         # Regular fit
-        self.estimator.fit(**_sub_dict(ds_kwargs, self.args_fit))
+        Xy_dict = _sub_dict(ds_kwargs, self.args_fit)
+        self.estimator.fit(**Xy_dict)
+        train_score = self.estimator.score(**Xy_dict)
+        y_pred_names = _list_diff(self.args_fit, self.args_predict)
+        y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
+        _dict_prefix_keys(Config.PREFIX_TRAIN + Config.PREFIX_SCORE, y_train_score_dict)
+        y_train_score_dict = {Config.PREFIX_TRAIN + Config.PREFIX_SCORE +
+            str(k): y_train_score_dict[k] for k in y_train_score_dict}
+        self.add_results(self.get_key(2), y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **ds_kwargs)
         else:
@@ -777,7 +804,7 @@ class _NodeEstimator(_Node):
     def predict(self, recursion=True, **ds_kwargs):
         if _DEBUG:
             print "-", self.get_key(), "predict, rec:", recursion
-        self.ds_kwargs = ds_kwargs  # self = leaf; ds_kwargs = self.ds_kwargs
+        self.predict_ds_kwargs = ds_kwargs  # ds_kwargs = self.predict_ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
@@ -789,19 +816,22 @@ class _NodeEstimator(_Node):
         y_pred_arr = self.estimator.predict(**X_dict)
         y_pred_names = _list_diff(self.args_fit, self.args_predict)
         y_pred_dict = _as_dict(y_pred_arr, keys=y_pred_names)
-        # If true values are provided in ds then store them
+        results = _dict_prefix_keys(Config.PREFIX_PRED, y_pred_dict)
+        # If true values are provided in ds then store them and compute scores
         if set(y_pred_names).issubset(set(ds_kwargs.keys())):
             y_true_dict = _sub_dict(ds_kwargs, y_pred_names)
-            both = {"pred_" + str(k): y_true_dict[k] for k in y_pred_dict}
-            both.update({"true_" + str(k): y_true_dict[k] for k in y_true_dict})
             # compute scores
             X_dict.update(y_true_dict)
             test_score = self.estimator.score(**X_dict)
-            both["test_score"] = test_score
-            self.add_results(key=self.get_key(2), val=both)
-        else:  # store only predicted values
-            self.add_results(key=self.get_key(2), val=y_pred_dict)
-        return pred_arr
+            y_test_score_dict = _as_dict(test_score, keys=y_pred_names)
+            # prefix results keys by test_score_
+            y_true_dict = _dict_prefix_keys(Config.PREFIX_TRUE, y_true_dict)
+            results.update(y_true_dict)
+            y_test_score_dict = _dict_prefix_keys(
+                Config.PREFIX_TEST + Config.PREFIX_SCORE, y_test_score_dict)
+            results.update(y_test_score_dict)
+            self.add_results(self.get_key(2), results)
+        return y_pred_arr
 
 
 ## ======================================================================== ##
@@ -809,16 +839,6 @@ class _NodeEstimator(_Node):
 ## == Parallelization nodes
 ## ==
 ## ======================================================================== ##
-
-# -------------------------------- #
-# -- Reducer:  upstream data-flow                -- #
-# -------------------------------- #
-
-class _NodeReducer(_Node):
-    """Abstract class of _Nodes that process (reduce) the upstream data-flow.
-    data-flow"""
-    def __init__(self):
-        super(_NodeReducer, self).__init__()
 
 
 # -------------------------------- #
@@ -854,12 +874,13 @@ class _NodeSplitter(_Node):
 
 class CV(_NodeSplitter):
     """KFold CV splitter"""
-    train_data_suffix = "train"
-    test_data_suffix = "test"
+    SUFFIX_TRAIN = "train"
+    SUFFIX_TEST = "test"
 
-    def __init__(self, task, n_folds, **kwargs):
+    def __init__(self, task, n_folds, reducer=None, **kwargs):
         super(CV, self).__init__()
         self.n_folds = n_folds
+        self.reducer = reducer
         self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
@@ -883,8 +904,8 @@ class CV(_NodeSplitter):
             cv = KFold(n=y.shape[0], n_folds=self.n_folds)
         nb = 0
         for train, test in cv:
-            self.children[nb].set_sclices({CV.train_data_suffix: train,
-                                 CV.test_data_suffix: test})
+            self.children[nb].set_sclices({CV.SUFFIX_TRAIN: train,
+                                 CV.SUFFIX_TEST: test})
             nb += 1
         # propagate down-way
         if self.children:
@@ -898,10 +919,11 @@ class CV(_NodeSplitter):
 class Perm(_NodeSplitter):
     """ Permutation Splitter"""
 
-    def __init__(self, task, n_perms, permute="y", **kwargs):
+    def __init__(self, task, n_perms, permute="y", reducer=None, **kwargs):
         super(Perm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
+        self.reducer = reducer
         self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
@@ -1126,7 +1148,7 @@ def _group_args(*args):
         if isinstance(args[i], _Node):                           # _Node
             args_splitted.append(args[i])
             i += 1
-        elif i + 1 < len(args) and isinstance(args[i + 1], dict): # class, dict
+        elif i + 1 < len(args) and isinstance(args[i + 1], dict):
             args_splitted.append((args[i], args[i + 1]))
             i += 2
         else:
@@ -1158,25 +1180,57 @@ def Seq(*args):
     return root
 
 
-class Reducer:
-    """ Reducer abstract class, inherited classes should implement
-    reduce(results). Where results is a dictionnary of aggregated results.
-    the reduce method should return a dictionnary. This  dictionnary should
-    contains the same of reduced keys with reduced values."""
+## ======================================================================== ##
+## == Reducers                                                           == ##
+## ======================================================================== ##
 
+
+class Reducer:
+    """ Reducer abstract class, called within the bottum_up method to process
+    up-stream data flow of results.
+
+    Inherited classes should implement reduce(key2, val). Where key2 in the
+    intermediary key and val the corresponding results.
+    This value is a dictionnary of results. The reduce should return a
+    dictionnary."""
     @abstractmethod
-    def reduce(self, results):
+    def reduce(self, key2, result):
         pass
 
 
 class SelectAndDoStats(Reducer):
-    """toto"""
-    def __init__(self, select="test_score", stat="mean"):
-        self.select = select
+    """Reducer that select sub-result(s) according to select_regexp, and
+    reduce the sub-result(s) using the statistics stat"""
+    def __init__(self, select_regexp=Config.PREFIX_SCORE, stat="mean"):
+        self.select_regexp = select_regexp
         self.stat = stat
 
-    def reduce(self, results):
+    def reduce(self, key2, result):
         out = dict()
-        # iterate over intermediaries keys
-        for key2 in results.keys():
-            pass
+        if self.select_regexp:
+            select_keys = [k for k in result
+                if str(k).find(self.select_regexp) != -1]
+        else:
+            select_keys = result.keys()
+        for k in select_keys:
+            if self.stat is "mean":
+                out[self.stat + "_" + str(k)] = np.mean(result[k])
+        return out
+
+class PvalPermutations(Reducer):
+    """Reducer that select sub-result(s) according to select_regexp, and
+    reduce the sub-result(s) using the statistics stat"""
+    def __init__(self, select_regexp=Config.PREFIX_SCORE):
+        self.select_regexp = select_regexp
+
+    def reduce(self, key2, result):
+        out = dict()
+        if self.select_regexp:
+            select_keys = [k for k in result
+                if str(k).find(self.select_regexp) != -1]
+        else:
+            select_keys = result.keys()
+        for k in select_keys:
+            if self.stat is "mean":
+                out[self.stat + "_" + str(k)] = np.mean(result[k])
+        return out
