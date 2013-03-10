@@ -11,7 +11,7 @@ print __doc__
 
 
 _VERBOSE = True
-_DEBUG = False
+_DEBUG = True
 
 import numpy as np
 from abc import abstractmethod
@@ -547,6 +547,8 @@ class _Node(object):
         """
         if _VERBOSE:
             print self.get_key(), func_name
+        if _DEBUG:
+            self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent func_name up to root
@@ -763,9 +765,6 @@ class _NodeEstimator(_Node):
         return self.estimator.__dict__
 
     def fit(self, recursion=True, **ds_kwargs):
-        if _DEBUG:
-            print "-", self.get_key(), "fit, rec:", recursion
-        self.fit_ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.fit_ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="fit", recursion=recursion,
@@ -786,8 +785,6 @@ class _NodeEstimator(_Node):
             return self
 
     def transform(self, recursion=True, **ds_kwargs):
-        if _DEBUG:
-            print "-", self.get_key(),  "transform, rec:", recursion
         # transform was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
@@ -802,9 +799,6 @@ class _NodeEstimator(_Node):
         return ds_kwargs
 
     def predict(self, recursion=True, **ds_kwargs):
-        if _DEBUG:
-            print "-", self.get_key(), "predict, rec:", recursion
-        self.predict_ds_kwargs = ds_kwargs  # ds_kwargs = self.predict_ds_kwargs
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
@@ -929,6 +923,7 @@ class Perm(_NodeSplitter):
         for perm in self.children:
             import copy
             perm.add_child(_NodeFactory(copy.deepcopy(task)))
+        #print "y in kwargs", y in kwargs
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -940,6 +935,7 @@ class Perm(_NodeSplitter):
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)
+            print "perm finalize init", perm
             nb += 1
         # propagate down-way
         if self.children:
@@ -1053,6 +1049,10 @@ class _NodeRowSlicer(_NodeSlicer):
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
 
     def transform(self, recursion=True, sample_set=None, **ds_kwargs):
+        if not self.slices:
+            raise ValueError("Slicing hasn't been initialized. "
+            "Slicers constructors such as CV or Perm should be called "
+            "with a sample. Ex.: CV(..., y=y), Perm(..., y=y)")
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)

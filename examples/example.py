@@ -132,11 +132,24 @@ cv_lda.transform(X=X, sample_set="test")
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-perms_cv_lda = Perm(CV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats()),
-                    n_perms=3, permute="y")
+perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
+                    n_perms=3, permute="y", y=y)
 perms_cv_lda.fit(X=X, y=y)
-perms_cv_lda.predict(X=X, y=y)
-perms_cv_lda.bottum_up()
+#perms_cv_lda.predict(X=X, y=y)
+#perms_cv_lda.bottum_up()
+#self = perms_cv_lda.children[0].children[0].children[0]
+
+self = perms_cv_lda.children[0]
+ds_kwargs = self.ds_kwargs
+self.transform(recursion=RECURSION_UP, **ds_kwargs)
+
+perms_cv_lda.children[0].ds_kwargs
+perms_cv_lda.children[0].children[0].ds_kwargs
+
+self.transform(recursion=False, sample_set="train", **ds_kwargs)
+sample_set="train"
+self.top_down(func_name="fit", recursion=RECURSION_DOWN, X=X, y=y)
+self.fit(X=X, y=y, recursion=RECURSION_DOWN)
 
 [l.get_key() for l in perms_cv_lda]
 self = l
