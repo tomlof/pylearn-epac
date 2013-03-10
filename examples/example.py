@@ -133,10 +133,12 @@ cv_lda.transform(X=X, sample_set="test")
 # LDA LDA LDA                        Classifier (Estimator)
 
 perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
-                    n_perms=3, permute="y", y=y)
+                    n_perms=3, permute="y", y=y, reducer=PvalPermutations())
 perms_cv_lda.fit(X=X, y=y)
-#perms_cv_lda.predict(X=X, y=y)
-#perms_cv_lda.bottum_up()
+perms_cv_lda.predict(X=X, y=y)
+perms_cv_lda.bottum_up()
+
+
 #self = perms_cv_lda.children[0].children[0].children[0]
 
 self = perms_cv_lda.children[0]

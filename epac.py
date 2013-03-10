@@ -885,7 +885,7 @@ class CV(_NodeSplitter):
 
     def finalize_init(self, **ds_kwargs):
         if not "y" in ds_kwargs:
-            raise KeyError("y ins not provided to finalize the initialization")
+            raise KeyError("y is not provided to finalize the initialization")
         y = ds_kwargs["y"]
         ## Classification task:  StratifiedKFold or Regressgion Kfold
         _, y_sorted = np.unique(y, return_inverse=True)
@@ -1231,6 +1231,9 @@ class PvalPermutations(Reducer):
         else:
             select_keys = result.keys()
         for k in select_keys:
-            if self.stat is "mean":
-                out[self.stat + "_" + str(k)] = np.mean(result[k])
+            out[k] = result[k][0]
+            count = np.sum(result[k][1:] > result[k][0])
+            pval = count / (len(result[k]) - 1)
+            out[ "count_" + str(k)] = count
+            out[ "pval_" + str(k)] = pval                
         return out
