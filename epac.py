@@ -158,6 +158,54 @@ def _func_get_args_names(f):
 ## == Stores and I/O == ##
 ## ==================== ##
 
+# Convert object to dict and dict to object for Jason Persistance
+def _obj_to_dict(obj):
+    import copy
+    obj = copy.copy(obj)
+    if not isinstance(obj, dict):
+        obj_dict = obj.__dict__
+        obj_dict["__class_name__"] = obj.__class__.__name__
+        obj_dict["__class_module__"] = obj.__module__
+    else:
+        obj_dict = obj
+    for k in obj_dict:
+        #print k
+        # Attribute is an object transform it to dict
+        if hasattr(obj_dict[k], "__dict__")\
+            and hasattr(obj_dict[k], "__class__"):
+            sub_obj_dict = obj_dict[k].__dict__
+            sub_obj_dict["__class_name__"] =\
+                obj_dict[k].__class__.__name__
+            sub_obj_dict["__class_module__"] =\
+                obj_dict[k].__module__
+            obj_dict[k] = sub_obj_dict
+        # If np.array => tolist
+        if isinstance(obj_dict[k], np.ndarray):
+            obj_dict[k] = obj_dict[k].tolist()
+        # Attribute is an dictonnary recursivelly transform it
+        if isinstance(obj_dict[k], dict):
+            obj_dict[k] = _obj_to_dict(obj_dict[k])
+        print obj_dict[k]
+    return obj_dict
+
+
+def _dict_to_obj(obj_dict):
+    import copy
+    obj_dict = copy.copy(obj_dict)
+    cls_name = obj_dict.pop('__class_name__')
+    cls_module = obj_dict.pop('__class_module__')
+    mod = __import__(cls_module, fromlist=[cls_name])
+    obj = object.__new__(eval("mod." + cls_name))
+    for k in obj_dict:
+        #print k
+        if isinstance(obj_dict[k], dict) and\
+            '__class_name__' in obj_dict[k]:
+                obj_dict[k] = _dict_to_obj(obj_dict[k])
+            #obj = object.__new__(eval(cls_name))
+        obj.__dict__.update(obj_dict)
+    return obj
+
+
 class Store(object):
     """Abstract Store"""
 
@@ -207,14 +255,12 @@ class StoreFs(Store):
     def save_object(self, obj, key):
         path = self.key2path(key)
         import os
-#        class_name = str(obj.__class__).split(".")[-1].\
-#            replace(r"'", "").replace(r">", "")
         class_name = obj.__class__.__name__
-        # try to save in json format
         filename = Config.store_fs_node_prefix + class_name +\
             Config.store_fs_json_suffix
         file_path = os.path.join(path, filename)
-        if self.save_json(obj, file_path):
+        obj_dict = _obj_to_dict(obj)
+        if self.save_json(obj_dict, file_path):
             # saving in json failed => pickle
             filename = Config.store_fs_node_prefix + class_name +\
             Config.store_fs_pickle_suffix
@@ -235,10 +281,11 @@ class StoreFs(Store):
         _, ext = os.path.splitext(file_path)
         if ext == Config.store_fs_json_suffix:
             obj_dict = self.load_json(file_path)
-            class_str = file_path.replace(prefix, "").\
-                replace(Config.store_fs_json_suffix, "")
-            obj = object.__new__(eval(class_str))
-            obj.__dict__.update(obj_dict)
+            obj = _dict_to_obj(obj_dict)
+            #class_str = file_path.replace(prefix, "").\
+            #    replace(Config.store_fs_json_suffix, "")
+            #obj = object.__new__(eval(class_str))
+            #obj.__dict__.update(obj_dict)
         elif ext == Config.store_fs_pickle_suffix:
             obj = self.load_pickle(file_path)
         else:
@@ -278,12 +325,23 @@ class StoreFs(Store):
             inputf.close()
             return obj
 
-    def save_json(self, obj, file_path):
+    def save_json(self, obj_dict, file_path):
             import json
             import os
             output = open(file_path, 'wb')
+#            obj_dict = obj.__dict__
+#            # Detect non-Jasonificable objects, and convert them into dict
+#            for k in obj_dict:
+#                if hasattr(obj_dict[k], "__dict__")\
+#                    and hasattr(obj_dict[k], "__class__"):
+#                    sub_obj_dict = obj_dict[k].__dict__
+#                    sub_obj_dict["__class_name__"] =\
+#                        obj_dict[k].__class__.__name__
+#                    sub_obj_dict["__class_module__"] =\
+#                        obj_dict[k].__module__
+#                    obj_dict[k] = sub_obj_dict
             try:
-                json.dump(obj.__dict__, output)
+                json.dump(obj_dict, output)
             except TypeError:  # save in pickle
                 output.close()
                 os.remove(file_path)
@@ -294,10 +352,21 @@ class StoreFs(Store):
     def load_json(self, file_path):
             import json
             inputf = open(file_path, 'rb')
-            obj = json.load(inputf)
+            obj_dict = json.load(inputf)
             inputf.close()
-            return obj
-
+#            # Try to recast dict of non-Jasonificable objects into obj
+#            for k in obj_dict:
+#                if isinstance(obj_dict[k], dict) and\
+#                    '__class_name__' in obj_dict[k]:
+#                    cls_name = obj_dict[k].pop('__class_name__')
+#                    cls_module = obj_dict[k].pop('__class_module__')
+#                    sub_obj_dict = obj_dict[k]
+#                    mod = __import__(cls_module, fromlist=[cls_name])
+#                    obj = object.__new__(eval("mod." + cls_name))
+#                    #obj = object.__new__(eval(cls_name))
+#                    obj.__dict__.update(sub_obj_dict)
+#                    obj_dict[k] = obj
+            return obj_dict
 
 def get_store(key):
     """ factory function returning the Store object of the class
@@ -401,7 +470,7 @@ class _Node(object):
         self.sign_upstream_with_args = True
         self.combiner = None
         self.reducer = None
-        
+
     def finalize_init(self, **ds_kwargs):
         """Overload this methods if init finalization is required"""
         if self.children:
@@ -515,7 +584,6 @@ class _Node(object):
         if not key2 in self.results:
             self.results[key2] = dict()
         self.results[key2].update(val_dict)
-
 
     # ------------------------------------------ #
     # -- Top-down data-flow operations        -- #
@@ -641,7 +709,6 @@ class _Node(object):
                 key2 in results}
         if store_results:
             [self.add_results(key2, results[key2]) for key2 in results]
-        
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
@@ -678,7 +745,7 @@ class _Node(object):
     def save(self, store=None, recursion=True):
         """I/O (persistance) operation: save the node on the store"""
         if store:
-            if len(key_split(store)) < 2: #  no store provided default use fs
+            if len(key_split(store)) < 2:  # no store provided default use fs
                 store = key_join(Config.key_prot_fs, store)
             self.store = store
         if not self.store and not self.parent:
@@ -1191,7 +1258,7 @@ def Seq(*args):
 ## ======================================================================== ##
 
 
-class Reducer:
+class Reducer(object):
     """ Reducer abstract class, called within the bottum_up method to process
     up-stream data flow of results.
 
@@ -1210,7 +1277,6 @@ class SelectAndDoStats(Reducer):
     def __init__(self, select_regexp=Config.PREFIX_SCORE, stat="mean"):
         self.select_regexp = select_regexp
         self.stat = stat
-
     def reduce(self, key2, result):
         out = dict()
         if self.select_regexp:
@@ -1219,7 +1285,7 @@ class SelectAndDoStats(Reducer):
         else:
             select_keys = result.keys()
         for k in select_keys:
-            if self.stat is "mean":
+            if self.stat == "mean":
                 out[self.stat + "_" + str(k)] = np.mean(result[k])
         return out
 
@@ -1228,7 +1294,6 @@ class PvalPermutations(Reducer):
     reduce the sub-result(s) using the statistics stat"""
     def __init__(self, select_regexp=Config.PREFIX_SCORE):
         self.select_regexp = select_regexp
-
     def reduce(self, key2, result):
         out = dict()
         if self.select_regexp:
@@ -1240,6 +1305,6 @@ class PvalPermutations(Reducer):
             out[k] = result[k][0]
             count = np.sum(result[k][1:] > result[k][0])
             pval = count / (len(result[k]) - 1)
-            out[ "count_" + str(k)] = count
-            out[ "pval_" + str(k)] = pval                
+            out["count_" + str(k)] = count
+            out["pval_" + str(k)] = pval
         return out
