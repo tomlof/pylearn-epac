@@ -383,6 +383,7 @@ class _Node(object):
     def __init__(self):
         self.parent = None
         self.children = list()
+        self.store = ""
         # Results are indexed by intermediary keys. Each item is itself
         # a dictionnary
         self.results = dict()
@@ -440,7 +441,6 @@ class _Node(object):
 
     # --------------------- #
     # -- Key             -- #
-
     # --------------------- #
 
     def get_key(self, nb=1):
@@ -458,7 +458,7 @@ class _Node(object):
             2 return the intermediate key (us data-flow).
         """
         if not self.parent:
-            return self.get_signature(nb=nb)
+            return key_push(self.store, self.get_signature(nb=nb))
         else:
             return key_push(self.parent.get_key(nb=nb),
                             self.get_signature(nb=nb))
@@ -675,8 +675,14 @@ class _Node(object):
     # -- I/O persistance operations -- #
     # -------------------------------- #
 
-    def save_node(self, recursion=True):
+    def save(self, store=None, recursion=True):
         """I/O (persistance) operation: save the node on the store"""
+        if store:
+            if len(key_split(store)) < 2: #  no store provided default use fs
+                store = key_join(Config.key_prot_fs, store)
+            self.store = store
+        if not self.store and not self.parent:
+            raise ValueError("No store has been defined")
         key = self.get_key()
         store = get_store(key)
         # Prevent recursion saving of children/parent in a single dump:
@@ -690,10 +696,10 @@ class _Node(object):
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent save up to root
-            self.parent.save_node(recursion=recursion)
+            self.parent.save(recursion=recursion)
         if recursion is RECURSION_DOWN:
             # Call children save down to leaves
-            [child.save_node(recursion=recursion) for child
+            [child.save(recursion=recursion) for child
                 in self.children]
 
 
