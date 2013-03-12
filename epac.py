@@ -240,37 +240,33 @@ class StoreFs(Store):
 #            keyvals2[key2] = val2
 #        for key2 in keyvals2.keys():
 #            val2 = keyvals2[key2]
-#            filename = Config.STORE_FS_RESULTS_PREFIX + key2 +\
+#            filename = Config.STORE_RESULTS_PREFIX + key2 +\
 #                Config.STORE_FS_PICKLE_SUFFIX
 #            file_path = os.path.join(path, filename)
 #            self.save_pickle(val2, file_path)
 
-    def save(self, obj, key, name=""):
+    def save(self, obj, key):
         path = self.key2path(key)
         import os
-        if not name and hasattr(obj, "__class__"): # object no name provided
-            name = obj.__class__.__name__
+#        if not name and hasattr(obj, "__class__"): # object no name provided
+#            name = obj.__class__.__name__
         # JSON
         obj_dict = _obj_to_dict(obj)
-        filename = Config.STORE_FS_NODE_PREFIX + name +\
-            Config.STORE_FS_JSON_SUFFIX
-        file_path = os.path.join(path, filename)
+        file_path = path + Config.STORE_FS_JSON_SUFFIX
         obj_dict = _obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
             # saving in json failed => pickle
-            filename = Config.STORE_FS_NODE_PREFIX + name +\
-            Config.STORE_FS_PICKLE_SUFFIX
-            file_path = os.path.join(path, filename)
+            file_path = path + Config.STORE_FS_PICKLE_SUFFIX
             self.save_pickle(obj, file_path)
 
     def load(self, key):
         """Load a node given a key, recursion=True recursively walk through
         children"""
         path = self.key2path(key)
-        import os
-        prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
+        #import os
+        #prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
         import glob
-        file_path = glob.glob(prefix + '*')
+        file_path = glob.glob(path + '*')
         if len(file_path) != 1:
             raise IOError('Found no or more that one file in %s*' % (prefix))
         file_path = file_path[0]
@@ -290,7 +286,7 @@ class StoreFs(Store):
 #        import os
 #        import glob
 #        result_paths = glob.glob(os.path.join(path,
-#            Config.STORE_FS_RESULTS_PREFIX) + '*')
+#            Config.STORE_RESULTS_PREFIX) + '*')
 #        results = dict()
 #        for result_path in result_paths:
 #            ext = os.path.splitext(result_path)[-1]
@@ -299,7 +295,7 @@ class StoreFs(Store):
 #            if ext == Config.STORE_FS_JSON_SUFFIX:
 #                result_obj = self.load_json(result_path)
 #            key = os.path.splitext(os.path.basename(result_path))[0].\
-#                replace(Config.STORE_FS_RESULTS_PREFIX, "", 1)
+#                replace(Config.STORE_RESULTS_PREFIX, "", 1)
 #            results[key] = result_obj
 #        return results
 
@@ -398,8 +394,9 @@ def save_results(key1, key2=None, val2=None, keyvals2=None):
 class Config:
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
-    STORE_FS_RESULTS_PREFIX = "__result__"
-    STORE_FS_NODE_PREFIX = "__node__"
+    #STORE_RESULTS_PREFIX = "__result"
+    STORE_NODE_PREFIX = "node"
+    STORE_ATTRIB_PREFIX = "__attribute"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
@@ -711,7 +708,7 @@ class _Node(object):
     # -- I/O persistance operations -- #
     # -------------------------------- #
 
-    def save(self, store=None, field=None, recursion=True):
+    def save(self, store=None, attrib=None, recursion=True):
         """I/O (persistance) operation: save the node on the store.
         
         Parameters
@@ -719,7 +716,7 @@ class _Node(object):
         store: str
             This string allow to retrieve the store (see get_store(key)).
         
-        field: str
+        attrib: str
             Name of the Node's attribute to store, if provided only the
             attribute is saved, by default (None) the whole node is saved.
         
@@ -738,21 +735,21 @@ class _Node(object):
         key = self.get_key()
         store = get_store(key)
         import copy
-        if not field:  # save the entire node
+        if not attrib:  # save the entire node
             # Prevent recursion saving of children/parent in a single dump:
             # replace reference to chidren/parent by basename strings
             clone = copy.copy(self)
             clone.children = [child.get_signature() for child in self.children]
             if self.parent:
                 clone.parent = ".."
-            key = key_push(key, Config.STORE_FS_NODE_PREFIX)
+            key = key_push(key, Config.STORE_NODE_PREFIX)
             store.save(clone, key)
         else:
-            o = self.__dict__[field]
-            ICI AJOUTER LA GESTION DES PREFIX ICI ET LA SUPPRIMER
-            DANS store.save
-            key = key_push(key, Config.STORE_FS_NODE_PREFIX)
-            store.save(o, key, name=field)
+            o = self.__dict__[attrib]
+            #ICI AJOUTER LA GESTION DES PREFIX ICI ET LA SUPPRIMER
+            #DANS store.save
+            key = key_push(key, Config.STORE_ATTRIB_PREFIX) + "_" + attrib
+            store.save(o, key)
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent save up to root

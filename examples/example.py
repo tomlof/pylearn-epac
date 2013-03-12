@@ -138,6 +138,17 @@ from epac import Perm, CV, SelectAndDoStats, PvalPermutations, load_node
 perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
 # Save tree
+self = perms_cv_lda
+self.fit(X=X, y=y)
+self.predict(X=X, y=y)
+# Save tree with results
+self.bottum_up()
+key = self.get_key()
+import tempfile
+store=tempfile.mktemp()
+
+self.save(field="results")
+
 import tempfile
 perms_cv_lda.save(store=tempfile.mktemp())
 key = perms_cv_lda.get_key()
