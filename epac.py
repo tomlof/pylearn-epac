@@ -158,52 +158,41 @@ def _func_get_args_names(f):
 ## == Stores and I/O == ##
 ## ==================== ##
 
-# Convert object to dict and dict to object for Jason Persistance
+# Convert object to dict and dict to object for Json Persistance
 def _obj_to_dict(obj):
-    import copy
-    obj = copy.copy(obj)
-    if not isinstance(obj, dict):
-        obj_dict = obj.__dict__
+    # Composite objects (object, dict, list): recursive call
+    if hasattr(obj, "__dict__") and hasattr(obj, "__class__")\
+        and hasattr(obj, "__module__"):               # object: rec call
+        obj_dict = {k: _obj_to_dict(obj.__dict__[k]) for k in obj.__dict__}
         obj_dict["__class_name__"] = obj.__class__.__name__
         obj_dict["__class_module__"] = obj.__module__
+        return obj_dict
+    elif isinstance(obj, dict):                       # dict: rec call
+        return {k: _obj_to_dict(obj[k]) for k in obj}
+    elif isinstance(obj, (list, tuple)):              # list: rec call
+        return [_obj_to_dict(item) for item in obj]
+    elif isinstance(obj, np.ndarray):                 # array: to list
+        return obj.tolist()
     else:
-        obj_dict = obj
-    for k in obj_dict:
-        #print k
-        # Attribute is an object transform it to dict
-        if hasattr(obj_dict[k], "__dict__")\
-            and hasattr(obj_dict[k], "__class__"):
-            sub_obj_dict = obj_dict[k].__dict__
-            sub_obj_dict["__class_name__"] =\
-                obj_dict[k].__class__.__name__
-            sub_obj_dict["__class_module__"] =\
-                obj_dict[k].__module__
-            obj_dict[k] = sub_obj_dict
-        # If np.array => tolist
-        if isinstance(obj_dict[k], np.ndarray):
-            obj_dict[k] = obj_dict[k].tolist()
-        # Attribute is an dictonnary recursivelly transform it
-        if isinstance(obj_dict[k], dict):
-            obj_dict[k] = _obj_to_dict(obj_dict[k])
-        print obj_dict[k]
-    return obj_dict
-
+        return obj
 
 def _dict_to_obj(obj_dict):
-    import copy
-    obj_dict = copy.copy(obj_dict)
-    cls_name = obj_dict.pop('__class_name__')
-    cls_module = obj_dict.pop('__class_module__')
-    mod = __import__(cls_module, fromlist=[cls_name])
-    obj = object.__new__(eval("mod." + cls_name))
-    for k in obj_dict:
-        #print k
-        if isinstance(obj_dict[k], dict) and\
-            '__class_name__' in obj_dict[k]:
-                obj_dict[k] = _dict_to_obj(obj_dict[k])
-            #obj = object.__new__(eval(cls_name))
+    if isinstance(obj_dict, dict) and '__class_name__' in obj_dict: # object
+        cls_name = obj_dict.pop('__class_name__')               # : rec call
+        cls_module = obj_dict.pop('__class_module__')        
+        obj_dict = {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
+        mod = __import__(cls_module, fromlist=[cls_name])
+        obj = object.__new__(eval("mod." + cls_name))
         obj.__dict__.update(obj_dict)
-    return obj
+        return obj
+    elif isinstance(obj_dict, dict):                         # dict: rec call
+        return {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
+    elif isinstance(obj_dict, (list, tuple)):                # list: rec call
+        return [_dict_to_obj(item) for item in obj_dict]
+#    elif isinstance(obj, np.ndarray):                       # array: to list
+#        return obj.tolist()
+    else:
+        return obj_dict
 
 
 class Store(object):

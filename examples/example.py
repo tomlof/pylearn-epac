@@ -10,8 +10,8 @@ import numpy as np
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-from sklearn import datasets
-iris = datasets.load_iris()
+# from sklearn import datasets
+# iris = datasets.load_iris()
 
 # Add the noisy data to the informative features
 #X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
@@ -133,7 +133,7 @@ cv_lda.transform(X=X, sample_set="test")
 # LDA LDA LDA                        Classifier (Estimator)
 
 from epac import Perm, CV, SelectAndDoStats, PvalPermutations, load_node
-from epac import *
+from epac import _obj_to_dict, _dict_to_obj
 
 perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
@@ -152,3 +152,22 @@ tree.save()
 tree2 = load_node(key)
 # Reduce
 tree2.bottum_up()
+
+class A:pass
+o = A()
+o2 = A()
+o.a = 
+a.b = dict(a=1)
+
+
+
+class A: pass
+
+import copy
+obj = copy.copy(perms_cv_lda)
+#obj = copy.copy(tree)
+obj.children = [dict(a=1), 2] # [dict(a=1), A()]
+obj_dict = _obj_to_dict(obj)
+obj_dict
+obj = _dict_to_obj(obj_dict)
+obj.__dict__
