@@ -133,7 +133,7 @@ cv_lda.transform(X=X, sample_set="test")
 # LDA LDA LDA                        Classifier (Estimator)
 
 from epac import Perm, CV, SelectAndDoStats, PvalPermutations, load_node
-from epac import _obj_to_dict, _dict_to_obj
+# _obj_to_dict, _dict_to_obj
 
 perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
@@ -143,15 +143,22 @@ perms_cv_lda.save(store=tempfile.mktemp())
 key = perms_cv_lda.get_key()
 # Reload tree
 tree = load_node(key)
-# Fit
+# Fit & Predict
 tree.fit(X=X, y=y)
 tree.predict(X=X, y=y)
 # Save tree with results
-tree.save()
+tree.bottum_up()
+tree.save(field="results")
+
 # Reload
 tree2 = load_node(key)
 # Reduce
 tree2.bottum_up()
+
+[l.get_key() for l in tree]
+key = l.get_key()
+obj = l
+self = get_store(key)
 
 class A:pass
 o = A()
@@ -165,7 +172,7 @@ class A: pass
 
 import copy
 obj = copy.copy(perms_cv_lda)
-#obj = copy.copy(tree)
+obj = copy.copy(tree2)
 obj.children = [dict(a=1), 2] # [dict(a=1), A()]
 obj_dict = _obj_to_dict(obj)
 obj_dict

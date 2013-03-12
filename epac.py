@@ -172,7 +172,7 @@ def _obj_to_dict(obj):
     elif isinstance(obj, (list, tuple)):              # list: rec call
         return [_obj_to_dict(item) for item in obj]
     elif isinstance(obj, np.ndarray):                 # array: to list
-        return obj.tolist()
+        return {"__array__": obj.tolist()}
     else:
         return obj
 
@@ -185,6 +185,8 @@ def _dict_to_obj(obj_dict):
         obj = object.__new__(eval("mod." + cls_name))
         obj.__dict__.update(obj_dict)
         return obj
+    if isinstance(obj_dict, dict) and '__array__' in obj_dict:
+        return np.asarray(obj_dict.pop('__array__'))
     elif isinstance(obj_dict, dict):                         # dict: rec call
         return {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
     elif isinstance(obj_dict, (list, tuple)):                # list: rec call
@@ -198,21 +200,23 @@ def _dict_to_obj(obj_dict):
 class Store(object):
     """Abstract Store"""
 
-    def __init__(self):
-        pass
+    @abstractmethod
+    def save(self, obj, key):
+        """Store abstract method"""
 
-    def save_results(key1, key2=None, val2=None, keyvals2=None):
-        pass
+    @abstractmethod
+    def load(self, key):
+        """Store abstract method"""
 
 
 class StoreLo(Store):
     """ Store based on Living Objects"""
 
-    def __init__(self, storage_root):
-        pass
+    def save(self, obj, key):
+        raise ValueError("Not implemented")
 
-    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
-        pass
+    def load(self, key):
+        raise ValueError("Not implemented")
 
 
 class StoreFs(Store):
@@ -228,77 +232,76 @@ class StoreFs(Store):
             os.makedirs(path)
         return path
 
-    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
-        path = self.key2path(key1)
-        import os
-        if key2 and val2:
-            keyvals2 = dict()
-            keyvals2[key2] = val2
-        for key2 in keyvals2.keys():
-            val2 = keyvals2[key2]
-            filename = Config.store_fs_results_prefix + key2 +\
-                Config.store_fs_pickle_suffix
-            file_path = os.path.join(path, filename)
-            self.save_pickle(val2, file_path)
+#    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
+#        path = self.key2path(key1)
+#        import os
+#        if key2 and val2:
+#            keyvals2 = dict()
+#            keyvals2[key2] = val2
+#        for key2 in keyvals2.keys():
+#            val2 = keyvals2[key2]
+#            filename = Config.STORE_FS_RESULTS_PREFIX + key2 +\
+#                Config.STORE_FS_PICKLE_SUFFIX
+#            file_path = os.path.join(path, filename)
+#            self.save_pickle(val2, file_path)
 
-    def save_object(self, obj, key):
+    def save(self, obj, key, name=""):
         path = self.key2path(key)
         import os
-        class_name = obj.__class__.__name__
-        filename = Config.store_fs_node_prefix + class_name +\
-            Config.store_fs_json_suffix
+        if not name and hasattr(obj, "__class__"): # object no name provided
+            name = obj.__class__.__name__
+        # JSON
+        obj_dict = _obj_to_dict(obj)
+        filename = Config.STORE_FS_NODE_PREFIX + name +\
+            Config.STORE_FS_JSON_SUFFIX
         file_path = os.path.join(path, filename)
         obj_dict = _obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
             # saving in json failed => pickle
-            filename = Config.store_fs_node_prefix + class_name +\
-            Config.store_fs_pickle_suffix
+            filename = Config.STORE_FS_NODE_PREFIX + name +\
+            Config.STORE_FS_PICKLE_SUFFIX
             file_path = os.path.join(path, filename)
             self.save_pickle(obj, file_path)
 
-    def load_object(self, key):
+    def load(self, key):
         """Load a node given a key, recursion=True recursively walk through
         children"""
         path = self.key2path(key)
         import os
-        prefix = os.path.join(path, Config.store_fs_node_prefix)
+        prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
         import glob
         file_path = glob.glob(prefix + '*')
         if len(file_path) != 1:
             raise IOError('Found no or more that one file in %s*' % (prefix))
         file_path = file_path[0]
         _, ext = os.path.splitext(file_path)
-        if ext == Config.store_fs_json_suffix:
+        if ext == Config.STORE_FS_JSON_SUFFIX:
             obj_dict = self.load_json(file_path)
             obj = _dict_to_obj(obj_dict)
-            #class_str = file_path.replace(prefix, "").\
-            #    replace(Config.store_fs_json_suffix, "")
-            #obj = object.__new__(eval(class_str))
-            #obj.__dict__.update(obj_dict)
-        elif ext == Config.store_fs_pickle_suffix:
+        elif ext == Config.STORE_FS_PICKLE_SUFFIX:
             obj = self.load_pickle(file_path)
         else:
             raise IOError('File %s has an unkown extension: %s' %
                 (file_path, ext))
         return obj
 
-    def load_results(self, key):
-        path = self.key2path(key)
-        import os
-        import glob
-        result_paths = glob.glob(os.path.join(path,
-            Config.store_fs_results_prefix) + '*')
-        results = dict()
-        for result_path in result_paths:
-            ext = os.path.splitext(result_path)[-1]
-            if ext == Config.store_fs_pickle_suffix:
-                result_obj = self.load_pickle(result_path)
-            if ext == Config.store_fs_json_suffix:
-                result_obj = self.load_json(result_path)
-            key = os.path.splitext(os.path.basename(result_path))[0].\
-                replace(Config.store_fs_results_prefix, "", 1)
-            results[key] = result_obj
-        return results
+#    def load_results(self, key):
+#        path = self.key2path(key)
+#        import os
+#        import glob
+#        result_paths = glob.glob(os.path.join(path,
+#            Config.STORE_FS_RESULTS_PREFIX) + '*')
+#        results = dict()
+#        for result_path in result_paths:
+#            ext = os.path.splitext(result_path)[-1]
+#            if ext == Config.STORE_FS_PICKLE_SUFFIX:
+#                result_obj = self.load_pickle(result_path)
+#            if ext == Config.STORE_FS_JSON_SUFFIX:
+#                result_obj = self.load_json(result_path)
+#            key = os.path.splitext(os.path.basename(result_path))[0].\
+#                replace(Config.STORE_FS_RESULTS_PREFIX, "", 1)
+#            results[key] = result_obj
+#        return results
 
     def save_pickle(self, obj, file_path):
             import pickle
@@ -318,17 +321,6 @@ class StoreFs(Store):
             import json
             import os
             output = open(file_path, 'wb')
-#            obj_dict = obj.__dict__
-#            # Detect non-Jasonificable objects, and convert them into dict
-#            for k in obj_dict:
-#                if hasattr(obj_dict[k], "__dict__")\
-#                    and hasattr(obj_dict[k], "__class__"):
-#                    sub_obj_dict = obj_dict[k].__dict__
-#                    sub_obj_dict["__class_name__"] =\
-#                        obj_dict[k].__class__.__name__
-#                    sub_obj_dict["__class_module__"] =\
-#                        obj_dict[k].__module__
-#                    obj_dict[k] = sub_obj_dict
             try:
                 json.dump(obj_dict, output)
             except TypeError:  # save in pickle
@@ -343,18 +335,6 @@ class StoreFs(Store):
             inputf = open(file_path, 'rb')
             obj_dict = json.load(inputf)
             inputf.close()
-#            # Try to recast dict of non-Jasonificable objects into obj
-#            for k in obj_dict:
-#                if isinstance(obj_dict[k], dict) and\
-#                    '__class_name__' in obj_dict[k]:
-#                    cls_name = obj_dict[k].pop('__class_name__')
-#                    cls_module = obj_dict[k].pop('__class_module__')
-#                    sub_obj_dict = obj_dict[k]
-#                    mod = __import__(cls_module, fromlist=[cls_name])
-#                    obj = object.__new__(eval("mod." + cls_name))
-#                    #obj = object.__new__(eval(cls_name))
-#                    obj.__dict__.update(sub_obj_dict)
-#                    obj_dict[k] = obj
             return obj_dict
 
 def get_store(key):
@@ -362,14 +342,14 @@ def get_store(key):
     associated with the key parameter"""
     splits = key_split(key)
     if len(splits) != 2 and \
-        not(splits[0] in (Config.key_prot_fs, Config.key_prot_lo)):
+        not(splits[0] in (Config.KEY_PROT_FS, Config.KEY_PROT_MEM)):
         raise ValueError('No valid storage has been associated with key: "%s"'
             % key)
     prot, path = splits
-    if prot == Config.key_prot_fs:
+    if prot == Config.KEY_PROT_FS:
         return StoreFs()
 #    FIXME
-#    elif prot == Config.key_prot_lo:
+#    elif prot == Config.KEY_PROT_MEM:
 #        return StoreLo(storage_root=_Node.roots[path])
     else:
         raise ValueError("Invalid value for key: should be:" +\
@@ -385,7 +365,7 @@ def key_split(key):
     >>> key_split('file:///tmp/toto')
     ['file', '/tmp/toto']
     """
-    return key.split(Config.key_prot_path_sep, 1)
+    return key.split(Config.KEY_PROT_PATH_SEP, 1)
 
 
 def key_join(prot="", path=""):
@@ -396,16 +376,16 @@ def key_join(prot="", path=""):
     >>> key_join("file", "/tmp/toto")
     'file:///tmp/toto'
     """
-    return prot + Config.key_prot_path_sep + path
+    return prot + Config.KEY_PROT_PATH_SEP + path
 
 
 def key_pop(key):
-    return key.rsplit(Config.key_path_sep, 1)[0]
+    return key.rsplit(Config.KEY_PATH_SEP, 1)[0]
 
 
 def key_push(key, basename):
     if key and basename:
-        return key + Config.key_path_sep + basename
+        return key + Config.KEY_PATH_SEP + basename
     else:
         return key or basename
 
@@ -416,19 +396,19 @@ def save_results(key1, key2=None, val2=None, keyvals2=None):
 
 
 class Config:
-    store_fs_pickle_suffix = ".pkl"
-    store_fs_json_suffix = ".json"
-    store_fs_results_prefix = "__result__"
-    store_fs_node_prefix = "__node__"
+    STORE_FS_PICKLE_SUFFIX = ".pkl"
+    STORE_FS_JSON_SUFFIX = ".json"
+    STORE_FS_RESULTS_PREFIX = "__result__"
+    STORE_FS_NODE_PREFIX = "__node__"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
     PREFIX_TRAIN = "train_"
     PREFIX_SCORE = "score_"
-    key_prot_lo = "mem"  # key storage protocol: living object
-    key_prot_fs = "file"  # key storage protocol: file system
-    key_path_sep = "/"
-    key_prot_path_sep = "://"  # key storage protocol / path separator
+    KEY_PROT_MEM = "mem"  # key storage protocol: living object
+    KEY_PROT_FS = "fs"  # key storage protocol: file system
+    KEY_PATH_SEP = "/"
+    KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
 
 
 RECURSION_UP = 1
@@ -731,31 +711,55 @@ class _Node(object):
     # -- I/O persistance operations -- #
     # -------------------------------- #
 
-    def save(self, store=None, recursion=True):
-        """I/O (persistance) operation: save the node on the store"""
+    def save(self, store=None, field=None, recursion=True):
+        """I/O (persistance) operation: save the node on the store.
+        
+        Parameters
+        ----------
+        store: str
+            This string allow to retrieve the store (see get_store(key)).
+        
+        field: str
+            Name of the Node's attribute to store, if provided only the
+            attribute is saved, by default (None) the whole node is saved.
+        
+        recursion: bool
+            RECURSION_UP or RECURSION_DOWN, indicates si node should be
+            recursively saved up to the root (RECURSION_UP) or down to
+            the leaves (RECURSION_DOWN). Default (True) try to guess up
+            (if leaf) or down (if root).
+        """
         if store:
             if len(key_split(store)) < 2:  # no store provided default use fs
-                store = key_join(Config.key_prot_fs, store)
+                store = key_join(Config.KEY_PROT_FS, store)
             self.store = store
         if not self.store and not self.parent:
             raise ValueError("No store has been defined")
         key = self.get_key()
         store = get_store(key)
-        # Prevent recursion saving of children/parent in a single dump:
-        # replace reference to chidren/parent by basename strings
         import copy
-        clone = copy.copy(self)
-        clone.children = [child.get_signature() for child in self.children]
-        if self.parent:
-            clone.parent = ".."
-        store.save_object(clone, key)
+        if not field:  # save the entire node
+            # Prevent recursion saving of children/parent in a single dump:
+            # replace reference to chidren/parent by basename strings
+            clone = copy.copy(self)
+            clone.children = [child.get_signature() for child in self.children]
+            if self.parent:
+                clone.parent = ".."
+            key = key_push(key, Config.STORE_FS_NODE_PREFIX)
+            store.save(clone, key)
+        else:
+            o = self.__dict__[field]
+            ICI AJOUTER LA GESTION DES PREFIX ICI ET LA SUPPRIMER
+            DANS store.save
+            key = key_push(key, Config.STORE_FS_NODE_PREFIX)
+            store.save(o, key, name=field)
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent save up to root
-            self.parent.save(recursion=recursion)
+            self.parent.save(field=field, recursion=recursion)
         if recursion is RECURSION_DOWN:
             # Call children save down to leaves
-            [child.save(recursion=recursion) for child
+            [child.save(field=field, recursion=recursion) for child
                 in self.children]
 
 
@@ -780,9 +784,9 @@ def load_node(key=None, store=None, recursion=True):
         if int should be: RECURSION_UP or RECURSION_DOWN
     """
     if key is None:  # assume fs store, and point on the root of the store
-        key = key_join(prot=Config.key_prot_fs, path=store)
+        key = key_join(prot=Config.KEY_PROT_FS, path=store)
     store = get_store(key)
-    node = store.load_object(key)
+    node = store.load(key)
     # children contain basename string: Save the string a recursively
     # walk/load children
     recursion = node.check_recursion(recursion)
@@ -1251,14 +1255,22 @@ class Reducer(object):
     """ Reducer abstract class, called within the bottum_up method to process
     up-stream data flow of results.
 
-    Inherited classes should implement reduce(key2, val). Where key2 in the
+    Inherited classes should implement reduce(key2, val). Where key2 is the
     intermediary key and val the corresponding results.
     This value is a dictionnary of results. The reduce should return a
     dictionnary."""
     @abstractmethod
     def reduce(self, key2, result):
-        pass
+        """Reduce abstract method
 
+        Parameters
+        ----------
+        key2:
+            the intermediary key
+
+        result: (dict)
+            bag of results
+        """
 
 class SelectAndDoStats(Reducer):
     """Reducer that select sub-result(s) according to select_regexp, and
