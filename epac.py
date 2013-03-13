@@ -227,9 +227,6 @@ class StoreFs(Store):
 
     def key2path(self, key):
         prot, path = key_split(key)
-        import os
-        if not os.path.exists(path):
-            os.makedirs(path)
         return path
 
 #    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
@@ -248,10 +245,12 @@ class StoreFs(Store):
     def save(self, obj, key):
         path = self.key2path(key)
         import os
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
 #        if not name and hasattr(obj, "__class__"): # object no name provided
 #            name = obj.__class__.__name__
         # JSON
-        obj_dict = _obj_to_dict(obj)
+        #obj_dict = _obj_to_dict(obj)
         file_path = path + Config.STORE_FS_JSON_SUFFIX
         obj_dict = _obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
@@ -263,7 +262,7 @@ class StoreFs(Store):
         """Load a node given a key, recursion=True recursively walk through
         children"""
         path = self.key2path(key)
-        #import os
+        import os
         #prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
         import glob
         file_path = glob.glob(path + '*')
@@ -396,7 +395,7 @@ class Config:
     STORE_FS_JSON_SUFFIX = ".json"
     #STORE_RESULTS_PREFIX = "__result"
     STORE_NODE_PREFIX = "node"
-    STORE_ATTRIB_PREFIX = "__attribute"
+    STORE_ATTRIB_PREFIX = "____"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
@@ -746,17 +745,15 @@ class _Node(object):
             store.save(clone, key)
         else:
             o = self.__dict__[attrib]
-            #ICI AJOUTER LA GESTION DES PREFIX ICI ET LA SUPPRIMER
-            #DANS store.save
-            key = key_push(key, Config.STORE_ATTRIB_PREFIX) + "_" + attrib
+            key = key_push(key, Config.STORE_ATTRIB_PREFIX) + attrib
             store.save(o, key)
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent save up to root
-            self.parent.save(field=field, recursion=recursion)
+            self.parent.save(attrib=attrib, recursion=recursion)
         if recursion is RECURSION_DOWN:
             # Call children save down to leaves
-            [child.save(field=field, recursion=recursion) for child
+            [child.save(attrib=attrib, recursion=recursion) for child
                 in self.children]
 
 
@@ -783,6 +780,7 @@ def load_node(key=None, store=None, recursion=True):
     if key is None:  # assume fs store, and point on the root of the store
         key = key_join(prot=Config.KEY_PROT_FS, path=store)
     store = get_store(key)
+    key = key_push(key, Config.STORE_NODE_PREFIX)
     node = store.load(key)
     # children contain basename string: Save the string a recursively
     # walk/load children
