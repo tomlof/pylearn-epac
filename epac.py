@@ -14,342 +14,13 @@ _VERBOSE = True
 _DEBUG = True
 
 import numpy as np
+import copy
 from abc import abstractmethod
-
-
-## =========== ##
-## == Utils == ##
-## =========== ##
-
-def _list_diff(l1, l2):
-    return [item for item in l1 if not item in l2]
-
-
-def _list_contains(l1, l2):
-    return all([item in l1 for item in l2])
-
-
-def _list_union_inter_diff(*lists):
-    """Return 3 lists: intersection, union and differences of lists
-    """
-    union = set(lists[0])
-    inter = set(lists[0])
-    for l in lists[1:]:
-        s = set(l)
-        union = union | s
-        inter = inter & s
-    diff = union - inter
-    return list(union), list(inter), list(diff)
-
-
-def _list_indices(l, val):
-    return [i for i in xrange(len(l)) if l[i] == val]
-
-
-def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
-                                   axis_values=[]):
-    """Convert a list of dicts to a dictionnary of lists.
-
-    Example
-    -------
-   >>> _list_of_dicts_2_dict_of_lists([dict(a=1, b=2), dict(a=10, b=20)])
-   {'a': [1, 10], 'b': [2, 20]}
-    """
-    class ListWithMetaInfo(list):
-        __axis_name = None
-        __axis_value = None
-    dict_of_list = dict()
-    for d in list_of_dict:
-        #self.children[child_idx].signature_args
-        #sub_aggregate = sub_aggregates[0]
-        for key2 in d.keys():
-            #key2 = sub_aggregate.keys()[0]
-            result = d[key2]
-            # result is a dictionary
-            if isinstance(result, dict):
-                if not key2 in dict_of_list.keys():
-                    dict_of_list[key2] = dict()
-                for key3 in result.keys():
-                    if not key3 in dict_of_list[key2].keys():
-                        dict_of_list[key2][key3] = ListWithMetaInfo()
-                        dict_of_list[key2][key3].__axis_name = axis_name
-                        dict_of_list[key2][key3].__axis_value =axis_values
-                    dict_of_list[key2][key3].append(result[key3])
-            else:  # simply concatenate
-                if not key2 in dict_of_list.keys():
-                    dict_of_list[key2] = ListWithMetaInfo()
-                    dict_of_list[key2].__axis_name = axis_name
-                    dict_of_list[key2].__axis_value =axis_values
-                dict_of_list[key2].append(result)
-    return dict_of_list
-
-
-def _dict_diff(*dicts):
-    """Find the differences in a dictionaries
-
-    Returns
-    -------
-    diff_keys: a list of keys that differ amongs dicts
-    diff_vals: a dict with keys values differences between dictonaries.
-        If some dict differ bay keys (some keys are missing), return
-        the key associated with None value
-
-    Examples
-    --------
-    >>> _dict_diff(dict(a=1, b=2, c=3), dict(b=0, c=3))
-    {'a': None, 'b': [0, 2]}
-    """
-    # Find diff in keys
-    union_keys, inter_keys, diff_keys = _list_union_inter_diff(*[d.keys()
-                                            for d in dicts])
-    diff_vals = dict()
-    for k in diff_keys:
-        diff_vals[k] = None
-    # Find diff in shared keys
-    for k in inter_keys:
-        s = set([d[k] for d in dicts])
-        if len(s) > 1:
-            diff_vals[k] = list(s)
-    return diff_vals
-
-
-def _sub_dict(d, subkeys):
-    return {k: d[k] for k in subkeys}
-
-
-def _as_dict(v, keys):
-    """
-    Ensure that v is a dict, if not create one using keys.
-
-    Example
-    -------
-    >>> _as_dict(([1, 2], [3, 1]), ["x", "y"])
-    {'y': [3, 1], 'x': [1, 2]}
-    """
-    if isinstance(v, dict):
-        return v
-    if len(keys) == 1:
-        return {keys[0]: v}
-    if len(keys) != len(v):
-        raise ValueError("Do not know how to build a dictionnary with keys %s"
-            % keys)
-    return {keys[i]: v[i] for i in xrange(len(keys))}
-
-
-def _dict_prefix_keys(prefix, d):
-    return {prefix + str(k): d[k] for k in d}
-
-
-def _func_get_args_names(f):
-    """Return non defaults function args names
-    """
-    import inspect
-    a = inspect.getargspec(f)
-    if a.defaults:
-        args_names = a.args[:(len(a.args) - len(a.defaults))]
-    else:
-        args_names = a.args[:len(a.args)]
-    if "self" in args_names:
-        args_names.remove("self")
-    return args_names
-
-
-## ==================== ##
-## == Stores and I/O == ##
-## ==================== ##
-
-# Convert object to dict and dict to object for Json Persistance
-def _obj_to_dict(obj):
-    # Composite objects (object, dict, list): recursive call
-    if hasattr(obj, "__dict__") and hasattr(obj, "__class__")\
-        and hasattr(obj, "__module__"):               # object: rec call
-        obj_dict = {k: _obj_to_dict(obj.__dict__[k]) for k in obj.__dict__}
-        obj_dict["__class_name__"] = obj.__class__.__name__
-        obj_dict["__class_module__"] = obj.__module__
-        return obj_dict
-    elif isinstance(obj, dict):                       # dict: rec call
-        return {k: _obj_to_dict(obj[k]) for k in obj}
-    elif isinstance(obj, (list, tuple)):              # list: rec call
-        return [_obj_to_dict(item) for item in obj]
-    elif isinstance(obj, np.ndarray):                 # array: to list
-        return {"__array__": obj.tolist()}
-    else:
-        return obj
-
-def _dict_to_obj(obj_dict):
-    if isinstance(obj_dict, dict) and '__class_name__' in obj_dict: # object
-        cls_name = obj_dict.pop('__class_name__')               # : rec call
-        cls_module = obj_dict.pop('__class_module__')        
-        obj_dict = {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
-        mod = __import__(cls_module, fromlist=[cls_name])
-        obj = object.__new__(eval("mod." + cls_name))
-        obj.__dict__.update(obj_dict)
-        return obj
-    if isinstance(obj_dict, dict) and '__array__' in obj_dict:
-        return np.asarray(obj_dict.pop('__array__'))
-    elif isinstance(obj_dict, dict):                         # dict: rec call
-        return {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
-    elif isinstance(obj_dict, (list, tuple)):                # list: rec call
-        return [_dict_to_obj(item) for item in obj_dict]
-#    elif isinstance(obj, np.ndarray):                       # array: to list
-#        return obj.tolist()
-    else:
-        return obj_dict
-
-
-class Store(object):
-    """Abstract Store"""
-
-    @abstractmethod
-    def save(self, obj, key):
-        """Store abstract method"""
-
-    @abstractmethod
-    def load(self, key):
-        """Store abstract method"""
-
-
-class StoreLo(Store):
-    """ Store based on Living Objects"""
-
-    def save(self, obj, key):
-        raise ValueError("Not implemented")
-
-    def load(self, key):
-        raise ValueError("Not implemented")
-
-
-class StoreFs(Store):
-    """ Store based of file system"""
-
-    def __init__(self):
-        pass
-
-    def key2path(self, key):
-        prot, path = key_split(key)
-        return path
-
-#    def save_results(self, key1, key2=None, val2=None, keyvals2=None):
-#        path = self.key2path(key1)
-#        import os
-#        if key2 and val2:
-#            keyvals2 = dict()
-#            keyvals2[key2] = val2
-#        for key2 in keyvals2.keys():
-#            val2 = keyvals2[key2]
-#            filename = Config.STORE_RESULTS_PREFIX + key2 +\
-#                Config.STORE_FS_PICKLE_SUFFIX
-#            file_path = os.path.join(path, filename)
-#            self.save_pickle(val2, file_path)
-
-    def save(self, obj, key):
-        path = self.key2path(key)
-        import os
-        if not os.path.exists(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
-#        if not name and hasattr(obj, "__class__"): # object no name provided
-#            name = obj.__class__.__name__
-        # JSON
-        #obj_dict = _obj_to_dict(obj)
-        file_path = path + Config.STORE_FS_JSON_SUFFIX
-        obj_dict = _obj_to_dict(obj)
-        if self.save_json(obj_dict, file_path):
-            # saving in json failed => pickle
-            file_path = path + Config.STORE_FS_PICKLE_SUFFIX
-            self.save_pickle(obj, file_path)
-
-    def load(self, key):
-        """Load a node given a key, recursion=True recursively walk through
-        children"""
-        path = self.key2path(key)
-        import os
-        #prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
-        import glob
-        file_path = glob.glob(path + '*')
-        if len(file_path) != 1:
-            raise IOError('Found no or more that one file in %s*' % (prefix))
-        file_path = file_path[0]
-        _, ext = os.path.splitext(file_path)
-        if ext == Config.STORE_FS_JSON_SUFFIX:
-            obj_dict = self.load_json(file_path)
-            obj = _dict_to_obj(obj_dict)
-        elif ext == Config.STORE_FS_PICKLE_SUFFIX:
-            obj = self.load_pickle(file_path)
-        else:
-            raise IOError('File %s has an unkown extension: %s' %
-                (file_path, ext))
-        return obj
-
-#    def load_results(self, key):
-#        path = self.key2path(key)
-#        import os
-#        import glob
-#        result_paths = glob.glob(os.path.join(path,
-#            Config.STORE_RESULTS_PREFIX) + '*')
-#        results = dict()
-#        for result_path in result_paths:
-#            ext = os.path.splitext(result_path)[-1]
-#            if ext == Config.STORE_FS_PICKLE_SUFFIX:
-#                result_obj = self.load_pickle(result_path)
-#            if ext == Config.STORE_FS_JSON_SUFFIX:
-#                result_obj = self.load_json(result_path)
-#            key = os.path.splitext(os.path.basename(result_path))[0].\
-#                replace(Config.STORE_RESULTS_PREFIX, "", 1)
-#            results[key] = result_obj
-#        return results
-
-    def save_pickle(self, obj, file_path):
-            import pickle
-            output = open(file_path, 'wb')
-            pickle.dump(obj, output)
-            output.close()
-
-    def load_pickle(self, file_path):
-            #u'/tmp/store/KFold-0/SVC/__node__NodeEstimator.pkl'
-            import pickle
-            inputf = open(file_path, 'rb')
-            obj = pickle.load(inputf)
-            inputf.close()
-            return obj
-
-    def save_json(self, obj_dict, file_path):
-            import json
-            import os
-            output = open(file_path, 'wb')
-            try:
-                json.dump(obj_dict, output)
-            except TypeError:  # save in pickle
-                output.close()
-                os.remove(file_path)
-                return 1
-            output.close()
-            return 0
-
-    def load_json(self, file_path):
-            import json
-            inputf = open(file_path, 'rb')
-            obj_dict = json.load(inputf)
-            inputf.close()
-            return obj_dict
-
-def get_store(key):
-    """ factory function returning the Store object of the class
-    associated with the key parameter"""
-    splits = key_split(key)
-    if len(splits) != 2 and \
-        not(splits[0] in (Config.KEY_PROT_FS, Config.KEY_PROT_MEM)):
-        raise ValueError('No valid storage has been associated with key: "%s"'
-            % key)
-    prot, path = splits
-    if prot == Config.KEY_PROT_FS:
-        return StoreFs()
-#    FIXME
-#    elif prot == Config.KEY_PROT_MEM:
-#        return StoreLo(storage_root=_Node.roots[path])
-    else:
-        raise ValueError("Invalid value for key: should be:" +\
-        "lo for no persistence and storage on living objects or" +\
-        "fs and a directory path for file system based storage")
+from stores import get_store
+from utils import _list_union_inter_diff, _list_indices, _list_diff
+from utils import _list_of_dicts_2_dict_of_lists
+from utils import _sub_dict, _dict_diff, _as_dict, _dict_prefix_keys
+from utils import _func_get_args_names
 
 
 def key_split(key):
@@ -384,18 +55,11 @@ def key_push(key, basename):
     else:
         return key or basename
 
-
-def save_results(key1, key2=None, val2=None, keyvals2=None):
-    store = get_store(key1)
-    store.save_results(key1, key2, val2, keyvals2)
-
-
 class Config:
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
     #STORE_RESULTS_PREFIX = "__result"
     STORE_NODE_PREFIX = "node"
-    STORE_ATTRIB_PREFIX = "____"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
@@ -687,6 +351,7 @@ class _Node(object):
         stack_arg = list()
         children_arg = [child_arg[arg_name] for child_arg in children_args]
         arg_values = list(set(sorted(children_arg)))
+        from utils import _list_indices
         for val in arg_values:
             children_select = _list_indices(children_arg, val)
             children_results_select = [children_results[i] for i
@@ -707,15 +372,17 @@ class _Node(object):
     # -- I/O persistance operations -- #
     # -------------------------------- #
 
-    def save(self, store=None, attrib=None, recursion=True):
-        """I/O (persistance) operation: save the node on the store.
+    def save(self, store=None, attr=None, recursion=True):
+        """I/O (persistance) operation: save the node on the store. By default
+        save the entire node. If attr is provided save only this attribute
+        if non empty.
         
         Parameters
         ----------
         store: str
             This string allow to retrieve the store (see get_store(key)).
         
-        attrib: str
+        attr: str
             Name of the Node's attribute to store, if provided only the
             attribute is saved, by default (None) the whole node is saved.
         
@@ -733,8 +400,7 @@ class _Node(object):
             raise ValueError("No store has been defined")
         key = self.get_key()
         store = get_store(key)
-        import copy
-        if not attrib:  # save the entire node
+        if not attr:  # save the entire node
             # Prevent recursion saving of children/parent in a single dump:
             # replace reference to chidren/parent by basename strings
             clone = copy.copy(self)
@@ -744,16 +410,17 @@ class _Node(object):
             key = key_push(key, Config.STORE_NODE_PREFIX)
             store.save(clone, key)
         else:
-            o = self.__dict__[attrib]
-            key = key_push(key, Config.STORE_ATTRIB_PREFIX) + attrib
-            store.save(o, key)
+            o = self.__dict__[attr]
+            # avoid saving attributes of len 0
+            if not hasattr(o, "__len__") or (len(o) > 0):
+                store.save(o, key_push(key, attr))
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent save up to root
-            self.parent.save(attrib=attrib, recursion=recursion)
+            self.parent.save(attr=attr, recursion=recursion)
         if recursion is RECURSION_DOWN:
             # Call children save down to leaves
-            [child.save(attrib=attrib, recursion=recursion) for child
+            [child.save(attr=attr, recursion=recursion) for child
                 in self.children]
 
 
@@ -780,8 +447,12 @@ def load_node(key=None, store=None, recursion=True):
     if key is None:  # assume fs store, and point on the root of the store
         key = key_join(prot=Config.KEY_PROT_FS, path=store)
     store = get_store(key)
-    key = key_push(key, Config.STORE_NODE_PREFIX)
-    node = store.load(key)
+    loaded = store.load(key)
+    node = loaded.pop(Config.STORE_NODE_PREFIX)
+    node.__dict__.update(loaded)
+    # Check for attributes to load
+    #attribs = store.load(key_push(key, Config.STORE_ATTRIB_PREFIX))
+    #if len(attribs) > 1:
     # children contain basename string: Save the string a recursively
     # walk/load children
     recursion = node.check_recursion(recursion)
@@ -833,13 +504,14 @@ class _NodeEstimator(_Node):
         # Regular fit
         Xy_dict = _sub_dict(ds_kwargs, self.args_fit)
         self.estimator.fit(**Xy_dict)
-        train_score = self.estimator.score(**Xy_dict)
-        y_pred_names = _list_diff(self.args_fit, self.args_predict)
-        y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
-        _dict_prefix_keys(Config.PREFIX_TRAIN + Config.PREFIX_SCORE, y_train_score_dict)
-        y_train_score_dict = {Config.PREFIX_TRAIN + Config.PREFIX_SCORE +
-            str(k): y_train_score_dict[k] for k in y_train_score_dict}
-        self.add_results(self.get_key(2), y_train_score_dict)
+        if not self.children:  # if not children compute scores
+            train_score = self.estimator.score(**Xy_dict)
+            y_pred_names = _list_diff(self.args_fit, self.args_predict)
+            y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
+            _dict_prefix_keys(Config.PREFIX_TRAIN + Config.PREFIX_SCORE, y_train_score_dict)
+            y_train_score_dict = {Config.PREFIX_TRAIN + Config.PREFIX_SCORE +
+                str(k): y_train_score_dict[k] for k in y_train_score_dict}
+            self.add_results(self.get_key(2), y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **ds_kwargs)
         else:
@@ -939,7 +611,6 @@ class CV(_NodeSplitter):
         self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
-            import copy
             split.add_child(_NodeFactory(copy.deepcopy(task)))
         if "y" in kwargs:
             self.finalize_init(**kwargs)
@@ -982,7 +653,6 @@ class Perm(_NodeSplitter):
         self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
-            import copy
             perm.add_child(_NodeFactory(copy.deepcopy(task)))
         #print "y in kwargs", y in kwargs
         if "y" in kwargs:
@@ -1239,68 +909,3 @@ def Seq(*args):
             prev.add_child(curr)
         prev = curr
     return root
-
-
-## ======================================================================== ##
-## == Reducers                                                           == ##
-## ======================================================================== ##
-
-
-class Reducer(object):
-    """ Reducer abstract class, called within the bottum_up method to process
-    up-stream data flow of results.
-
-    Inherited classes should implement reduce(key2, val). Where key2 is the
-    intermediary key and val the corresponding results.
-    This value is a dictionnary of results. The reduce should return a
-    dictionnary."""
-    @abstractmethod
-    def reduce(self, key2, result):
-        """Reduce abstract method
-
-        Parameters
-        ----------
-        key2:
-            the intermediary key
-
-        result: (dict)
-            bag of results
-        """
-
-class SelectAndDoStats(Reducer):
-    """Reducer that select sub-result(s) according to select_regexp, and
-    reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, select_regexp=Config.PREFIX_SCORE, stat="mean"):
-        self.select_regexp = select_regexp
-        self.stat = stat
-    def reduce(self, key2, result):
-        out = dict()
-        if self.select_regexp:
-            select_keys = [k for k in result
-                if str(k).find(self.select_regexp) != -1]
-        else:
-            select_keys = result.keys()
-        for k in select_keys:
-            if self.stat == "mean":
-                out[self.stat + "_" + str(k)] = np.mean(result[k])
-        return out
-
-class PvalPermutations(Reducer):
-    """Reducer that select sub-result(s) according to select_regexp, and
-    reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, select_regexp=Config.PREFIX_SCORE):
-        self.select_regexp = select_regexp
-    def reduce(self, key2, result):
-        out = dict()
-        if self.select_regexp:
-            select_keys = [k for k in result
-                if str(k).find(self.select_regexp) != -1]
-        else:
-            select_keys = result.keys()
-        for k in select_keys:
-            out[k] = result[k][0]
-            count = np.sum(result[k][1:] > result[k][0])
-            pval = count / (len(result[k]) - 1)
-            out["count_" + str(k)] = count
-            out["pval_" + str(k)] = pval
-        return out

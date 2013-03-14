@@ -10,12 +10,12 @@ import numpy as np
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
-# from sklearn import datasets
-# iris = datasets.load_iris()
+from sklearn import datasets
+iris = datasets.load_iris()
 
 # Add the noisy data to the informative features
-#X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
-#y = iris.target
+X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
+y = iris.target
 
 
 from sklearn.svm import SVC
@@ -30,6 +30,7 @@ from sklearn.feature_selection import SelectKBest
 # 2  SelectKBest
 # |
 # SVM Classifier
+from epac import Seq
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
 pipe.fit(X=X, y=y).predict(X=X)
 # The downstream data-flow is a keyword arguments (dict) containing X and y.
@@ -52,6 +53,7 @@ pipe.fit(X=X, y=y).predict(X=X)
 #    Par    ParMethods (Splitter)
 #  /   \
 # LDA  SVM  Classifiers (Estimator)
+from epac import ParMethods
 multi = ParMethods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
@@ -89,6 +91,7 @@ anovas_svm.bottum_up()
 # ParGrid and PArMethods differ onlys the way they process the upstream
 # flow. With ParGrid Children differs only by theire arguments, and thus
 # are aggregated toggether
+from epac import ParGrid
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
     kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit(X=X, y=y)
@@ -105,6 +108,8 @@ svms.bottum_up()
 # 0    1    2  Folds      (Slicer)
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
+from epac import CV
+from reducers import SelectAndDoStats
 cv_lda = CV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats())
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X, y=y)
@@ -132,66 +137,23 @@ cv_lda.transform(X=X, sample_set="test")
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-from epac import Perm, CV, SelectAndDoStats, PvalPermutations, load_node
+from epac import Perm, CV, load_node
+from reducers import SelectAndDoStats, PvalPermutations
+#from stores import 
 # _obj_to_dict, _dict_to_obj
 
-perms_cv_lda = Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
+perms_cv_lda =Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
 # Save tree
-self = perms_cv_lda
-import tempfile
-store=tempfile.mktemp()
-
-self.save(store=store)
-key = self.get_key()
-self = get_store(key)
-tree = load_node(key)
-
-self.fit(X=X, y=y)
-self.predict(X=X, y=y)
-# Save tree with results
-self.bottum_up()
-key = self.get_key()
-
-self.save(field="results")
-
 import tempfile
 perms_cv_lda.save(store=tempfile.mktemp())
-key = perms_cv_lda.get_key()
-# Reload tree
-tree = load_node(key)
 # Fit & Predict
-tree.fit(X=X, y=y)
-tree.predict(X=X, y=y)
-# Save tree with results
+perms_cv_lda.fit(X=X, y=y)
+perms_cv_lda.predict(X=X, y=y)
+# Save results
+perms_cv_lda.save(attr="results")
+key = perms_cv_lda.get_key()
+# Reload tree, all you need to know is the key
+tree = load_node(key)
+# Reduces results
 tree.bottum_up()
-tree.save(field="results")
-
-# Reload
-tree2 = load_node(key)
-# Reduce
-tree2.bottum_up()
-
-[l.get_key() for l in tree]
-key = l.get_key()
-obj = l
-self = get_store(key)
-
-class A:pass
-o = A()
-o2 = A()
-o.a = 
-a.b = dict(a=1)
-
-
-
-class A: pass
-
-import copy
-obj = copy.copy(perms_cv_lda)
-obj = copy.copy(tree2)
-obj.children = [dict(a=1), 2] # [dict(a=1), A()]
-obj_dict = _obj_to_dict(obj)
-obj_dict
-obj = _dict_to_obj(obj_dict)
-obj.__dict__
