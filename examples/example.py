@@ -139,7 +139,7 @@ cv_lda.transform(X=X, sample_set="test")
 
 from epac import Perm, CV, load_node
 from reducers import SelectAndDoStats, PvalPermutations
-#from stores import 
+#from stores import
 # _obj_to_dict, _dict_to_obj
 
 perms_cv_lda =Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),

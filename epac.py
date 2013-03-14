@@ -10,8 +10,8 @@ print __doc__
 ## te: test
 
 
-_VERBOSE = True
-_DEBUG = True
+_VERBOSE = False
+_DEBUG = False
 
 import numpy as np
 import copy
@@ -666,7 +666,6 @@ class Perm(_NodeSplitter):
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)
-            print "perm finalize init", perm
             nb += 1
         # propagate down-way
         if self.children:
