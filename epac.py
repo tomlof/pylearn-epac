@@ -3,15 +3,15 @@ Epac : Embarrassingly Parallel Array Computing
 """
 print __doc__
 
-## Abreviation
+## Abreviations
 ## ds: downstream
 ## us: upstream
 ## tr: train
 ## te: test
 
 
-_VERBOSE = False
-_DEBUG = False
+_VERBOSE = True
+_DEBUG = True
 
 import numpy as np
 import copy
@@ -21,7 +21,6 @@ from utils import _list_union_inter_diff, _list_indices, _list_diff
 from utils import _list_of_dicts_2_dict_of_lists
 from utils import _sub_dict, _dict_diff, _as_dict, _dict_prefix_keys
 from utils import _func_get_args_names
-
 
 def key_split(key):
     """Split the key in in two parts: [protocol, path]
@@ -103,8 +102,7 @@ class _Node(object):
     def finalize_init(self, **ds_kwargs):
         """Overload this methods if init finalization is required"""
         if self.children:
-            [child.finalize_init(**ds_kwargs) for child in
-                self.children]
+            [child.finalize_init(**ds_kwargs) for child in self.children]
 
     # --------------------- #
     # -- Tree operations -- #
@@ -351,7 +349,6 @@ class _Node(object):
         stack_arg = list()
         children_arg = [child_arg[arg_name] for child_arg in children_args]
         arg_values = list(set(sorted(children_arg)))
-        from utils import _list_indices
         for val in arg_values:
             children_select = _list_indices(children_arg, val)
             children_results_select = [children_results[i] for i
@@ -611,7 +608,9 @@ class CV(_NodeSplitter):
         self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
-            split.add_child(_NodeFactory(copy.deepcopy(task)))
+            task = copy.deepcopy(task)
+            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            split.add_child(task)
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -653,7 +652,9 @@ class Perm(_NodeSplitter):
         self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
-            perm.add_child(_NodeFactory(copy.deepcopy(task)))
+            task = copy.deepcopy(task)
+            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            perm.add_child(task)
         #print "y in kwargs", y in kwargs
         if "y" in kwargs:
             self.finalize_init(**kwargs)
@@ -666,6 +667,7 @@ class Perm(_NodeSplitter):
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)
+            print "perm finalize init", perm
             nb += 1
         # propagate down-way
         if self.children:
@@ -681,9 +683,10 @@ class ParMethods(_NodeSplitter):
     """
     def __init__(self, *args):
         super(ParMethods, self).__init__()
-        for m in args:
-            curr = _NodeFactory(m)
-            self.add_child(curr)
+        for task in args:
+            task = copy.deepcopy(task)
+            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            self.add_child(task)
         # detect collisions in children signature
         signatures = [c.get_signature() for c in self.children]
         if len(signatures) != len(set(signatures)):  # collision
@@ -817,75 +820,11 @@ class _NodeRowSlicer(_NodeSlicer):
                                  **ds_kwargs)
         return self.transform(recursion=False, sample_set="test", **ds_kwargs)
 
-
-def _NodeFactory(*args, **kwargs):
-    """
-    _Node builder
-
-    Positional parameters
-    ---------------------
-    class | (class, dict(kwargs)) | SEQ | PAR
-
-    Keywords parameters
-    -------------------
-    store: string
-        Load the object(s) from the given store. For file system store,
-        indicates the path to the directory that contains a file prefixed by
-        __node__*.
-
-    key: string
-        Load the node indexed by its key from the store. If missing then
-        assume file system store and the key will point on the root of the
-        store.
-
-    Examples
-    --------
-        _NodeFactory(LDA())
-        _NodeFactory(SVC(kernel="linear"))
-        # Persistence:
-        import tempfile
-        store = tempfile.mktemp()
-        n = _NodeFactory(SVC(), store=store)
-        n.save_node()
-        n2 = _NodeFactory(store=store)
-    """
-    node = None
-    if len(args) > 0:  # Build the node from args
-        ## Make it clever enough to deal single argument provided as a tuple
-        if len(args) == 1 and isinstance(args[0], (list, tuple)):
-            args = args[0]
-        #import inspect
-        #cls_str = args[0].__name__ if inspect.isclass(args[0]) else args[0]
-        # Arg is already a _Node, then do nothing
-        if len(args) == 1 and isinstance(args[0], _Node):  # _Node
-            node = args[0]
-        # Splitters: (KFold|StratifiedKFold|Permutation, kwargs)
-        # _NodeEstimator: object
-        else:
-            node = _NodeEstimator(args[0])
-    # store or key : load from store
-    if "store" in kwargs and isinstance(kwargs["store"], str):
-        key = kwargs["key"] if "key" in kwargs else None
-        node = load_node(key=key, store=kwargs["store"])
-    return(node)
-
-
-def _group_args(*args):
-    """group arguments provided as class, dict into a tuple"""
-    args_splitted = list()
-    i = 0
-    while i < len(args):
-        if isinstance(args[i], _Node):                           # _Node
-            args_splitted.append(args[i])
-            i += 1
-        elif i + 1 < len(args) and isinstance(args[i + 1], dict):
-            args_splitted.append((args[i], args[i + 1]))
-            i += 2
-        else:
-            args_splitted.append(args[i])                      # class or obj
-            i += 1
-    return args_splitted
-
+## ======================================================================== ##
+## ==                                                                    == ##
+## == Sequential nodes
+## ==
+## ======================================================================== ##
 
 def Seq(*args):
     """
@@ -898,10 +837,11 @@ def Seq(*args):
         SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
     """
     # SEQ(_Node [, _Node]*)
-    args = _group_args(*args)
+    #args = _group_args(*args)
     root = None
     for task in args:
-        curr = _NodeFactory(task)
+        #task = copy.deepcopy(task)
+        curr = task if isinstance(task, _Node) else _NodeEstimator(task)
         if not root:
             root = curr
         else:
