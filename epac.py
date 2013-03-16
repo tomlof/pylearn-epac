@@ -596,56 +596,103 @@ class _NodeSplitter(_Node):
         return ds_kwargs
 
 
-class CV(_NodeSplitter):
-    """KFold CV splitter"""
+class ParCV(_NodeSplitter):
+    """Cross-validation parallelization.
+    
+    Parameters
+    ----------
+    task: Node | Estimator
+        Estimator: should implement fit/predict/score function
+        Node: Seq | Par*
+
+    n_folds: int
+        Number of folds.
+
+    reducer: Reducer
+        A Reducer should inmplement the reduce(key2, val) method
+
+    y: array
+        if an array is provided do a StratifiedKFold.
+    
+    n: int
+       Do a KFold CV, or a LeaveOneOut if n==n_folds
+
+    random_state : int or RandomState
+        Pseudo-random number generator state used for random sampling.
+    """
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, task, n_folds, reducer=None, **kwargs):
-        super(CV, self).__init__()
+    def __init__(self, task, n_folds, reducer=None, random_state=None,
+                 **kwargs):
+        super(ParCV, self).__init__()
         self.n_folds = n_folds
         self.reducer = reducer
+        self.random_state = random_state
         self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
             task = copy.deepcopy(task)
             task = task if isinstance(task, _Node) else _NodeEstimator(task)
             split.add_child(task)
-        if "y" in kwargs:
+        if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
 
     def finalize_init(self, **ds_kwargs):
-        if not "y" in ds_kwargs:
-            raise KeyError("y is not provided to finalize the initialization")
-        y = ds_kwargs["y"]
-        ## Classification task:  StratifiedKFold or Regressgion Kfold
-        _, y_sorted = np.unique(y, return_inverse=True)
-        min_labels = np.min(np.bincount(y_sorted))
-        if self.n_folds <= min_labels:
+        cv = None
+        if "y" in ds_kwargs:
             from sklearn.cross_validation import StratifiedKFold
-            cv = StratifiedKFold(y=y, n_folds=self.n_folds)
-        else:
-            from sklearn.cross_validation import KFold
-            cv = KFold(n=y.shape[0], n_folds=self.n_folds)
-        nb = 0
-        for train, test in cv:
-            self.children[nb].set_sclices({CV.SUFFIX_TRAIN: train,
-                                 CV.SUFFIX_TEST: test})
-            nb += 1
+            cv = StratifiedKFold(y=ds_kwargs["y"], n_folds=self.n_folds)
+        elif "n" in ds_kwargs:
+            n = ds_kwargs["n"]
+            if n > self.n_folds:
+                from sklearn.cross_validation import KFold
+                cv = KFold(n=n, n_folds=self.n_folds,
+                           random_state=self.random_state)
+            elif n == self.n_folds:
+                from sklearn.cross_validation import LeaveOneOut
+                cv = LeaveOneOut(n=n)
+        if cv:
+            nb = 0
+            for train, test in cv:
+                self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
+                                     ParCV.SUFFIX_TEST: test})
+                nb += 1
         # propagate down-way
         if self.children:
-            [child.finalize_init(**ds_kwargs) for child in
-                self.children]
+            if "n" in ds_kwargs:
+                for child in self.children:
+                    ds_kwargs["n"] = len(child.slices[ParCV.SUFFIX_TRAIN])
+                    child.finalize_init(**ds_kwargs)
+            else:
+                #ICI if n in *ds_kwargs n should be redifined
+                [child.finalize_init(**ds_kwargs) for child in
+                    self.children]
 
     def get_state(self):
         return dict(n_folds=self.n_folds)
 
 
-class Perm(_NodeSplitter):
-    """ Permutation Splitter"""
+class ParPerm(_NodeSplitter):
+    """Permutation parallelization.
+    
+    Parameters
+    ----------
+    task: Node | Estimator
+        Estimator: should implement fit/predict/score function
+        Node: Seq | Par*
 
+    n_perms: int
+        Number permutations.
+
+    reducer: Reducer
+        A Reducer should inmplement the reduce(key2, val) method.
+
+    permute: string
+        The name of the data to be permuted (default "y").
+    """
     def __init__(self, task, n_perms, permute="y", reducer=None, **kwargs):
-        super(Perm, self).__init__()
+        super(ParPerm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
         self.reducer = reducer
@@ -667,7 +714,6 @@ class Perm(_NodeSplitter):
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)
-            print "perm finalize init", perm
             nb += 1
         # propagate down-way
         if self.children:
@@ -753,6 +799,7 @@ class _NodeRowSlicer(_NodeSlicer):
         self.signature_name = signature_name
         self.signature_args = dict(nb=nb)
         self.slices = None
+        self.n = 0  # the dimension of that array in ds should respect 
         self.apply_on = apply_on
 
     def finalize_init(self, **ds_kwargs):
@@ -777,9 +824,11 @@ class _NodeRowSlicer(_NodeSlicer):
             self.slices =\
                 {k: slices[k].tolist() if isinstance(slices[k], np.ndarray)
                 else slices[k] for k in slices}
+            self.n = np.sum([len(v) for v in self.slices.values()])
         else:
             self.slices = \
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
+            self.n = len(self.slices)
 
     def transform(self, recursion=True, sample_set=None, **ds_kwargs):
         if not self.slices:
@@ -790,6 +839,11 @@ class _NodeRowSlicer(_NodeSlicer):
             return self.top_down(func_name="transform", recursion=recursion,
                                  **ds_kwargs)
         data_keys = self.apply_on if self.apply_on else ds_kwargs.keys()
+        # filter out non-array or array with wrong dimension
+        for k in data_keys:
+            if not hasattr(ds_kwargs[k], "shape") or \
+                ds_kwargs[k].shape[0] != self.n:
+                data_keys.remove(k)
         for data_key in data_keys:  # slice input data
             if not data_key in ds_kwargs:
                 continue
@@ -828,13 +882,11 @@ class _NodeRowSlicer(_NodeSlicer):
 
 def Seq(*args):
     """
+    Sequential execution of tasks.
+
     Parameters
     ----------
-    TASK [, TASK]*
-
-    Examples
-    --------
-        SEQ((SelectKBest, dict(k=2)),  (SVC, dict(kernel="linear")))
+    task [, task]*
     """
     # SEQ(_Node [, _Node]*)
     #args = _group_args(*args)

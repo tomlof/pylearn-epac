@@ -103,14 +103,14 @@ svms.bottum_up()
 # Cross-validation
 # ---------------
 # CV of LDA
-#     CV                  (Splitter)
+#     ParCV               (Splitter)
 #  /   |   \
 # 0    1    2  Folds      (Slicer)
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
-from epac import CV
+from epac import ParCV
 from reducers import SelectAndDoStats
-cv_lda = CV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats())
+cv_lda = ParCV(LDA(), n_folds=3, n=X.shape[0], reducer=SelectAndDoStats())
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X, y=y)
 cv_lda.bottum_up()
@@ -125,24 +125,30 @@ cv_lda.bottum_up()
 cv_lda.transform(X=X, sample_set="train")
 cv_lda.transform(X=X, sample_set="test")
 
-# Permutations + Cross-validation
+#run epac.py
+#self = cv_lda
+#task=LDA(); n_folds=3; reducer=None; kwargs = dict(n=X.shape[0])
+#self.children = []
+#ds_kwargs = kwargs
+
+# ParParPermutations + Cross-validation
 # -------------------------------
-#              Perm                  CV (Splitter)
+#           ParPerm                  CV (Splitter)
 #         /     |       \
 #        0      1       2            Samples (Slicer)
 #       |
-#     CV                             CV (Splitter)
+#     ParCV                          CV (Splitter)
 #  /   |   \
 # 0    1    2                        Folds (Slicer)
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-from epac import Perm, CV, load_node
+from epac import ParPerm, ParCV, load_node
 from reducers import SelectAndDoStats, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
-perms_cv_lda =Perm(CV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
+perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
 # Save tree
 import tempfile
