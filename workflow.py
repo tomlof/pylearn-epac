@@ -12,7 +12,7 @@ print __doc__
 
 _VERBOSE = True
 _DEBUG = True
-_N = None # global reference to the current Node usefull to debug
+_N = None  # global reference to the current Node usefull to debug
 
 import numpy as np
 import copy
@@ -22,6 +22,7 @@ from utils import _list_union_inter_diff, _list_indices, _list_diff
 from utils import _list_of_dicts_2_dict_of_lists
 from utils import _sub_dict, _dict_diff, _as_dict, _dict_prefix_keys
 from utils import _func_get_args_names
+
 
 def key_split(key):
     """Split the key in in two parts: [protocol, path]
@@ -54,6 +55,7 @@ def key_push(key, basename):
         return key + Config.KEY_PATH_SEP + basename
     else:
         return key or basename
+
 
 class Config:
     STORE_FS_PICKLE_SUFFIX = ".pkl"
@@ -430,7 +432,7 @@ class _Node(object):
                 in self.children]
 
 
-def load_node(key=None, store=None, recursion=True):
+def load_workflow(key=None, store=None, recursion=True):
     """I/O (persistance) load a node indexed by key from the store.
 
     Parameters
@@ -464,14 +466,14 @@ def load_node(key=None, store=None, recursion=True):
     recursion = node.check_recursion(recursion)
     if recursion is RECURSION_UP:
         parent_key = key_pop(key)
-        parent = load_node(key=parent_key, recursion=recursion)
+        parent = load_workflow(key=parent_key, recursion=recursion)
         parent.add_child(node)
     if recursion is RECURSION_DOWN:
         children = node.children
         node.children = list()
         for child in children:
             child_key = key_push(key, child)
-            node.add_child(load_node(key=child_key, recursion=recursion))
+            node.add_child(load_workflow(key=child_key, recursion=recursion))
     return node
 
 

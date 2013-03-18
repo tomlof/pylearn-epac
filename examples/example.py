@@ -4,7 +4,7 @@ Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard
 """
-# run epac.py
+# run workflow.py
 
 import numpy as np
 X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
@@ -25,7 +25,7 @@ from sklearn.feature_selection import SelectKBest
 ## Build sequential Pipeline
 ## =========================
 
-#from epac import Seq
+#from workflow import Seq
 # Simple sequential pipeline
 # 2  SelectKBest
 # |
@@ -98,7 +98,7 @@ svms.fit(X=X, y=y)
 svms.predict(X=X, y=y)
 svms.bottum_up()
 [l.get_key() for l in svms]
-[l.get_key(2) for l in svms] # key 2 collisions trig aggregation
+[l.get_key(2) for l in svms]  # key 2 collisions trig aggregation
 
 # Cross-validation
 # ---------------
@@ -143,8 +143,8 @@ cv_lda.transform(X=X, sample_set="test")
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-from epac import ParPerm, ParCV, load_node
-from reducers import SelectAndDoStats, PvalPermutations
+from epac import ParPerm, ParCV, load_workflow
+from epac import SelectAndDoStats, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
@@ -160,6 +160,6 @@ perms_cv_lda.predict(X=X, y=y)
 perms_cv_lda.save(attr="results")
 key = perms_cv_lda.get_key()
 # Reload tree, all you need to know is the key
-tree = load_node(key)
+tree = load_workflow(key)
 # Reduces results
 tree.bottum_up()

@@ -35,12 +35,14 @@ class Reducer(object):
             bag of results
         """
 
+
 class SelectAndDoStats(Reducer):
     """Reducer that select sub-result(s) according to select_regexp, and
     reduce the sub-result(s) using the statistics stat"""
     def __init__(self, select_regexp=Config.PREFIX_SCORE, stat="mean"):
         self.select_regexp = select_regexp
         self.stat = stat
+
     def reduce(self, key2, result):
         out = dict()
         if self.select_regexp:
@@ -53,11 +55,13 @@ class SelectAndDoStats(Reducer):
                 out[self.stat + "_" + str(k)] = np.mean(result[k])
         return out
 
+
 class PvalPermutations(Reducer):
     """Reducer that select sub-result(s) according to select_regexp, and
     reduce the sub-result(s) using the statistics stat"""
     def __init__(self, select_regexp=Config.PREFIX_SCORE):
         self.select_regexp = select_regexp
+
     def reduce(self, key2, result):
         out = dict()
         if self.select_regexp:

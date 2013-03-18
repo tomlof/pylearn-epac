@@ -45,7 +45,7 @@ class StoreFs(Store):
         pass
 
     def key2path(self, key):
-        from epac import  key_split
+        from workflow import  key_split
         prot, path = key_split(key)
         return path
 
@@ -54,7 +54,7 @@ class StoreFs(Store):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         # JSON
-        from epac import Config
+        from workflow import Config
         file_path = path + Config.STORE_FS_JSON_SUFFIX
         obj_dict = obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
@@ -77,7 +77,7 @@ class StoreFs(Store):
             parameters match exactly a file, the retruned dict will contain a
             single object with an empty key.
         """
-        from epac import Config
+        from workflow import Config
         path = self.key2path(key)
         #prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
         if os.path.isdir(path):
@@ -134,7 +134,7 @@ class StoreFs(Store):
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
-    from epac import  key_split, Config
+    from workflow import  key_split, Config
     splits = key_split(key)
     if len(splits) != 2 and \
         not(splits[0] in (Config.KEY_PROT_FS, Config.KEY_PROT_MEM)):

@@ -13,8 +13,8 @@ from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 
 from epac import Seq, ParMethods, ParCV, ParPerm
-from epac import load_node
-from reducers import SelectAndDoStats, PvalPermutations
+from epac import load_workflow
+from epac import SelectAndDoStats, PvalPermutations
 
 iris = datasets.load_iris()
 # Add the noisy data to the informative features

@@ -2,20 +2,24 @@
 """
 Created on Wed Jan 23 13:58:21 2013
 
-@author: ed203246
+@author: edouard.duchesnay@cea.fr
 """
 
-"""
-"""
-
-from .epac import Seq
-from .epac import Par
-from .epac import CV
-from .epac import Perm
-#from .addtosklearn import Permutation
+from .workflow import Seq, ParCV, ParPerm, ParMethods, ParGrid, load_workflow
+from .workflow import Config  # FIXME
+#from .stores import obj_to_dict, dict_to_obj
+from .reducers import SelectAndDoStats, PvalPermutations
 
 
 __all__ = ['Seq',
-           'Par',
-           'CV',
-           'Perm']
+           'ParCV',
+           'ParPerm',
+           'ParGrid',
+           'ParMethods',
+           'Config',
+           'load_workflow',
+           "SelectAndDoStats",
+           "PvalPermutations",
+#           "obj_to_dict",
+#           "dict_to_obj"
+           ]
