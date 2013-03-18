@@ -514,7 +514,8 @@ class _NodeEstimator(_Node):
             train_score = self.estimator.score(**Xy_dict)
             y_pred_names = _list_diff(self.args_fit, self.args_predict)
             y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
-            _dict_prefix_keys(Config.PREFIX_TRAIN + Config.PREFIX_SCORE, y_train_score_dict)
+            _dict_prefix_keys(Config.PREFIX_TRAIN +
+                              Config.PREFIX_SCORE, y_train_score_dict)
             y_train_score_dict = {Config.PREFIX_TRAIN + Config.PREFIX_SCORE +
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
             self.add_results(self.get_key(2), y_train_score_dict)
@@ -607,7 +608,7 @@ class _NodeSplitter(_Node):
 
 class ParCV(_NodeSplitter):
     """Cross-validation parallelization.
-    
+
     Parameters
     ----------
     task: Node | Estimator
@@ -622,7 +623,7 @@ class ParCV(_NodeSplitter):
 
     y: array
         if an array is provided do a StratifiedKFold.
-    
+
     n: int
        Do a KFold CV, or a LeaveOneOut if n==n_folds
 

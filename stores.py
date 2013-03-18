@@ -11,6 +11,7 @@ import os
 import glob
 import pickle
 import json
+import inspect
 import numpy as np
 from abc import abstractmethod
 
@@ -55,7 +56,7 @@ class StoreFs(Store):
         # JSON
         from epac import Config
         file_path = path + Config.STORE_FS_JSON_SUFFIX
-        obj_dict = _obj_to_dict(obj)
+        obj_dict = obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
             # saving in json failed => pickle
             file_path = path + Config.STORE_FS_PICKLE_SUFFIX
@@ -63,7 +64,7 @@ class StoreFs(Store):
 
     def load(self, key):
         """Load everything that is prefixed with key.
-        
+
         Parmaters
         ---------
         key: str
@@ -90,7 +91,7 @@ class StoreFs(Store):
                 name = file_path.replace(path, "").\
                     replace(Config.STORE_FS_JSON_SUFFIX, "")
                 obj_dict = self.load_json(file_path)
-                loaded[name] = _dict_to_obj(obj_dict)
+                loaded[name] = dict_to_obj(obj_dict)
             elif ext == Config.STORE_FS_PICKLE_SUFFIX:
                 name = file_path.replace(path, "").\
                     replace(Config.STORE_FS_JSON_SUFFIX, "")
@@ -129,6 +130,7 @@ class StoreFs(Store):
             inputf.close()
             return obj_dict
 
+
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
@@ -149,43 +151,55 @@ def get_store(key):
         "lo for no persistence and storage on living objects or" +\
         "fs and a directory path for file system based storage")
 
+
 ## ============================== ##
 ## == Conversion Object / dict == ##
 ## ============================== ##
 
 # Convert object to dict and dict to object for Json Persistance
-def _obj_to_dict(obj):
+def obj_to_dict(obj):
     # Composite objects (object, dict, list): recursive call
     if hasattr(obj, "__dict__") and hasattr(obj, "__class__")\
-        and hasattr(obj, "__module__"):               # object: rec call
-        obj_dict = {k: _obj_to_dict(obj.__dict__[k]) for k in obj.__dict__}
+        and hasattr(obj, "__module__") and not inspect.isfunction(obj): # object: rec call
+        obj_dict = {k: obj_to_dict(obj.__dict__[k]) for k in obj.__dict__}
         obj_dict["__class_name__"] = obj.__class__.__name__
         obj_dict["__class_module__"] = obj.__module__
         return obj_dict
+    elif inspect.isfunction(obj):                     # function
+        obj_dict = {"__func_name__": obj.func_name,
+                    "__class_module__": obj.__module__}
+        return obj_dict
     elif isinstance(obj, dict):                       # dict: rec call
-        return {k: _obj_to_dict(obj[k]) for k in obj}
+        return {k: obj_to_dict(obj[k]) for k in obj}
     elif isinstance(obj, (list, tuple)):              # list: rec call
-        return [_obj_to_dict(item) for item in obj]
+        return [obj_to_dict(item) for item in obj]
     elif isinstance(obj, np.ndarray):                 # array: to list
         return {"__array__": obj.tolist()}
     else:
         return obj
 
-def _dict_to_obj(obj_dict):
-    if isinstance(obj_dict, dict) and '__class_name__' in obj_dict: # object
+
+def dict_to_obj(obj_dict):
+    if isinstance(obj_dict, dict) and '__class_name__' in obj_dict:  # object
         cls_name = obj_dict.pop('__class_name__')               # : rec call
-        cls_module = obj_dict.pop('__class_module__')        
-        obj_dict = {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
+        cls_module = obj_dict.pop('__class_module__')
+        obj_dict = {k: dict_to_obj(obj_dict[k]) for k in obj_dict}
         mod = __import__(cls_module, fromlist=[cls_name])
         obj = object.__new__(eval("mod." + cls_name))
         obj.__dict__.update(obj_dict)
         return obj
+    if isinstance(obj_dict, dict) and '__func_name__' in obj_dict:  # function
+        func_name = obj_dict.pop('__func_name__')
+        func_module = obj_dict.pop('__class_module__')
+        mod = __import__(func_module, fromlist=[func_name])
+        func = eval("mod." + func_name)
+        return func
     if isinstance(obj_dict, dict) and '__array__' in obj_dict:
         return np.asarray(obj_dict.pop('__array__'))
     elif isinstance(obj_dict, dict):                         # dict: rec call
-        return {k: _dict_to_obj(obj_dict[k]) for k in obj_dict}
+        return {k: dict_to_obj(obj_dict[k]) for k in obj_dict}
     elif isinstance(obj_dict, (list, tuple)):                # list: rec call
-        return [_dict_to_obj(item) for item in obj_dict]
+        return [dict_to_obj(item) for item in obj_dict]
 #    elif isinstance(obj, np.ndarray):                       # array: to list
 #        return obj.tolist()
     else:
