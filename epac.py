@@ -12,6 +12,7 @@ print __doc__
 
 _VERBOSE = True
 _DEBUG = True
+_N = None # global reference to the current Node usefull to debug
 
 import numpy as np
 import copy
@@ -243,6 +244,8 @@ class _Node(object):
         if _VERBOSE:
             print self.get_key(), func_name
         if _DEBUG:
+            global _N
+            _N = self
             self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
@@ -287,6 +290,9 @@ class _Node(object):
     # --------------------------------------------- #
 
     def bottum_up(self, store_results=True):
+        if _DEBUG:
+            global _N
+            _N = self
         # Terminaison (leaf) node return results
         if not self.children:
             return self.results
@@ -389,6 +395,9 @@ class _Node(object):
             the leaves (RECURSION_DOWN). Default (True) try to guess up
             (if leaf) or down (if root).
         """
+        if _DEBUG:
+            global _N
+            _N = self
         if store:
             if len(key_split(store)) < 2:  # no store provided default use fs
                 store = key_join(Config.KEY_PROT_FS, store)
