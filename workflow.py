@@ -291,7 +291,7 @@ class _Node(object):
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
 
-    def bottum_up(self, store_results=True):
+    def reduce(self, store_results=True):
         if _DEBUG:
             global _N
             _N = self
@@ -299,7 +299,7 @@ class _Node(object):
         if not self.children:
             return self.results
         # 1) Build sub-aggregates over children
-        children_results = [child.bottum_up(store_results=False) for
+        children_results = [child.reduce(store_results=False) for
             child in self.children]
         if len(children_results) == 1:
             if store_results:
@@ -569,6 +569,12 @@ class _NodeEstimator(_Node):
             self.add_results(self.get_key(2), results)
         return y_pred_arr
 
+    def fit_predict(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="fit_predict", recursion=recursion,
+                                 **ds_kwargs)
+        self.fit(recursion=False, **ds_kwargs)
+        return self.predict(recursion=False, **ds_kwargs)
 
 ## ======================================================================== ##
 ## ==                                                                    == ##

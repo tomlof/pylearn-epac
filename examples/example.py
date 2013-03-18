@@ -64,7 +64,7 @@ multi.predict(X=X)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit(X=X, y=y)
 svms.predict(X=X)
-svms.bottum_up()
+svms.reduce()
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
@@ -77,7 +77,7 @@ anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 anovas_svm.fit(X=X, y=y)
 anovas_svm.predict(X=X)
-anovas_svm.bottum_up()
+anovas_svm.reduce()
 [l.get_key() for l in anovas_svm]
 [l.get_key(2) for l in anovas_svm]  # No key 2 collisions, no aggregation
 
@@ -96,7 +96,7 @@ svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
     kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit(X=X, y=y)
 svms.predict(X=X, y=y)
-svms.bottum_up()
+svms.reduce()
 [l.get_key() for l in svms]
 [l.get_key(2) for l in svms]  # key 2 collisions trig aggregation
 
@@ -113,7 +113,7 @@ from reducers import SelectAndDoStats
 cv_lda = ParCV(LDA(), n_folds=3, n=X.shape[0], reducer=SelectAndDoStats())
 cv_lda.fit(X=X, y=y)
 cv_lda.predict(X=X, y=y)
-cv_lda.bottum_up()
+cv_lda.reduce()
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test
@@ -162,4 +162,4 @@ key = perms_cv_lda.get_key()
 # Reload tree, all you need to know is the key
 tree = load_workflow(key)
 # Reduces results
-tree.bottum_up()
+tree.reduce()
