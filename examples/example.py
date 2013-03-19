@@ -108,8 +108,8 @@ svms.reduce()
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
 from epac import ParCV
-from reducers import SelectAndDoStats
-cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats())
+from epac import SummaryStat
+cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SummaryStat())
 cv_lda.fit_predict(X=X, y=y)
 cv_lda.reduce()
 
@@ -142,11 +142,11 @@ cv_lda.transform(X=X, sample_set="test")
 # LDA LDA LDA                        Classifier (Estimator)
 
 from epac import ParPerm, ParCV, load_workflow
-from epac import SelectAndDoStats, PvalPermutations
+from epac import SummaryStat, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
-perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
+perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())
 # Save tree
 import tempfile
