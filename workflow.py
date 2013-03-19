@@ -627,9 +627,6 @@ class ParCV(_NodeSplitter):
     n_folds: int
         Number of folds.
 
-    reducer: Reducer
-        A Reducer should inmplement the reduce(key2, val) method
-
     y: array
         if an array is provided do a StratifiedKFold.
 
@@ -638,16 +635,19 @@ class ParCV(_NodeSplitter):
 
     random_state : int or RandomState
         Pseudo-random number generator state used for random sampling.
+
+    reducer: Reducer
+        A Reducer should inmplement the reduce(key2, val) method.
     """
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, task, n_folds, reducer=None, random_state=None,
+    def __init__(self, task, n_folds, random_state=None, reducer=None,
                  **kwargs):
         super(ParCV, self).__init__()
         self.n_folds = n_folds
-        self.reducer = reducer
         self.random_state = random_state
+        self.reducer = reducer
         self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
@@ -709,11 +709,19 @@ class ParPerm(_NodeSplitter):
 
     permute: string
         The name of the data to be permuted (default "y").
+
+    random_state : int or RandomState
+        Pseudo-random number generator state used for random sampling.
+
+    reducer: Reducer
+        A Reducer should inmplement the reduce(key2, val) method.
     """
-    def __init__(self, task, n_perms, permute="y", reducer=None, **kwargs):
+    def __init__(self, task, n_perms, permute="y", random_state=None,
+                 reducer=None, **kwargs):
         super(ParPerm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
+        self.random_state = random_state
         self.reducer = reducer
         self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
@@ -729,7 +737,7 @@ class ParPerm(_NodeSplitter):
         if not "y" in ds_kwargs:
             raise KeyError("y is not provided to finalize the initialization")
         y = ds_kwargs["y"]
-        from sklearn_plugins.resampling import Permutation
+        from .sklearn_plugins.resampling import Permutation
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)

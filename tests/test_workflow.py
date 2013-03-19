@@ -21,6 +21,8 @@ iris = datasets.load_iris()
 X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
 y = iris.target
 
+n_perms = 2
+rnd = 0
 # Do it with EPAC
 anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
@@ -28,7 +30,7 @@ anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
 perms_cv_aov_svm = \
 ParPerm(
     ParCV(anovas_svm, n_folds=2, reducer=SelectAndDoStats()),
-    n_perms=2, permute="y", y=y, reducer=PvalPermutations())
+    n_perms=2, permute="y", y=y, random_state=rnd, reducer=PvalPermutations())
 
 # Save tree
 import tempfile
@@ -46,3 +48,8 @@ tree = load_workflow(key)
 tree.reduce()
 
 # Do it with sklearn
+from epac.sklearn_plugins import Permutation
+perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
+
+for idx in perms:
+    
