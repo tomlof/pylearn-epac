@@ -57,14 +57,14 @@ from epac import ParMethods
 multi = ParMethods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
+# Do both
 multi.fit_predict(X=X, y=y)
 
 #           Par          ParMethods (Splitter)
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
-svms.fit(X=X, y=y)
-svms.predict(X=X)
+svms.fit_predict(X=X, y=y)
 svms.reduce()
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
@@ -76,8 +76,7 @@ svms.reduce()
 # SVM SVM SVM  Classifiers (Estimator)
 anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
     [1, 5, 10]])
-anovas_svm.fit(X=X, y=y)
-anovas_svm.predict(X=X)
+anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
 [l.get_key() for l in anovas_svm]
 [l.get_key(2) for l in anovas_svm]  # No key 2 collisions, no aggregation
@@ -95,8 +94,7 @@ anovas_svm.reduce()
 from epac import ParGrid
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
     kernel in ("linear", "rbf") for C in [1, 10]])
-svms.fit(X=X, y=y)
-svms.predict(X=X, y=y)
+svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms]
 [l.get_key(2) for l in svms]  # key 2 collisions trig aggregation
@@ -111,9 +109,8 @@ svms.reduce()
 # LDA LDA LDA  Classifier (Estimator)
 from epac import ParCV
 from reducers import SelectAndDoStats
-cv_lda = ParCV(LDA(), n_folds=3, n=X.shape[0], reducer=SelectAndDoStats())
-cv_lda.fit(X=X, y=y)
-cv_lda.predict(X=X, y=y)
+cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SelectAndDoStats())
+cv_lda.fit_predict(X=X, y=y)
 cv_lda.reduce()
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
@@ -155,8 +152,7 @@ perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SelectAndDoStats()),
 import tempfile
 perms_cv_lda.save(store=tempfile.mktemp())
 # Fit & Predict
-perms_cv_lda.fit(X=X, y=y)
-perms_cv_lda.predict(X=X, y=y)
+perms_cv_lda.fit_predict(X=X, y=y)
 # Save results
 perms_cv_lda.save(attr="results")
 key = perms_cv_lda.get_key()

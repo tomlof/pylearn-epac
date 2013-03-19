@@ -264,6 +264,31 @@ class _Node(object):
             ds_kwargs = ret[0] if len(ret) == 1 else ret
         return ds_kwargs
 
+    def fit(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
+    def transform(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
+    def predict(self, recursion=True, **ds_kwargs):
+        if recursion:
+            return self.top_down(func_name="predict", recursion=recursion,
+                                 **ds_kwargs)
+        return ds_kwargs
+
+    def fit_predict(self, recursion=True, **ds_kwargs):
+        if recursion:  # fit_predict was called in a top-down recursive context
+            return self.top_down(func_name="fit_predict", recursion=recursion,
+                                 **ds_kwargs)
+        self.fit(recursion=False, **ds_kwargs)
+        return self.predict(recursion=False, **ds_kwargs)
+
     def check_recursion(self, recursion):
         """ Check the way a recursion call can go.
 
@@ -569,12 +594,6 @@ class _NodeEstimator(_Node):
             self.add_results(self.get_key(2), results)
         return y_pred_arr
 
-    def fit_predict(self, recursion=True, **ds_kwargs):
-        if recursion:
-            return self.top_down(func_name="fit_predict", recursion=recursion,
-                                 **ds_kwargs)
-        self.fit(recursion=False, **ds_kwargs)
-        return self.predict(recursion=False, **ds_kwargs)
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -594,24 +613,6 @@ class _NodeSplitter(_Node):
     """
     def __init__(self):
         super(_NodeSplitter, self).__init__()
-
-    def fit(self, recursion=True, **ds_kwargs):
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
-
-    def transform(self, recursion=True, **ds_kwargs):
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
-
-    def predict(self, recursion=True, **ds_kwargs):
-        if recursion:
-            return self.top_down(func_name="predict", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
 
 
 class ParCV(_NodeSplitter):
@@ -693,7 +694,7 @@ class ParCV(_NodeSplitter):
 
 class ParPerm(_NodeSplitter):
     """Permutation parallelization.
-    
+
     Parameters
     ----------
     task: Node | Estimator
