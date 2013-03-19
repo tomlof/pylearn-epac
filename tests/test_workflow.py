@@ -21,24 +21,28 @@ iris = datasets.load_iris()
 X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
 y = iris.target
 
-anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
+# Do it with EPAC
+anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 
-perms_cv_aov_svm = ParPerm(ParCV(anovas_svm, n_folds=2, reducer=SelectAndDoStats()),
-                    n_perms=2, permute="y", y=y, reducer=PvalPermutations())
+perms_cv_aov_svm = \
+ParPerm(
+    ParCV(anovas_svm, n_folds=2, reducer=SelectAndDoStats()),
+    n_perms=2, permute="y", y=y, reducer=PvalPermutations())
 
 # Save tree
 import tempfile
 perms_cv_aov_svm.save(store=tempfile.mktemp())
 key = perms_cv_aov_svm.get_key()
-tree = load_node(key)
+tree = load_workflow(key)
 # Fit & Predict
-perms_cv_aov_svm.fit(X=X, y=y)
-perms_cv_aov_svm.predict(X=X, y=y)
+perms_cv_aov_svm.fit_predict(X=X, y=y)
 # Save results
 perms_cv_aov_svm.save(attr="results")
 key = perms_cv_aov_svm.get_key()
 # Reload tree, all you need to know is the key
-tree = load_node(key)
+tree = load_workflow(key)
 # Reduces results
-tree.bottum_up()
+tree.reduce()
+
+# Do it with sklearn

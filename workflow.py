@@ -729,7 +729,7 @@ class ParPerm(_NodeSplitter):
         if not "y" in ds_kwargs:
             raise KeyError("y is not provided to finalize the initialization")
         y = ds_kwargs["y"]
-        from addtosklearn import Permutation
+        from sklearn_plugins.resampling import Permutation
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
             self.children[nb].set_sclices(perm)
