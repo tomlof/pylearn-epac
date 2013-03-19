@@ -57,6 +57,7 @@ from epac import ParMethods
 multi = ParMethods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
+multi.fit_predict(X=X, y=y)
 
 #           Par          ParMethods (Splitter)
 #          /  \
