@@ -5,10 +5,12 @@ Created on Sat Mar 16 19:19:48 2013
 @author: edouard.duchesnay@cea.fr
 """
 
+import string
+import os.path
 import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
-from sklearn.lda import LDA
+#from sklearn.lda import LDA
 
 from sklearn.feature_selection import SelectKBest
 
@@ -25,7 +27,10 @@ n_perms = 2
 rnd = 0
 n_folds = 2
 k_values = [1, 5, 10]
-# Do it with EPAC
+
+# ===================
+# = With EPAC
+# ===================
 anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     k_values])
 
@@ -37,6 +42,7 @@ ParPerm(
         reducer=PvalPermutations(filter_out_others=False))
 
 # Save tree
+# ---------
 import tempfile
 perms_cv_aov_svm.save(store=tempfile.mktemp())
 key = perms_cv_aov_svm.get_key()
@@ -49,9 +55,11 @@ key = perms_cv_aov_svm.get_key()
 # Reload tree, all you need to know is the key
 tree = load_workflow(key)
 # Reduces results
-tree.reduce()
+R1 = tree.reduce()
 
-# Do it with sklearn
+# ===================
+# = Without EPAC
+# ===================
 from sklearn.cross_validation import StratifiedKFold
 from epac.sklearn_plugins import Permutation
 from sklearn.pipeline import Pipeline
@@ -60,12 +68,13 @@ perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
 
 res_lab = ['train_score_y', 'test_score_y', "pred_y", 'true_y']
 
-RES = {"SelectKBest(k=%d)/SVC" % k: {l: [[None]*n_folds]*n_perms 
-                for l in res_lab}  for k in k_values}
+keys = ["SelectKBest(k=%d)/SVC" % k for k in k_values]
 
-RES[key]['mean_test_score_y'] = [None]*n_perms
-RES[key]['mean_train_score_y'] = [None]*n_perms
-
+R2 = dict()
+for key in keys:
+    R2[key] = {l: [[None]*n_folds]*n_perms  for l in res_lab}
+    R2[key]['mean_test_score_y'] = [None]*n_perms
+    R2[key]['mean_train_score_y'] = [None]*n_perms
 
 perm_nb = 0
 for idx in perms:
@@ -85,25 +94,32 @@ for idx in perms:
         clfs = [SVC(kernel='linear') for k in k_values]
         anova_svms = [Pipeline([('anova', anova_filters[i]), ('svm', clfs[i])]) for i in xrange(len(k_values))]
         for i in xrange(len(k_values)):
-            k = k_values[i]
-            key = "SelectKBest(k=%d)/SVC" % k
+            key = keys[i]
             anova_svm = anova_svms[i]
             anova_svm.fit(X_train, y_p_train)
-            RES[key]['train_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_train)
-            RES[key]['test_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_test)
-            RES[key]['pred_y'][perm_nb][fold_nb] = anova_svm.predict(X)
-            RES[key]['true_y'][perm_nb][fold_nb] = y_p_test
+            R2[key]['train_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_train)
+            R2[key]['test_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_test)
+            R2[key]['pred_y'][perm_nb][fold_nb] = anova_svm.predict(X)
+            R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
         fold_nb += 1
-    for key in RES:
-        print key, perm_nb, RES[key].keys()
+    for key in keys:
         # Average over folds
-        RES[key]['mean_test_score_y'][perm_nb] = \
-            np.mean(RES[key]['test_score_y'][perm_nb])
-        RES[key]['mean_train_score_y'][perm_nb] = \
-            np.mean(RES[key]['train_score_y'][perm_nb])
+        R2[key]['mean_test_score_y'][perm_nb] = \
+            np.mean(R2[key]['test_score_y'][perm_nb])
+        R2[key]['mean_train_score_y'][perm_nb] = \
+            np.mean(R2[key]['train_score_y'][perm_nb])
     perm_nb +=1
 
+# ===================
+# = Comparison
+# ===================
+rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
+R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
 
+comp = dict()
+for key in R1:
+    r1 = R1[key]
+    r2 = R2[key]
+    comp[key] = {k: np.all(np.asarray(r1[k]) == np.asarray(r2[k])) for k in set(r1.keys()).intersection(set(r2.keys()))}
 
-
-RES[key]
+comp
