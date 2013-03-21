@@ -128,6 +128,19 @@ class _Node(object):
                 leaves = leaves + child.get_leaves()
             return leaves
 
+    def get_leftmost_leaf(self):
+        """Return the left most leaf of a tree"""
+        return self if not self.children else self.children[0].get_leftmost_leaf()
+
+    def get_node(self, key):
+        """Return a node given a key"""
+        print self.get_key(), key == self.get_key()
+        if key == self.get_key():
+            return self
+        for child in self.children:
+            if key.find(child.get_key()) == 0:
+                return child.get_node(key)
+
     def get_path_from_root(self):
         if self.parent is None:
             return [self]

@@ -7,8 +7,8 @@ Created on Mon Jan 21 19:55:46 2013
 # run workflow.py
 
 import numpy as np
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+#X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+#y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import datasets
 iris = datasets.load_iris()
