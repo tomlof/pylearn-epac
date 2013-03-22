@@ -7,15 +7,15 @@ Created on Mon Jan 21 19:55:46 2013
 # run workflow.py
 
 import numpy as np
-#X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-#y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import datasets
 iris = datasets.load_iris()
 
 # Add the noisy data to the informative features
-X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
-y = iris.target
+#X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
+#y = iris.target
 
 
 from sklearn.svm import SVC
@@ -141,7 +141,7 @@ cv_lda.transform(X=X, sample_set="test")
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-from epac import ParPerm, ParCV, load_workflow
+from epac import ParPerm, ParCV, WF
 from epac import SummaryStat, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
@@ -157,6 +157,26 @@ perms_cv_lda.fit_predict(X=X, y=y)
 perms_cv_lda.save(attr="results")
 key = perms_cv_lda.get_key()
 # Reload tree, all you need to know is the key
-tree = load_workflow(key)
+tree = WF.load(key)
 # Reduces results
 tree.reduce()
+
+## DEBUGGING
+## =========
+from epac import ParMethods
+multi = ParMethods(LDA(),  SVC(kernel="linear"))
+multi.fit(X=X, y=y)
+multi.predict(X=X)
+# Do both
+multi.fit_predict(X=X, y=y)
+from epac.workflow import conf, debug
+conf.DEBUG = True  # set debug to True
+multi.fit_predict(X=X, y=y)  # re-run
+ds_kwargs = dict(X=X, y=y)  # build the down-stream data flow
+# get all nodes from root to the current node (stored in debug.current)
+node_iterator = debug.current.get_path_from_root().__iter__()
+# Manually iterate from root to current node, until desire node
+self = node_iterator.next()
+print self
+ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
+print ds_kwargs

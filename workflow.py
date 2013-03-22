@@ -9,11 +9,6 @@ print __doc__
 ## tr: train
 ## te: test
 
-
-_VERBOSE = True
-_DEBUG = True
-_N = None  # global reference to the current Node usefull to debug
-
 import numpy as np
 import copy
 from abc import abstractmethod
@@ -24,6 +19,10 @@ from utils import _sub_dict, _dict_diff, _as_dict, _dict_prefix_keys
 from utils import _func_get_args_names
 
 
+## ================================= ##
+## == Key manipulation utils      == ##
+## ================================= ##
+
 def key_split(key):
     """Split the key in in two parts: [protocol, path]
 
@@ -32,7 +31,7 @@ def key_split(key):
     >>> key_split('file:///tmp/toto')
     ['file', '/tmp/toto']
     """
-    return key.split(Config.KEY_PROT_PATH_SEP, 1)
+    return key.split(conf.KEY_PROT_PATH_SEP, 1)
 
 
 def key_join(prot="", path=""):
@@ -43,25 +42,93 @@ def key_join(prot="", path=""):
     >>> key_join("file", "/tmp/toto")
     'file:///tmp/toto'
     """
-    return prot + Config.KEY_PROT_PATH_SEP + path
+    return prot + conf.KEY_PROT_PATH_SEP + path
 
 
 def key_pop(key):
-    return key.rsplit(Config.KEY_PATH_SEP, 1)[0]
+    return key.rsplit(conf.KEY_PATH_SEP, 1)[0]
 
 
 def key_push(key, basename):
     if key and basename:
-        return key + Config.KEY_PATH_SEP + basename
+        return key + conf.KEY_PATH_SEP + basename
     else:
         return key or basename
 
 
-class Config:
+## ============================================== ##
+## == down-stream data-flow manipulation utils == ##
+## ============================================== ##
+
+def ds_split(ds_kwargs):
+    """Split ds_kwargs into two dictonaries. If input dictonnary whas not build
+    with ds_merge(ds_kwargs1, ds_kwargs2) then return twice the input
+    dictonnary.
+
+    Parameters
+    ----------
+    ds_kwargs: dict
+
+    Returns
+    -------
+    dict1, dict2 : splited dictionaries
+
+    Example
+    -------
+    >>> ds_merged = ds_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    >>> print ds_merged
+    {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
+    >>> print ds_split(ds_merged)
+    ({'a': 1, 'b': 2}, {'a': 33, 'c': 55, 'b': 44})
+    >>> print ds_split(dict(a=1, b=2))
+    ({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
+    """
+    keys1 = [key1 for key1 in ds_kwargs if (str(key1).find("__1__%") == 0)]
+    keys2 = [key2 for key2 in ds_kwargs if (str(key2).find("__2__%") == 0)]
+    if not keys1 and not keys2:
+        return ds_kwargs, ds_kwargs
+    if keys1 and keys2:
+        ds_kwargs1 = {key1.replace("__1__%", ""):
+                        ds_kwargs[key1] for key1 in keys1}
+        ds_kwargs2 = {key2.replace("__2__%", ""):
+                        ds_kwargs[key2] for key2 in keys2}
+        return ds_kwargs1, ds_kwargs2
+    raise KeyError("data-flow could not be splitted")
+
+
+def ds_merge(ds_kwargs1, ds_kwargs2):
+    """Merge two dict avoiding keys collision.
+
+    Parameters
+    ----------
+    ds_kwargs1: dict
+    ds_kwargs2: dict
+
+    Returns
+    -------
+    dict : merged dictionary
+
+    Example
+    -------
+    >>> ds_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
+    """
+    ds_kwargs1 = {"__1__%" + str(k): ds_kwargs1[k] for k in ds_kwargs1}
+    ds_kwargs2 = {"__2__%" + str(k): ds_kwargs2[k] for k in ds_kwargs2}
+    ds_kwargs1.update(ds_kwargs2)
+    return ds_kwargs1
+
+
+## ================================= ##
+## == Configuration class         == ##
+## ================================= ##
+
+class conf:
+    DEBUG = False
+    VERBOSE = True
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
-    #STORE_RESULTS_PREFIX = "__result"
-    STORE_NODE_PREFIX = "node"
+    STOREWFNode_PREFIX = "node"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
@@ -73,12 +140,20 @@ class Config:
     KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
 
 
+class debug:
+    current = None
+
+
 RECURSION_UP = 1
 RECURSION_DOWN = 2
 
 
-class _Node(object):
-    """Nodes base class"""
+## ======================================= ##
+## == Workflow Node base abstract class == ##
+## ======================================= ##
+
+class WFNode(object):
+    """WorkFlow Node base abstract class"""
 
     def __init__(self):
         self.parent = None
@@ -132,14 +207,14 @@ class _Node(object):
         """Return the left most leaf of a tree"""
         return self if not self.children else self.children[0].get_leftmost_leaf()
 
-    def get_node(self, key):
+    def getWFNode(self, key):
         """Return a node given a key"""
         print self.get_key(), key == self.get_key()
         if key == self.get_key():
             return self
         for child in self.children:
             if key.find(child.get_key()) == 0:
-                return child.get_node(key)
+                return child.getWFNode(key)
 
     def get_path_from_root(self):
         if self.parent is None:
@@ -180,7 +255,7 @@ class _Node(object):
 
         By default primary and intermediate signatures are identical. If we
         want to change this behavior in order to trig agregation this function
-        should be overloaded as in _NodeSlicer.
+        should be overloaded as in WFNodeSlicer.
 
         """
         if nb is 1:  # primary signature, always sign with args if presents
@@ -256,12 +331,10 @@ class _Node(object):
             ------
             A dictionnary of processed data
         """
-        if _VERBOSE:
+        if conf.VERBOSE:
             print self.get_key(), func_name
-        if _DEBUG:
-            global _N
-            _N = self
-            self.ds_kwargs = ds_kwargs # self = leaf; ds_kwargs = self.ds_kwargs
+        if conf.DEBUG:
+            debug.current = self
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent func_name up to root
@@ -299,8 +372,13 @@ class _Node(object):
         if recursion:  # fit_predict was called in a top-down recursive context
             return self.top_down(func_name="fit_predict", recursion=recursion,
                                  **ds_kwargs)
-        self.fit(recursion=False, **ds_kwargs)
-        return self.predict(recursion=False, **ds_kwargs)
+        ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
+        ds_kwargs_train = self.fit(recursion=False, **ds_kwargs_train)
+        ds_kwargs_test = self.predict(recursion=False, **ds_kwargs_test)
+        if self.children:
+            return ds_merge(ds_kwargs_train, ds_kwargs_test)
+        else:
+            return ds_kwargs_test
 
     def check_recursion(self, recursion):
         """ Check the way a recursion call can go.
@@ -330,9 +408,8 @@ class _Node(object):
     # --------------------------------------------- #
 
     def reduce(self, store_results=True):
-        if _DEBUG:
-            global _N
-            _N = self
+        if conf.DEBUG:
+            debug.current = self
         # Terminaison (leaf) node return results
         if not self.children:
             return self.results
@@ -419,28 +496,28 @@ class _Node(object):
         """I/O (persistance) operation: save the node on the store. By default
         save the entire node. If attr is provided save only this attribute
         if non empty.
-        
+
         Parameters
         ----------
         store: str
             This string allow to retrieve the store (see get_store(key)).
-        
+
         attr: str
             Name of the Node's attribute to store, if provided only the
             attribute is saved, by default (None) the whole node is saved.
-        
+
         recursion: bool
             RECURSION_UP or RECURSION_DOWN, indicates si node should be
             recursively saved up to the root (RECURSION_UP) or down to
             the leaves (RECURSION_DOWN). Default (True) try to guess up
             (if leaf) or down (if root).
         """
-        if _DEBUG:
-            global _N
-            _N = self
+        if conf.DEBUG:
+            #global _N
+            debug.current = self
         if store:
             if len(key_split(store)) < 2:  # no store provided default use fs
-                store = key_join(Config.KEY_PROT_FS, store)
+                store = key_join(conf.KEY_PROT_FS, store)
             self.store = store
         if not self.store and not self.parent:
             raise ValueError("No store has been defined")
@@ -453,7 +530,7 @@ class _Node(object):
             clone.children = [child.get_signature() for child in self.children]
             if self.parent:
                 clone.parent = ".."
-            key = key_push(key, Config.STORE_NODE_PREFIX)
+            key = key_push(key, conf.STOREWFNode_PREFIX)
             store.save(clone, key)
         else:
             o = self.__dict__[attr]
@@ -469,62 +546,64 @@ class _Node(object):
             [child.save(attr=attr, recursion=recursion) for child
                 in self.children]
 
+    @classmethod
+    def load(cls, key=None, store=None, recursion=True):
+        """I/O (persistance) load a node indexed by key from the store.
 
-def load_workflow(key=None, store=None, recursion=True):
-    """I/O (persistance) load a node indexed by key from the store.
+        Parameters
+        ----------
+        key: string
+            Load the node indexed by its key from the store. If missing then
+            assume file system store and the key will point on the root of the
+            store.
 
-    Parameters
-    ----------
-    key: string
-        Load the node indexed by its key from the store. If missing then
-        assume file system store and the key will point on the root of the
-        store.
+        store: string
+            For fs store juste indicate the path to the store.
 
-    store: string
-        For fs store juste indicate the path to the store.
+        recursion: int, boolean
+            if True, load recursively, trying to guess the way: if node is a
+            leaf then recursively load the path to root int a bottum-up maner.
+            If the node is a root recursively load the whole tree in a top-down
+            manner.
+            if int should be: RECURSION_UP or RECURSION_DOWN
+        """
+        if key is None:  # assume fs store, and point on the root of the store
+            key = key_join(prot=conf.KEY_PROT_FS, path=store)
+        store = get_store(key)
+        loaded = store.load(key)
+        node = loaded.pop(conf.STOREWFNode_PREFIX)
+        node.__dict__.update(loaded)
+        # Check for attributes to load
+        #attribs = store.load(key_push(key, conf.STORE_ATTRIB_PREFIX))
+        #if len(attribs) > 1:
+        # children contain basename string: Save the string a recursively
+        # walk/load children
+        recursion = node.check_recursion(recursion)
+        if recursion is RECURSION_UP:
+            parent_key = key_pop(key)
+            parent = WF.load(key=parent_key, recursion=recursion)
+            parent.add_child(node)
+        if recursion is RECURSION_DOWN:
+            children = node.children
+            node.children = list()
+            for child in children:
+                child_key = key_push(key, child)
+                node.add_child(WF.load(key=child_key, recursion=recursion))
+        return node
 
-    recursion: int, boolean
-        if True, load recursively, trying to guess the way: if node is a
-        leaf then recursively load the path to root int a bottum-up maner.
-        If the node is a root recursively load the whole tree in a top-down
-        manner.
-        if int should be: RECURSION_UP or RECURSION_DOWN
-    """
-    if key is None:  # assume fs store, and point on the root of the store
-        key = key_join(prot=Config.KEY_PROT_FS, path=store)
-    store = get_store(key)
-    loaded = store.load(key)
-    node = loaded.pop(Config.STORE_NODE_PREFIX)
-    node.__dict__.update(loaded)
-    # Check for attributes to load
-    #attribs = store.load(key_push(key, Config.STORE_ATTRIB_PREFIX))
-    #if len(attribs) > 1:
-    # children contain basename string: Save the string a recursively
-    # walk/load children
-    recursion = node.check_recursion(recursion)
-    if recursion is RECURSION_UP:
-        parent_key = key_pop(key)
-        parent = load_workflow(key=parent_key, recursion=recursion)
-        parent.add_child(node)
-    if recursion is RECURSION_DOWN:
-        children = node.children
-        node.children = list()
-        for child in children:
-            child_key = key_push(key, child)
-            node.add_child(load_workflow(key=child_key, recursion=recursion))
-    return node
+WF = WFNode
 
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-class _NodeEstimator(_Node):
+class WFNodeEstimator(WFNode):
     """Node that wrap estimators"""
 
     def __init__(self, estimator):
         self.estimator = estimator
-        super(_NodeEstimator, self).__init__()
+        super(WFNodeEstimator, self).__init__()
         self.args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
         self.args_predict = _func_get_args_names(self.estimator.predict) \
@@ -554,9 +633,9 @@ class _NodeEstimator(_Node):
             train_score = self.estimator.score(**Xy_dict)
             y_pred_names = _list_diff(self.args_fit, self.args_predict)
             y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
-            _dict_prefix_keys(Config.PREFIX_TRAIN +
-                              Config.PREFIX_SCORE, y_train_score_dict)
-            y_train_score_dict = {Config.PREFIX_TRAIN + Config.PREFIX_SCORE +
+            _dict_prefix_keys(conf.PREFIX_TRAIN +
+                              conf.PREFIX_SCORE, y_train_score_dict)
+            y_train_score_dict = {conf.PREFIX_TRAIN + conf.PREFIX_SCORE +
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
             self.add_results(self.get_key(2), y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
@@ -590,7 +669,7 @@ class _NodeEstimator(_Node):
         y_pred_arr = self.estimator.predict(**X_dict)
         y_pred_names = _list_diff(self.args_fit, self.args_predict)
         y_pred_dict = _as_dict(y_pred_arr, keys=y_pred_names)
-        results = _dict_prefix_keys(Config.PREFIX_PRED, y_pred_dict)
+        results = _dict_prefix_keys(conf.PREFIX_PRED, y_pred_dict)
         # If true values are provided in ds then store them and compute scores
         if set(y_pred_names).issubset(set(ds_kwargs.keys())):
             y_true_dict = _sub_dict(ds_kwargs, y_pred_names)
@@ -599,10 +678,10 @@ class _NodeEstimator(_Node):
             test_score = self.estimator.score(**X_dict)
             y_test_score_dict = _as_dict(test_score, keys=y_pred_names)
             # prefix results keys by test_score_
-            y_true_dict = _dict_prefix_keys(Config.PREFIX_TRUE, y_true_dict)
+            y_true_dict = _dict_prefix_keys(conf.PREFIX_TRUE, y_true_dict)
             results.update(y_true_dict)
             y_test_score_dict = _dict_prefix_keys(
-                Config.PREFIX_TEST + Config.PREFIX_SCORE, y_test_score_dict)
+                conf.PREFIX_TEST + conf.PREFIX_SCORE, y_test_score_dict)
             results.update(y_test_score_dict)
             self.add_results(self.get_key(2), results)
         return y_pred_arr
@@ -619,16 +698,16 @@ class _NodeEstimator(_Node):
 # -- Splitter                   -- #
 # -------------------------------- #
 
-class _NodeSplitter(_Node):
+class WFNodeSplitter(WFNode):
     """Splitters are are non leaf node (degree >= 1) with children.
     They split the downstream data-flow to their children.
     They agregate upstream data-flow from their children.
     """
     def __init__(self):
-        super(_NodeSplitter, self).__init__()
+        super(WFNodeSplitter, self).__init__()
 
 
-class ParCV(_NodeSplitter):
+class ParCV(WFNodeSplitter):
     """Cross-validation parallelization.
 
     Parameters
@@ -661,11 +740,11 @@ class ParCV(_NodeSplitter):
         self.n_folds = n_folds
         self.random_state = random_state
         self.reducer = reducer
-        self.add_children([_NodeRowSlicer(signature_name="CV", nb=nb,
+        self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
             task = copy.deepcopy(task)
-            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
             split.add_child(task)
         if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
@@ -705,7 +784,7 @@ class ParCV(_NodeSplitter):
         return dict(n_folds=self.n_folds)
 
 
-class ParPerm(_NodeSplitter):
+class ParPerm(WFNodeSplitter):
     """Permutation parallelization.
 
     Parameters
@@ -736,11 +815,11 @@ class ParPerm(_NodeSplitter):
         self.permute = permute  # the name of the bloc to be permuted
         self.random_state = random_state
         self.reducer = reducer
-        self.add_children([_NodeRowSlicer(signature_name="Perm", nb=nb,
+        self.add_children([WFNodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
             task = copy.deepcopy(task)
-            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
             perm.add_child(task)
         #print "y in kwargs", y in kwargs
         if "y" in kwargs:
@@ -764,14 +843,14 @@ class ParPerm(_NodeSplitter):
         return dict(n_perms=self.n_perms, permute=self.permute)
 
 
-class ParMethods(_NodeSplitter):
+class ParMethods(WFNodeSplitter):
     """Parallelization is based on several runs of different methods
     """
     def __init__(self, *args):
         super(ParMethods, self).__init__()
         for task in args:
             task = copy.deepcopy(task)
-            task = task if isinstance(task, _Node) else _NodeEstimator(task)
+            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
             self.add_child(task)
         # detect collisions in children signature
         signatures = [c.get_signature() for c in self.children]
@@ -808,21 +887,21 @@ class ParGrid(ParMethods):
 # -- Slicers                    -- #
 # -------------------------------- #
 
-class _NodeSlicer(_Node):
+class WFNodeSlicer(WFNode):
     """ Slicers are Splitters' children, they re-sclice the downstream blocs.
     """
     def __init__(self):
-        super(_NodeSlicer, self).__init__()
+        super(WFNodeSlicer, self).__init__()
 
     def get_signature(self, nb=1):
         """Overload for secondary key (us data-flow), return empty str."""
         if nb is 1:  # primary key (ds data-flow)
-            return super(_NodeSlicer, self).get_signature(nb=1)
+            return super(WFNodeSlicer, self).get_signature(nb=1)
         else:  # secondary key (us data-flow)
             return ""
 
 
-class _NodeRowSlicer(_NodeSlicer):
+class WFNodeRowSlicer(WFNodeSlicer):
     """Row-wise reslicing of the downstream blocs.
 
     Parameters
@@ -835,7 +914,7 @@ class _NodeRowSlicer(_NodeSlicer):
     """
 
     def __init__(self, signature_name, nb, apply_on):
-        super(_NodeRowSlicer, self).__init__()
+        super(WFNodeRowSlicer, self).__init__()
         self.signature_name = signature_name
         self.signature_args = dict(nb=nb)
         self.slices = None
@@ -928,12 +1007,12 @@ def Seq(*args):
     ----------
     task [, task]*
     """
-    # SEQ(_Node [, _Node]*)
+    # SEQ(WFNode [, WFNode]*)
     #args = _group_args(*args)
     root = None
     for task in args:
         #task = copy.deepcopy(task)
-        curr = task if isinstance(task, _Node) else _NodeEstimator(task)
+        curr = task if isinstance(task, WFNode) else WFNodeEstimator(task)
         if not root:
             root = curr
         else:

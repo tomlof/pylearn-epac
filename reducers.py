@@ -8,7 +8,7 @@ Reducers for EPAC
 import numpy as np 
 import re
 from abc import abstractmethod
-from epac import Config
+from epac import conf
 
 ## ======================================================================== ##
 ## == Reducers                                                           == ##
@@ -41,7 +41,7 @@ class SummaryStat(Reducer):
     
     """Reducer that select sub-result(s) according to select_regexp, and
     reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, do_stats_on_regexp=Config.PREFIX_SCORE, stat="mean",
+    def __init__(self, do_stats_on_regexp=conf.PREFIX_SCORE, stat="mean",
                  filter_out_others=True):
         self.do_stats_on_regexp = do_stats_on_regexp
         self.stat = stat
@@ -64,7 +64,7 @@ class SummaryStat(Reducer):
 class PvalPermutations(Reducer):
     """Reducer that select sub-result(s) according to select_regexp, and
     reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, select_regexp='mean.*'+Config.PREFIX_SCORE,
+    def __init__(self, select_regexp='mean.*'+conf.PREFIX_SCORE,
                  filter_out_others=True):
         self.select_regexp = select_regexp
         self.filter_out_others = filter_out_others

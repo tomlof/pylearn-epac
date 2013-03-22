@@ -5,22 +5,21 @@ Created on Wed Jan 23 13:58:21 2013
 @author: edouard.duchesnay@cea.fr
 """
 
-from .workflow import Seq, ParCV, ParPerm, ParMethods, ParGrid, load_workflow
-from .workflow import Config  # FIXME
+from .workflow import WF, Seq, ParCV, ParPerm, ParMethods, ParGrid
+from .workflow import conf, debug
 #from .stores import obj_to_dict, dict_to_obj
 from .reducers import SummaryStat, PvalPermutations
 from . import sklearn_plugins
 
-__all__ = ['Seq',
+__all__ = [ 'WF',
+            'Seq',
            'ParCV',
            'ParPerm',
            'ParGrid',
            'ParMethods',
-           'Config',
-           'load_workflow',
            "SummaryStat",
            "PvalPermutations",
            'sklearn_plugins'
-#           "obj_to_dict",
-#           "dict_to_obj"
+           'conf',
+           'debug'
            ]

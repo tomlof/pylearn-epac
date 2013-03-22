@@ -54,12 +54,12 @@ class StoreFs(Store):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         # JSON
-        from workflow import Config
-        file_path = path + Config.STORE_FS_JSON_SUFFIX
+        from workflow import conf
+        file_path = path + conf.STORE_FS_JSON_SUFFIX
         obj_dict = obj_to_dict(obj)
         if self.save_json(obj_dict, file_path):
             # saving in json failed => pickle
-            file_path = path + Config.STORE_FS_PICKLE_SUFFIX
+            file_path = path + conf.STORE_FS_PICKLE_SUFFIX
             self.save_pickle(obj, file_path)
 
     def load(self, key):
@@ -77,9 +77,9 @@ class StoreFs(Store):
             parameters match exactly a file, the retruned dict will contain a
             single object with an empty key.
         """
-        from workflow import Config
+        from workflow import conf
         path = self.key2path(key)
-        #prefix = os.path.join(path, Config.STORE_FS_NODE_PREFIX)
+        #prefix = os.path.join(path, conf.STORE_FS_NODE_PREFIX)
         if os.path.isdir(path):
             path = path + os.path.sep
         # Get all files
@@ -87,14 +87,14 @@ class StoreFs(Store):
         loaded = dict()
         for file_path in file_paths:
             _, ext = os.path.splitext(file_path)
-            if ext == Config.STORE_FS_JSON_SUFFIX:
+            if ext == conf.STORE_FS_JSON_SUFFIX:
                 name = file_path.replace(path, "").\
-                    replace(Config.STORE_FS_JSON_SUFFIX, "")
+                    replace(conf.STORE_FS_JSON_SUFFIX, "")
                 obj_dict = self.load_json(file_path)
                 loaded[name] = dict_to_obj(obj_dict)
-            elif ext == Config.STORE_FS_PICKLE_SUFFIX:
+            elif ext == conf.STORE_FS_PICKLE_SUFFIX:
                 name = file_path.replace(path, "").\
-                    replace(Config.STORE_FS_JSON_SUFFIX, "")
+                    replace(conf.STORE_FS_JSON_SUFFIX, "")
                 loaded[name] = self.load_pickle(file_path)
             else:
                 raise IOError('File %s has an unkown extension: %s' %
@@ -134,17 +134,17 @@ class StoreFs(Store):
 def get_store(key):
     """ factory function returning the Store object of the class
     associated with the key parameter"""
-    from workflow import  key_split, Config
+    from workflow import  key_split, conf
     splits = key_split(key)
     if len(splits) != 2 and \
-        not(splits[0] in (Config.KEY_PROT_FS, Config.KEY_PROT_MEM)):
+        not(splits[0] in (conf.KEY_PROT_FS, conf.KEY_PROT_MEM)):
         raise ValueError('No valid storage has been associated with key: "%s"'
             % key)
     prot, path = splits
-    if prot == Config.KEY_PROT_FS:
+    if prot == conf.KEY_PROT_FS:
         return StoreFs()
 #    FIXME
-#    elif prot == Config.KEY_PROT_MEM:
+#    elif prot == conf.KEY_PROT_MEM:
 #        return StoreLo(storage_root=_Node.roots[path])
     else:
         raise ValueError("Invalid value for key: should be:" +\

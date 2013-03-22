@@ -12,8 +12,7 @@ from sklearn import datasets
 from sklearn.svm import SVC
 #from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-from epac import Seq, ParMethods, ParCV, ParPerm
-from epac import load_workflow
+from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
 
 iris = datasets.load_iris()
@@ -36,7 +35,7 @@ perms_cv_aov_svm = \
 ParPerm(
     ParCV(anovas_svm, n_folds=n_folds,
           reducer=SummaryStat(filter_out_others=False)),
-    n_perms=2, permute="y", y=y, random_state=rnd, 
+    n_perms=2, permute="y", y=y, random_state=rnd,
     reducer=PvalPermutations(filter_out_others=False))
 
 # Save tree
@@ -44,14 +43,14 @@ ParPerm(
 import tempfile
 perms_cv_aov_svm.save(store=tempfile.mktemp())
 key = perms_cv_aov_svm.get_key()
-tree = load_workflow(key)
+tree = WF.load(key)
 # Fit & Predict
 perms_cv_aov_svm.fit_predict(X=X, y=y)
 # Save results
 perms_cv_aov_svm.save(attr="results")
 key = perms_cv_aov_svm.get_key()
 # Reload tree, all you need to know is the key
-tree = load_workflow(key)
+tree = WF.load(key)
 # Reduces results
 R1 = tree.reduce()
 
