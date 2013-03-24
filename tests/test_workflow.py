@@ -14,6 +14,8 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
+from epac.workflow import conf, debug
+conf.DEBUG = True  # set debug to True
 
 iris = datasets.load_iris()
 # Add the noisy data to the informative features
@@ -78,7 +80,7 @@ for key in keys:
     R2[key]['y_test'] = [[None]*n_folds]*n_perms
     R2[key]['idx_train'] = [[None]*n_folds]*n_perms
     R2[key]['idx_test'] = [[None]*n_folds]*n_perms
-   
+
 perm_nb = 0
 for idx in perms:
     y_p = y[idx]
@@ -137,17 +139,14 @@ comp
 # ===================
 # = DEBUG
 # ===================
-root_to_leaf = tree.get_leftmost_leaf().get_path_from_root()
+nodes = tree.get_leftmost_leaf().get_path_from_root().__iter__()
 ds_kwargs = dict(X=X, y=y)
 i = 0
 
-self = root_to_leaf[i]
+self = nodes.next()
 print self, "============================================"
-self.fit(X=X, y=y, recursion=False)
-ds_kwargs = self.predict(recursion=False, **ds_kwargs)
-print np.all(ds_kwargs["X"] == X), ds_kwargs["X"].shape
-print np.all(ds_kwargs["y"] == y), ds_kwargs["y"].shape
-i += 1
+ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
+print ds_kwargs
 
 [np.asarray(v) for v in root_to_leaf[i-1].slices.values()]
 np.asarray(self.slices['train'])

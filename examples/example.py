@@ -14,8 +14,8 @@ from sklearn import datasets
 iris = datasets.load_iris()
 
 # Add the noisy data to the informative features
-#X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
-#y = iris.target
+X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
+y = iris.target
 
 
 from sklearn.svm import SVC
