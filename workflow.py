@@ -205,7 +205,8 @@ class WFNode(object):
 
     def get_leftmost_leaf(self):
         """Return the left most leaf of a tree"""
-        return self if not self.children else self.children[0].get_leftmost_leaf()
+        return self if not self.children else \
+            self.children[0].get_leftmost_leaf()
 
     def getWFNode(self, key):
         """Return a node given a key"""
@@ -764,6 +765,7 @@ class ParCV(WFNodeSplitter):
                 from sklearn.cross_validation import LeaveOneOut
                 cv = LeaveOneOut(n=n)
         if cv:
+            print cv
             nb = 0
             for train, test in cv:
                 self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
