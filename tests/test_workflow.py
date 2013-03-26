@@ -10,7 +10,7 @@ import os.path
 import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
-#from sklearn.lda import LDA
+from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
@@ -33,6 +33,9 @@ k_values = [2, 3]#5, 10]
 # = With EPAC
 # ===================
 anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
+    k_values])
+
+anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), LDA()) for k in
     k_values])
 
 perms_cv_aov_svm = \
@@ -63,6 +66,8 @@ tree = WF.load(key)
 # Reduces results
 R1 = tree.reduce()
 
+rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
+R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
 #WF.load(key).get_key()
 
 # ===================
@@ -72,8 +77,8 @@ from sklearn.cross_validation import StratifiedKFold
 from epac.sklearn_plugins import Permutation
 from sklearn.pipeline import Pipeline
 
-
-keys = ["SelectKBest(k=%d)/SVC" % k for k in k_values]
+keys = R1.keys()
+#keys = ["SelectKBest(k=%d)/SVC" % k for k in k_values]
 
 R2 = dict()
 for key in keys:
@@ -112,7 +117,8 @@ for idx in perms:
         # 1) anova filter, take 3 best ranked features
         anova_filters = [SelectKBest(k=k) for k in k_values]
         # 2) svm
-        clfs = [SVC(kernel='linear') for k in k_values]
+        #clfs = [SVC(kernel='linear') for k in k_values]
+        clfs = [LDA() for k in k_values]
         anova_svms = [Pipeline([('anova', anova_filters[i]), ('svm', clfs[i])]) for i in xrange(len(k_values))]
         for i in xrange(len(k_values)):
             key = keys[i]
@@ -145,8 +151,7 @@ key = R2.keys()[0]
 # ===================
 # = Comparison
 # ===================
-rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
-R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
+
 
 comp = dict()
 for key in R1:
@@ -171,12 +176,19 @@ if hasattr(self, "slices"):
     print self.slices
     print R2[key]['idx_train'][0][0]
     print R2[key]['idx_test'][0][0]
-print "Test equality of input data"
-print np.all(ds_kwargs_train['X'] == R2[key]['X_train'][0][0])
-print np.all(ds_kwargs_test['X'] == R2[key]['X_test'][0][0])
-# Acces to estimator
-self.estimator.fit(**ds_kwargs_train)
-
+if hasattr(self, "estimator"):
+    print "Test equality of input data"
+    print np.all(ds_kwargs_train['X'] == R2[key]['X_train'][0][0])
+    print np.all(ds_kwargs_test['X'] == R2[key]['X_test'][0][0])
+    # Acces to estimator
+    self.estimator.fit(**ds_kwargs_train)
+    X = ds_kwargs_train["X"]
+    y = ds_kwargs_train["y"]
+    node = self
+    est = self.estimator
+    #from sklearn.utils import atleast2d_or_csr, array2d, check_random_state
+    #from sklearn.utils.utils.fixes import unique
+    est.fit(X, y)
 ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 
 
