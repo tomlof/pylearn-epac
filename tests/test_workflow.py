@@ -38,7 +38,7 @@ anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
 anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), LDA()) for k in
     k_values])
 
-perms_cv_aov_svm = \
+wf = \
 ParPerm(
     ParCV(anovas_svm, n_folds=n_folds,
           reducer=SummaryStat(filter_out_others=False)),
@@ -52,19 +52,19 @@ ParPerm(
 
 # Save tree
 # ---------
-import tempfile
-perms_cv_aov_svm.save(store=tempfile.mktemp())
-key = perms_cv_aov_svm.get_key()
-tree = WF.load(key)
+# import tempfile
+#wf.save(store=tempfile.mktemp())
+#key = wf.get_key()
+#wf = WF.load(key)
 # Fit & Predict
-perms_cv_aov_svm.fit_predict(X=X, y=y)
+wf.fit_predict(X=X, y=y)
 # Save results
-perms_cv_aov_svm.save(attr="results")
-key = perms_cv_aov_svm.get_key()
-# Reload tree, all you need to know is the key
-tree = WF.load(key)
-# Reduces results
-R1 = tree.reduce()
+#wf.save(attr="results")
+#key = wf.get_key()
+## Reload tree, all you need to know is the key
+#wf = WF.load(key)
+## Reduces results
+R1 = wf.reduce()
 
 rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
 R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
@@ -133,7 +133,7 @@ for idx in perms:
             R2[key]['X_test'][perm_nb][fold_nb] = X_test
             R2[key]['y_train'][perm_nb][fold_nb] = y_p_train
             R2[key]['y_test'][perm_nb][fold_nb] = y_p_test
-            R2[key]['pred_y'][perm_nb][fold_nb] = anova_svm.predict(X)
+            R2[key]['pred_y'][perm_nb][fold_nb] = anova_svm.predict(X_train)
             R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
             R2[key]['train_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_train)
             R2[key]['test_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_test)
@@ -145,8 +145,6 @@ for idx in perms:
         R2[key]['mean_train_score_y'][perm_nb] = \
             np.mean(R2[key]['train_score_y'][perm_nb])
     perm_nb +=1
-
-key = R2.keys()[0]
 
 # ===================
 # = Comparison
@@ -164,9 +162,14 @@ print comp
 # ===================
 # = DEBUG
 # ===================
+
+key = R2.keys()[0]
+
 from epac import ds_split, ds_merge
 
-nodes = tree.get_leftmost_leaf().get_path_from_root().__iter__()
+leaf = wf.get_leftmost_leaf()
+print leaf.get_key()
+nodes = leaf.get_path_from_root().__iter__()
 ds_kwargs = dict(X=X, y=y)
 
 self = nodes.next()
@@ -191,6 +194,8 @@ if hasattr(self, "estimator"):
     est.fit(X, y)
 ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 
+R2[key]['pred_y'][0][0]
+R2[key]['X_train'][0][0]
 
 #
 #
