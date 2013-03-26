@@ -189,6 +189,9 @@ if hasattr(self, "estimator"):
     y = ds_kwargs_train["y"]
     node = self
     est = self.estimator
+
+if hasattr(self, "estimator") and not self.children:
+    
     #from sklearn.utils import atleast2d_or_csr, array2d, check_random_state
     #from sklearn.utils.utils.fixes import unique
     est.fit(X, y)
