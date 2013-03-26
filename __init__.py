@@ -5,8 +5,11 @@ Created on Wed Jan 23 13:58:21 2013
 @author: edouard.duchesnay@cea.fr
 """
 
+
 from .workflow import WF, Seq, ParCV, ParPerm, ParMethods, ParGrid
 from .workflow import conf, debug
+from .workflow import ds_split, ds_merge
+
 #from .stores import obj_to_dict, dict_to_obj
 from .reducers import SummaryStat, PvalPermutations
 from . import sklearn_plugins
@@ -21,5 +24,7 @@ __all__ = [ 'WF',
            "PvalPermutations",
            'sklearn_plugins'
            'conf',
-           'debug'
+           'debug',
+           'ds_split',
+           'ds_merge'
            ]

@@ -21,13 +21,13 @@ iris = datasets.load_iris()
 # Add the noisy data to the informative features
 #X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
 #y = iris.target
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
+X = np.asarray([[1, 2, 10, 0], [3, 4, 0, 10], [5, 6, 10, 0], [7, 8, 0, 10], [-1, -2, 10, 0], [-3, -4, 0, 10], [-5, -6, 10, 0], [-7, -8, 0, 10]])
 y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 n_perms = 2
 rnd = 0
 n_folds = 2
-k_values = [1, 2]#5, 10]
+k_values = [2, 3]#5, 10]
 
 # ===================
 # = With EPAC
@@ -63,7 +63,7 @@ tree = WF.load(key)
 # Reduces results
 R1 = tree.reduce()
 
-WF.load(key).get_key()
+#WF.load(key).get_key()
 
 # ===================
 # = Without EPAC
@@ -72,7 +72,6 @@ from sklearn.cross_validation import StratifiedKFold
 from epac.sklearn_plugins import Permutation
 from sklearn.pipeline import Pipeline
 
-perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
 
 keys = ["SelectKBest(k=%d)/SVC" % k for k in k_values]
 
@@ -80,28 +79,31 @@ R2 = dict()
 for key in keys:
     R2[key] = dict()
     R2[key]['idx_perm'] = [None] * n_perms
-    R2[key]['idx_train'] = [[None] * n_folds] * n_perms
-    R2[key]['idx_test'] = [[None] * n_folds] * n_perms
-    R2[key]['X_train'] = [[None] * n_folds] * n_perms
-    R2[key]['X_test'] = [[None] * n_folds] * n_perms
-    R2[key]['y_train'] = [[None] * n_folds] * n_perms
-    R2[key]['y_test'] = [[None] * n_folds] * n_perms
-    R2[key]['pred_y'] = [[None] * n_folds] * n_perms
-    R2[key]['true_y'] = [[None] * n_folds] * n_perms
+    R2[key]['idx_train'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['idx_test'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['X_train'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['X_test'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['y_train'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['y_test'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['pred_y'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['true_y'] = [[None]*n_folds for i in xrange(n_perms)]
     #R2[key] = {l: [[None] * n_folds] * n_perms  for l in res_lab}
-    R2[key]['train_score_y'] = [[None] * n_folds] * n_perms
-    R2[key]['test_score_y'] = [[None] * n_folds] * n_perms
+    R2[key]['train_score_y'] = [[None]*n_folds for i in xrange(n_perms)]
+    R2[key]['test_score_y'] = [[None]*n_folds for i in xrange(n_perms)]
     R2[key]['mean_test_score_y'] = [None] * n_perms
     R2[key]['mean_train_score_y'] = [None] * n_perms
 
 
 perm_nb = 0
+perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
 for idx in perms:
+    print "perm", perm_nb, "idx", idx
     y_p = y[idx]
     cv = StratifiedKFold(y=y_p, n_folds=n_folds)
     fold_nb = 0
     for idx_train, idx_test in cv:
-        [(idx_train, idx_test) for idx_train, idx_test in cv]
+        print "    cv",fold_nb,"idx Train/text", idx_train, idx_test
+        #(idx_train, idx_test) for idx_train, idx_test in cv]
         X_train = X[idx_train, :]
         X_test = X[idx_test, :]
         y_p_train = y_p[idx_train, :]
@@ -119,6 +121,8 @@ for idx in perms:
             R2[key]['idx_perm'][perm_nb] = idx
             R2[key]['idx_train'][perm_nb][fold_nb] = idx_train
             R2[key]['idx_test'][perm_nb][fold_nb] = idx_test
+            print "    -",key,"perm_nb",perm_nb,"cv",fold_nb,"idx train/test", idx_train, idx_test
+            print "    -",R2[key]['idx_train'][perm_nb][fold_nb],R2[key]['idx_test'][perm_nb][fold_nb]
             R2[key]['X_train'][perm_nb][fold_nb] = X_train
             R2[key]['X_test'][perm_nb][fold_nb] = X_test
             R2[key]['y_train'][perm_nb][fold_nb] = y_p_train
@@ -136,6 +140,8 @@ for idx in perms:
             np.mean(R2[key]['train_score_y'][perm_nb])
     perm_nb +=1
 
+key = R2.keys()[0]
+
 # ===================
 # = Comparison
 # ===================
@@ -150,35 +156,43 @@ for key in R1:
 
 print comp
 
-
 # ===================
 # = DEBUG
 # ===================
+from epac import ds_split, ds_merge
+
 nodes = tree.get_leftmost_leaf().get_path_from_root().__iter__()
 ds_kwargs = dict(X=X, y=y)
 
 self = nodes.next()
 print self, "============================================"
-ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
+ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
 if hasattr(self, "slices"):
     print self.slices
     print R2[key]['idx_train'][0][0]
     print R2[key]['idx_test'][0][0]
-#print ds_kwargs
+print "Test equality of input data"
+print np.all(ds_kwargs_train['X'] == R2[key]['X_train'][0][0])
+print np.all(ds_kwargs_test['X'] == R2[key]['X_test'][0][0])
+# Acces to estimator
+self.estimator.fit(**ds_kwargs_train)
 
-cv = StratifiedKFold(y=y, n_folds=n_folds)
-for tr, te in cv: print tr,te
-
-[np.asarray(v) for v in root_to_leaf[i-1].slices.values()]
-np.asarray(self.slices['train'])
-np.asarray(self.slices['test'])
+ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 
 
-perm_nb = 0 
-fold_nb = 0
-R2[key]['X_train'][perm_nb][fold_nb] == ds_kwargs["X"]
-R2[key]['X_test'][perm_nb][fold_nb] == ds_kwargs["X"]
-R2[key]['y_train'][perm_nb][fold_nb] == ds_kwargs["y"]
-R2[key]['y_test'][perm_nb][fold_nb] == ds_kwargs["y"]
-R2[key]['idx_train'][perm_nb][fold_nb]
-R2[key]['idx_test'][perm_nb][fold_nb]
+#
+#
+#
+#
+#cv = StratifiedKFold(y=y, n_folds=n_folds)
+#for tr, te in cv: print tr,te
+#
+#
+#perm_nb = 0 
+#fold_nb = 0
+#R2[key]['X_train'][perm_nb][fold_nb] == ds_kwargs["X"]
+#R2[key]['X_test'][perm_nb][fold_nb] == ds_kwargs["X"]
+#R2[key]['y_train'][perm_nb][fold_nb] == ds_kwargs["y"]
+#R2[key]['y_test'][perm_nb][fold_nb] == ds_kwargs["y"]
+#R2[key]['idx_train'][perm_nb][fold_nb]
+#R2[key]['idx_test'][perm_nb][fold_nb]
