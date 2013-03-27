@@ -180,3 +180,11 @@ self = node_iterator.next()
 print self
 ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 print ds_kwargs
+
+#conf.DEBUG = True
+#wf.fit_predict(X=X, y=y)  # re-run
+#self = debug.current  # get last node before error
+#ds_kwargs = debug.ds_kwargs  # get data
+#ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
+#self.estimator.fit(**ds_kwargs_train)
+#ds_kwargs_train = self.fit(recursion=False, **ds_kwargs_train)

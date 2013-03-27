@@ -208,14 +208,14 @@ class WFNode(object):
         return self if not self.children else \
             self.children[0].get_leftmost_leaf()
 
-    def getWFNode(self, key):
+    def get_node(self, key):
         """Return a node given a key"""
         print self.get_key(), key == self.get_key()
         if key == self.get_key():
             return self
         for child in self.children:
             if key.find(child.get_key()) == 0:
-                return child.getWFNode(key)
+                return child.get_node(key)
 
     def get_path_from_root(self):
         if self.parent is None:
@@ -336,6 +336,7 @@ class WFNode(object):
             print self.get_key(), func_name
         if conf.DEBUG:
             debug.current = self
+            debug.ds_kwargs = ds_kwargs
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent func_name up to root
@@ -413,6 +414,8 @@ class WFNode(object):
             debug.current = self
         # Terminaison (leaf) node return results
         if not self.children:
+            if conf.DEBUG and conf.VERBOSE:
+                print self.get_key(), self.results
             return self.results
         # 1) Build sub-aggregates over children
         children_results = [child.reduce(store_results=False) for
@@ -433,6 +436,8 @@ class WFNode(object):
             [merge.update(item) for item in children_results]
             if store_results:
                 [self.add_results(key2, merge[key2]) for key2 in merge]
+            if conf.DEBUG and conf.VERBOSE:
+                print self.get_key(), merge
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -460,6 +465,8 @@ class WFNode(object):
                 key2 in results}
         if store_results:
             [self.add_results(key2, results[key2]) for key2 in results]
+        if conf.DEBUG and conf.VERBOSE:
+            print self.get_key(), results
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,

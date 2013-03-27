@@ -14,16 +14,29 @@ from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
-from epac.workflow import conf, debug
+from epac.workflow import conf, debug, ds_split
 conf.DEBUG = True  # set debug to True
 
 iris = datasets.load_iris()
 # Add the noisy data to the informative features
 #X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
 #y = iris.target
-X = np.asarray([[1, 2, 10, 0], [3, 4, 0, 10], [5, 6, 10, 0], [7, 8, 0, 10], [-1, -2, 10, 0], [-3, -4, 0, 10], [-5, -6, 10, 0], [-7, -8, 0, 10]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
+#X = np.asarray([[1, 2, 10, 0], [3, 4, 0, 10], [5, 6, 10, 0], [7, 8, 0, 10], [-1, -2, 10, 0], [-3, -4, 0, 10], [-5, -6, 10, 0], [-7, -8, 0, 10]])
+#y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
+y = np.asarray([1, 0, 0, 0, 0, 1, 1, 1, 0, 1])
+X = np.asarray([[-0.72410991, -0.16117523, -2.71482769,  1.5102451 , -2.41200339],
+       [-0.28835824, -1.36765364,  1.10712306, -1.68043299,  0.46955062],
+       [-0.04176457,  0.12350139,  0.31700643, -0.40674412,  0.17038624],
+       [-0.16945109,  1.55585327,  0.34532922, -0.66917005,  0.07643056],
+       [-0.63092503,  1.58108263, -0.48606433, -0.6439051 , -0.87337035],
+       [ 0.2967244 ,  1.89077497, -0.10248979,  0.64807938,  0.19437294],
+       [ 1.25326113, -0.85359701,  1.46948375,  0.75351193,  2.06421049],
+       [-0.79653103,  0.64577517, -3.77550405,  2.48420756, -3.16897176],
+       [-0.36567546,  0.94230265,  0.35040889, -1.03236683, -0.09308279],
+       [ 0.77428074, -0.41138325,  0.40265534,  0.99235342,  0.94512705]])
+
+#X, y = datasets.make_classification(n_samples=10, n_features=5, n_informative=2)
 n_perms = 2
 rnd = 0
 n_folds = 2
@@ -57,14 +70,21 @@ ParPerm(
 #key = wf.get_key()
 #wf = WF.load(key)
 # Fit & Predict
-wf.fit_predict(X=X, y=y)
+wf.fit_predict(X=X, y=y)  # re-run
 # Save results
 #wf.save(attr="results")
 #key = wf.get_key()
 ## Reload tree, all you need to know is the key
 #wf = WF.load(key)
 ## Reduces results
+conf.DEBUG = conf.VERBOSE = True
 R1 = wf.reduce()
+
+self = wf.get_node('ParPerm/Perm(nb=0)/ParCV')
+
+
+ICI
+leaf = wf.get_leftmost_leaf()
 
 rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
 R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
@@ -191,7 +211,8 @@ if hasattr(self, "estimator"):
     est = self.estimator
 
 if hasattr(self, "estimator") and not self.children:
-    
+    res = self.results.values()[0]
+    res['pred_y'] == R2[key]['pred_y'][0][0]
     #from sklearn.utils import atleast2d_or_csr, array2d, check_random_state
     #from sklearn.utils.utils.fixes import unique
     est.fit(X, y)
@@ -199,6 +220,7 @@ ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 
 R2[key]['pred_y'][0][0]
 R2[key]['X_train'][0][0]
+
 
 #
 #
