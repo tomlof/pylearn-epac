@@ -2,8 +2,10 @@
 """
 Created on Thu Mar 14 16:13:26 2013
 
-@author: edouard
+@author: edouard.duchesnay@cea.fr
 """
+import numpy as np
+
 
 ## =========== ##
 ## == Utils == ##
@@ -61,18 +63,18 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
                     if not key3 in dict_of_list[key2].keys():
                         dict_of_list[key2][key3] = ListWithMetaInfo()
                         dict_of_list[key2][key3].__axis_name = axis_name
-                        dict_of_list[key2][key3].__axis_value =axis_values
+                        dict_of_list[key2][key3].__axis_value = axis_values
                     dict_of_list[key2][key3].append(result[key3])
             else:  # simply concatenate
                 if not key2 in dict_of_list.keys():
                     dict_of_list[key2] = ListWithMetaInfo()
                     dict_of_list[key2].__axis_name = axis_name
-                    dict_of_list[key2].__axis_value =axis_values
+                    dict_of_list[key2].__axis_value = axis_values
                 dict_of_list[key2].append(result)
     return dict_of_list
 
 
-def _dict_diff(*dicts):
+def dict_diff(*dicts):
     """Find the differences in a dictionaries
 
     Returns
@@ -84,8 +86,12 @@ def _dict_diff(*dicts):
 
     Examples
     --------
-    >>> _dict_diff(dict(a=1, b=2, c=3), dict(b=0, c=3))
+    >>> dict_diff(dict(a=1, b=2, c=3), dict(b=0, c=3))
     {'a': None, 'b': [0, 2]}
+    >>> dict_diff(dict(a=1, b=[1, 2]), dict(a=1, b=[1, 3]))
+    {'b': [[1, 2], [1, 3]]}
+    >>> dict_diff(dict(a=1, b=np.array([1, 2])), dict(a=1, b=np.array([1, 3])))
+    {'b': [array([1, 2]), array([1, 3])]}
     """
     # Find diff in keys
     union_keys, inter_keys, diff_keys = _list_union_inter_diff(*[d.keys()
@@ -95,9 +101,16 @@ def _dict_diff(*dicts):
         diff_vals[k] = None
     # Find diff in shared keys
     for k in inter_keys:
-        s = set([d[k] for d in dicts])
-        if len(s) > 1:
-            diff_vals[k] = list(s)
+        if isinstance(dicts[0][k], (np.ndarray, list, tuple)):
+            if not np.all([np.all(d[k] == dicts[0][k]) for d in dicts]):
+                diff_vals[k] = [d[k] for d in dicts]
+        elif isinstance(dicts[0][k], dict):
+            if not np.all([d[k] == dicts[0][k] for d in dicts]):
+                diff_vals[k] = [d[k] for d in dicts]
+        else:
+            s = set([d[k] for d in dicts])
+            if len(s) > 1:
+                diff_vals[k] = list(s)
     return diff_vals
 
 

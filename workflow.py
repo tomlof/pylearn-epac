@@ -1,5 +1,7 @@
 """
 Epac : Embarrassingly Parallel Array Computing
+
+@author: edouard.duchesnay@cea.fr
 """
 print __doc__
 
@@ -15,7 +17,7 @@ from abc import abstractmethod
 from stores import get_store
 from utils import _list_union_inter_diff, _list_indices, _list_diff
 from utils import _list_of_dicts_2_dict_of_lists
-from utils import _sub_dict, _dict_diff, _as_dict, _dict_prefix_keys
+from utils import _sub_dict, dict_diff, _as_dict, _dict_prefix_keys
 from utils import _func_get_args_names
 
 
@@ -125,10 +127,10 @@ def ds_merge(ds_kwargs1, ds_kwargs2):
 
 class conf:
     DEBUG = False
-    VERBOSE = True
+    VERBOSE = False
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
-    STOREWFNode_PREFIX = "node"
+    STORE_NODE_PREFIX = "node"
     PREFIX_PRED = "pred_"
     PREFIX_TRUE = "true_"
     PREFIX_TEST = "test_"
@@ -215,7 +217,6 @@ class WFNode(object):
 
     def get_node(self, key):
         """Return a node given a key"""
-        print self.get_key(), key == self.get_key()
         if key == self.get_key():
             return self
         for child in self.children:
@@ -542,8 +543,10 @@ class WFNode(object):
             clone.children = [child.get_signature() for child in self.children]
             if self.parent:
                 clone.parent = ".."
-            key = key_push(key, conf.STOREWFNode_PREFIX)
-            store.save(clone, key)
+            if hasattr(self, "estimator"):  # Always pickle estimator
+                clone.estimator = None
+                store.save(self.estimator, key_push(key, "estimator"), protocol="bin")
+            store.save(clone, key=key_push(key, conf.STORE_NODE_PREFIX))
         else:
             o = self.__dict__[attr]
             # avoid saving attributes of len 0
@@ -583,7 +586,7 @@ class WFNode(object):
             key = key_join(prot=conf.KEY_PROT_FS, path=store)
         store = get_store(key)
         loaded = store.load(key)
-        node = loaded.pop(conf.STOREWFNode_PREFIX)
+        node = loaded.pop(conf.STORE_NODE_PREFIX)
         node.__dict__.update(loaded)
         # Check for attributes to load
         #attribs = store.load(key_push(key, conf.STORE_ATTRIB_PREFIX))
@@ -645,8 +648,8 @@ class WFNodeEstimator(WFNode):
             train_score = self.estimator.score(**Xy_dict)
             y_pred_names = _list_diff(self.args_fit, self.args_predict)
             y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
-            _dict_prefix_keys(conf.PREFIX_TRAIN +
-                              conf.PREFIX_SCORE, y_train_score_dict)
+            _dict_prefix_keys(conf.PREFIX_TRAIN + conf.PREFIX_SCORE,
+                              y_train_score_dict)
             y_train_score_dict = {conf.PREFIX_TRAIN + conf.PREFIX_SCORE +
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
             self.add_results(self.get_key(2), y_train_score_dict)
@@ -776,7 +779,6 @@ class ParCV(WFNodeSplitter):
                 from sklearn.cross_validation import LeaveOneOut
                 cv = LeaveOneOut(n=n)
         if cv:
-            print cv
             nb = 0
             for train, test in cv:
                 self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
@@ -834,7 +836,6 @@ class ParPerm(WFNodeSplitter):
             task = copy.deepcopy(task)
             task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
             perm.add_child(task)
-        #print "y in kwargs", y in kwargs
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -844,7 +845,7 @@ class ParPerm(WFNodeSplitter):
         y = ds_kwargs["y"]
         from epac.sklearn_plugins import Permutation
         nb = 0
-        for perm in Permutation(n=y.shape[0], n_perms=self.n_perms, 
+        for perm in Permutation(n=y.shape[0], n_perms=self.n_perms,
                                 random_state=self.random_state):
             self.children[nb].set_sclices(perm)
             nb += 1
@@ -879,7 +880,7 @@ class ParMethods(WFNodeSplitter):
                 if len(collision_indices) == 1:  # no collision for this cls
                     continue
                 # Collision: add differences in states in the signature_args
-                diff_arg_keys = _dict_diff(*[child_states[i] for i
+                diff_arg_keys = dict_diff(*[child_states[i] for i
                                             in collision_indices]).keys()
                 for child_idx in collision_indices:
                     self.children[child_idx].signature_args = \
@@ -932,13 +933,12 @@ class WFNodeRowSlicer(WFNodeSlicer):
         self.signature_name = signature_name
         self.signature_args = dict(nb=nb)
         self.slices = None
-        self.n = 0  # the dimension of that array in ds should respect 
+        self.n = 0  # the dimension of that array in ds should respect
         self.apply_on = apply_on
 
     def finalize_init(self, **ds_kwargs):
         ds_kwargs = self.transform(recursion=False, sample_set="train",
                                    **ds_kwargs)
-        # print self, "(",self.parent,")", self.slices, ds_kwargs
         # propagate down-way
         if self.children:
             [child.finalize_init(**ds_kwargs) for child in
@@ -990,7 +990,6 @@ class WFNodeRowSlicer(WFNodeSlicer):
             else:
                 indices = self.slices
             ds_kwargs[data_key] = ds_kwargs[data_key][indices]
-        # print ds_kwargs
         return ds_kwargs
 
     def fit(self, recursion=True, **ds_kwargs):

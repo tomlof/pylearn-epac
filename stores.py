@@ -4,7 +4,7 @@ Created on Thu Mar 14 14:54:35 2013
 
 Stores for EPAC
 
-@author: edouard.duchesnay@gmail.com
+@author: edouard.duchesnay@cea.fr
 """
 
 import os
@@ -49,15 +49,30 @@ class StoreFs(Store):
         prot, path = key_split(key)
         return path
 
-    def save(self, obj, key):
+    def save(self, obj, key, protocol="txt"):
+        """ Save object
+
+        Parameters
+        ----------
+
+        obj:
+            object to be saved
+
+        key: str
+            The primary key
+
+        protocol: str
+            "txt": try with JSON if fail use "bin": (pickle)
+        """
         path = self.key2path(key)
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         # JSON
         from workflow import conf
-        file_path = path + conf.STORE_FS_JSON_SUFFIX
-        obj_dict = obj_to_dict(obj)
-        if self.save_json(obj_dict, file_path):
+        if protocol is "txt":
+            file_path = path + conf.STORE_FS_JSON_SUFFIX
+            json_failed = self.save_json(obj, file_path)
+        if protocol is "bin" or json_failed:
             # saving in json failed => pickle
             file_path = path + conf.STORE_FS_PICKLE_SUFFIX
             self.save_pickle(obj, file_path)
@@ -90,11 +105,11 @@ class StoreFs(Store):
             if ext == conf.STORE_FS_JSON_SUFFIX:
                 name = file_path.replace(path, "").\
                     replace(conf.STORE_FS_JSON_SUFFIX, "")
-                obj_dict = self.load_json(file_path)
-                loaded[name] = dict_to_obj(obj_dict)
+                obj = self.load_json(file_path)
+                loaded[name] = obj
             elif ext == conf.STORE_FS_PICKLE_SUFFIX:
                 name = file_path.replace(path, "").\
-                    replace(conf.STORE_FS_JSON_SUFFIX, "")
+                    replace(conf.STORE_FS_PICKLE_SUFFIX, "")
                 loaded[name] = self.load_pickle(file_path)
             else:
                 raise IOError('File %s has an unkown extension: %s' %
@@ -102,33 +117,34 @@ class StoreFs(Store):
         return loaded
 
     def save_pickle(self, obj, file_path):
-            output = open(file_path, 'wb')
-            pickle.dump(obj, output)
-            output.close()
+        output = open(file_path, 'wb')
+        pickle.dump(obj, output)
+        output.close()
 
     def load_pickle(self, file_path):
-            #u'/tmp/store/KFold-0/SVC/__node__NodeEstimator.pkl'
-            inputf = open(file_path, 'rb')
-            obj = pickle.load(inputf)
-            inputf.close()
-            return obj
+        #u'/tmp/store/KFold-0/SVC/__node__NodeEstimator.pkl'
+        inputf = open(file_path, 'rb')
+        obj = pickle.load(inputf)
+        inputf.close()
+        return obj
 
-    def save_json(self, obj_dict, file_path):
-            output = open(file_path, 'wb')
-            try:
-                json.dump(obj_dict, output)
-            except TypeError:  # save in pickle
-                output.close()
-                os.remove(file_path)
-                return 1
+    def save_json(self, obj, file_path):
+        obj_dict = obj_to_dict(obj)
+        output = open(file_path, 'wb')
+        try:
+            json.dump(obj_dict, output)
+        except TypeError:  # save in pickle
             output.close()
-            return 0
+            os.remove(file_path)
+            return 1
+        output.close()
+        return 0
 
     def load_json(self, file_path):
-            inputf = open(file_path, 'rb')
-            obj_dict = json.load(inputf)
-            inputf.close()
-            return obj_dict
+        inputf = open(file_path, 'rb')
+        obj_dict = json.load(inputf)
+        inputf.close()
+        return dict_to_obj(obj_dict)
 
 
 def get_store(key):

@@ -2,7 +2,7 @@
 """
 Created on Mon Jan 21 19:55:46 2013
 
-@author: edouard
+@author: edouard.duchesnay@cea.fr
 """
 # run workflow.py
 
