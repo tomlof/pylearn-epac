@@ -208,6 +208,11 @@ class WFNode(object):
         return self if not self.children else \
             self.children[0].get_leftmost_leaf()
 
+    def get_rightmost_leaf(self):
+        """Return the left most leaf of a tree"""
+        return self if not self.children else \
+            self.children[-1].get_rightmost_leaf()
+
     def get_node(self, key):
         """Return a node given a key"""
         print self.get_key(), key == self.get_key()
@@ -424,13 +429,13 @@ class WFNode(object):
             if store_results:
                 self.add_results(self.get_key(2), children_results[0])
             return children_results[0]
-        # 2) Test if for collision between intermediary keys
-        keys_all = [r.keys() for r in children_results]
-        np.sum([len(ks) for ks in keys_all])
+        # 2) Test collision between intermediary keys
+        keys_all = list()
         keys_set = set()
-        [keys_set.update(ks) for ks in keys_all]
-        # 3) If no collision , simply merge results in a lager dict an return
-        # it
+        for r in children_results:
+            keys_all += r.keys()
+            keys_set.update(r.keys())
+        # 3) No collision: merge results in a lager dict an return
         if len(keys_set) == len(keys_all):
             merge = dict()
             [merge.update(item) for item in children_results]
@@ -447,15 +452,14 @@ class WFNode(object):
         children_name, children_args = zip(*[(child.get_signature_name(),
                                                child.get_signature_args())
                                                for child in self.children])
-        # Cheack that children have the same name, and same argument name
+        # Check that children have the same name, and same argument name
         # ie.: they differ only on argument values
         if len(set(children_name)) != 1:
-            raise ValueError("Children of a Reducer have different names")
+            raise ValueError("Children have different names")
         _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
         if diff_arg_names:
-            raise ValueError("Children of a Reducer have different arguements"
-            "keys")
+            raise ValueError("Children have different arguments name")
         sub_arg_names, sub_arg_values, results =\
             self._stack_results_over_argvalues(arg_names, children_results,
                                           children_args)
@@ -840,7 +844,8 @@ class ParPerm(WFNodeSplitter):
         y = ds_kwargs["y"]
         from epac.sklearn_plugins import Permutation
         nb = 0
-        for perm in Permutation(n=y.shape[0], n_perms=self.n_perms):
+        for perm in Permutation(n=y.shape[0], n_perms=self.n_perms, 
+                                random_state=self.random_state):
             self.children[nb].set_sclices(perm)
             nb += 1
         # propagate down-way

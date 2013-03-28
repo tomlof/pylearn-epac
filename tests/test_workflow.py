@@ -37,7 +37,7 @@ X = np.asarray([[-0.72410991, -0.16117523, -2.71482769,  1.5102451 , -2.41200339
        [ 0.77428074, -0.41138325,  0.40265534,  0.99235342,  0.94512705]])
 
 #X, y = datasets.make_classification(n_samples=10, n_features=5, n_informative=2)
-n_perms = 2
+n_perms = 3
 rnd = 0
 n_folds = 2
 k_values = [2, 3]#5, 10]
@@ -55,9 +55,16 @@ wf = \
 ParPerm(
     ParCV(anovas_svm, n_folds=n_folds,
           reducer=SummaryStat(filter_out_others=False)),
-    n_perms=2, permute="y", y=y, random_state=rnd,
+    n_perms=n_perms, permute="y", y=y, random_state=rnd,
     reducer=PvalPermutations(filter_out_others=False))
 
+
+wf = \
+ParPerm(
+    ParCV(LDA(), n_folds=n_folds,
+          reducer=SummaryStat(filter_out_others=False)),
+    n_perms=n_perms, permute="y", y=y, random_state=rnd,
+    reducer=PvalPermutations(filter_out_others=False))
 
 #wf = ParCV(anovas_svm, n_folds=n_folds, reducer=SummaryStat(filter_out_others=False), y=y)
 #wf.children[0].slices
@@ -81,13 +88,13 @@ conf.DEBUG = conf.VERBOSE = True
 R1 = wf.reduce()
 
 self = wf.get_node('ParPerm/Perm(nb=0)/ParCV')
+#ICI
+#leaf = wf.get_leftmost_leaf()
 
-
-ICI
-leaf = wf.get_leftmost_leaf()
-
-rm = os.path.dirname(os.path.dirname(R1.keys()[1]))+"/"
+rm = os.path.dirname(os.path.dirname(R1.keys()[0]))+"/"
 R1 = {string.replace(key, rm, ""):R1[key] for key in R1}
+keys = R1.keys()
+
 #WF.load(key).get_key()
 
 # ===================
@@ -98,6 +105,16 @@ from epac.sklearn_plugins import Permutation
 from sklearn.pipeline import Pipeline
 
 keys = R1.keys()
+
+# ANOVA SVM-C
+# 1) anova filter, take 3 best ranked features
+#anova_filters = [SelectKBest(k=k) for k in k_values]
+# 2) svm
+#clfs = [SVC(kernel='linear') for k in k_values]
+clfs = {key: LDA() for key in keys}
+#anova_svms = [Pipeline([('anova', anova_filters[i]), ('svm', clfs[i])]) for i in xrange(len(k_values))]
+#anova_svms = clfs
+    
 #keys = ["SelectKBest(k=%d)/SVC" % k for k in k_values]
 
 R2 = dict()
@@ -121,6 +138,8 @@ for key in keys:
 
 perm_nb = 0
 perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
+for idx in perms: print idx
+
 for idx in perms:
     print "perm", perm_nb, "idx", idx
     y_p = y[idx]
@@ -133,17 +152,9 @@ for idx in perms:
         X_test = X[idx_test, :]
         y_p_train = y_p[idx_train, :]
         y_p_test = y_p[idx_test, :]
-        # ANOVA SVM-C
-        # 1) anova filter, take 3 best ranked features
-        anova_filters = [SelectKBest(k=k) for k in k_values]
-        # 2) svm
-        #clfs = [SVC(kernel='linear') for k in k_values]
-        clfs = [LDA() for k in k_values]
-        anova_svms = [Pipeline([('anova', anova_filters[i]), ('svm', clfs[i])]) for i in xrange(len(k_values))]
-        for i in xrange(len(k_values)):
-            key = keys[i]
-            anova_svm = anova_svms[i]
-            anova_svm.fit(X_train, y_p_train)
+        for key in keys:
+            clf = clfs[key]
+            clf.fit(X_train, y_p_train)
             R2[key]['idx_perm'][perm_nb] = idx
             R2[key]['idx_train'][perm_nb][fold_nb] = idx_train
             R2[key]['idx_test'][perm_nb][fold_nb] = idx_test
@@ -153,10 +164,10 @@ for idx in perms:
             R2[key]['X_test'][perm_nb][fold_nb] = X_test
             R2[key]['y_train'][perm_nb][fold_nb] = y_p_train
             R2[key]['y_test'][perm_nb][fold_nb] = y_p_test
-            R2[key]['pred_y'][perm_nb][fold_nb] = anova_svm.predict(X_train)
+            R2[key]['pred_y'][perm_nb][fold_nb] = clf.predict(X_test)
             R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
-            R2[key]['train_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_train)
-            R2[key]['test_score_y'][perm_nb][fold_nb] = anova_svm.score(X_train, y_p_test)
+            R2[key]['train_score_y'][perm_nb][fold_nb] = clf.score(X_train, y_p_train)
+            R2[key]['test_score_y'][perm_nb][fold_nb] = clf.score(X_test, y_p_test)
         fold_nb += 1
     for key in keys:
         # Average over folds
@@ -178,6 +189,8 @@ for key in R1:
     comp[key] = {k: np.all(np.asarray(r1[k]) == np.asarray(r2[k])) for k in set(r1.keys()).intersection(set(r2.keys()))}
 
 print comp
+k = 'pred_y'
+np.all(np.asarray(r1[k]) == np.asarray(r2[k]))
 
 # ===================
 # = DEBUG
@@ -187,39 +200,34 @@ key = R2.keys()[0]
 
 from epac import ds_split, ds_merge
 
-leaf = wf.get_leftmost_leaf()
+leaf = wf.get_leftmost_leaf(); idx=0
+leaf = wf.get_rightmost_leaf(); idx=-1
+
 print leaf.get_key()
 nodes = leaf.get_path_from_root().__iter__()
 ds_kwargs = dict(X=X, y=y)
 
 self = nodes.next()
-print self, "============================================"
-ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
+print self.get_key(), "============================================"
 if hasattr(self, "slices"):
     print self.slices
-    print R2[key]['idx_train'][0][0]
-    print R2[key]['idx_test'][0][0]
+    print "Perm idx:", R2[key]['idx_perm'][idx]
+    print "Train/text idx:", R2[key]['idx_train'][idx][idx], R2[key]['idx_test'][idx][idx]
 if hasattr(self, "estimator"):
+    ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
     print "Test equality of input data"
-    print np.all(ds_kwargs_train['X'] == R2[key]['X_train'][0][0])
-    print np.all(ds_kwargs_test['X'] == R2[key]['X_test'][0][0])
-    # Acces to estimator
-    self.estimator.fit(**ds_kwargs_train)
-    X = ds_kwargs_train["X"]
-    y = ds_kwargs_train["y"]
-    node = self
-    est = self.estimator
-
-if hasattr(self, "estimator") and not self.children:
-    res = self.results.values()[0]
-    res['pred_y'] == R2[key]['pred_y'][0][0]
-    #from sklearn.utils import atleast2d_or_csr, array2d, check_random_state
-    #from sklearn.utils.utils.fixes import unique
-    est.fit(X, y)
+    print np.all(ds_kwargs_train['X'] == R2[key]['X_train'][idx][idx])
+    print np.all(ds_kwargs_test['X'] == R2[key]['X_test'][idx][idx])
+    print "Stored results:", self.results
+    print "Re-predict:", self.estimator.predict(ds_kwargs_test["X"])
+    clf = LDA()
+    clf.fit(ds_kwargs_train["X"], ds_kwargs_train["y"])
+    print "New clf prediction", clf.predict(ds_kwargs_test["X"])
 ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 
-R2[key]['pred_y'][0][0]
-R2[key]['X_train'][0][0]
+
+R2[key]['pred_y'][idx][idx]
+R2[key]['X_train'][idx][idx]
 
 
 #
