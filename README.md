@@ -35,13 +35,17 @@ The execution is based on downstream/upstream data-flow paradigm:
 Application Programing interface
 --------------------------------
 
-    Task
-    Node ::= Seq | ParMethods | ParGrid | ParCV | ParPerm
-    Seq(Task, [Tasks]*)
-    ParMethods(Task, [Tasks]*)
-    ParGrid(Task, [Tasks]*)
-    ParCV(Node|Task, n_folds, y, reducer)
-    ParPerm(Node|Task, n_perms, y, permute, reducer)
+- **Task**: a task is an object that implements 3 methods:
+  - `fit(...)`
+  - `predict(...)`
+  - `score(...)`
+
+- Node ::= Seq | ParMethods | ParGrid | ParCV | ParPerm
+- Seq(Task, [Tasks]*)
+- ParMethods(Task, [Tasks]*)
+- ParGrid(Task, [Tasks]*)
+- ParCV(Node|Task, n_folds, y, reducer)
+- ParPerm(Node|Task, n_perms, y, permute, reducer)
 
 
 
