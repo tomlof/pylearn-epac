@@ -1,7 +1,7 @@
 epac
 ====
 
-Embarrassingly Parallel Array Computing. EPAC is a Machine Learning Workflow
+Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow
 builder.
 
 Principles
@@ -9,19 +9,16 @@ Principles
 
 Combine Machine Learning tasks to build a workflow that may be executed in
 sequential or in parallel:
-
 - The composition of operations from the root to a leaf is a sequential pipeline.
 - Internal nodes with several children (e.g.: folds of a cross-validation) lead
   to parallel execution of the children.
 
 The execution is based on downstream/upstream data-flow paradigm:
-
 - The top-down *downstream data-flow* is processed by Nodes from root to leaf nodes.
   Each node is identified by a unique *primary key*, it process the downstream
   data and pass it to its children. The downstream data-flow is a simple python
   dictionary. The final results are stored (*persistence*) by the leaves using a
   *intermediary key*.
-
 - The bottom-up *upstream data-flow* start from results stored by leaves that 
   are locally reduced by nodes up to the tree's root. If no collision occurs
   in the upstream between intermediary keys results are simply moved up without
@@ -32,20 +29,26 @@ The execution is based on downstream/upstream data-flow paradigm:
   refit a model using the best arguments.
 
 
-Application Programing interface
+Application programing interface
 --------------------------------
 
-- **Task**: a task is an object that implements 3 methods:
-  - `fit(...)`
-  - `predict(...)`
-  - `score(...)`
-
-- Node ::= Seq | ParMethods | ParGrid | ParCV | ParPerm
-- Seq(Task, [Tasks]*)
-- ParMethods(Task, [Tasks]*)
-- ParGrid(Task, [Tasks]*)
-- ParCV(Node|Task, n_folds, y, reducer)
-- ParPerm(Node|Task, n_perms, y, permute, reducer)
+- `Estimator`: an object that implements 4 methods:
+  - `fit(...)`: return `self`
+  - `transform(...)`: is called only if the estimator is a non-leaf node.
+     return an array or a dictionary. In the latter case, the returned dictionary
+     is added to the downstream data-flow.
+  - `predict(...)`: is called only if the estimator is a leaf node. It return an 
+     array or a dictionary. In the latter the returned dictionary is added to 
+     results.
+  - `score(...)`: is called only if the estimator is a leaf node. It return an 
+     scalar or a dictionary. In the latter the returned dictionary is added to 
+     results.
+- `Node ::=` `Seq | ParMethods | ParGrid | ParCV | ParPerm`
+- `Seq(Estimator+)`
+- `ParMethods(Estimator+)`
+- `ParGrid(Estimator+)`
+- `ParCV(Node|Estimator, n_folds, y, reducer)`
+- `ParPerm(Node|Estimator, n_perms, y, permute, reducer)`
 
 
 
@@ -66,4 +69,3 @@ They reslice the downstream data-flow.
 They do nothing on the upstream data-flow.
 
 Reducers: process upstream data-flow.
-
