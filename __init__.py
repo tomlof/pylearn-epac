@@ -15,15 +15,15 @@ from .utils import dict_diff
 from .reducers import SummaryStat, PvalPermutations
 from . import sklearn_plugins
 
-__all__ = [ 'WF',
-            'Seq',
+__all__ = ['WF',
+           'Seq',
            'ParCV',
            'ParPerm',
            'ParGrid',
            'ParMethods',
            "SummaryStat",
            "PvalPermutations",
-           'sklearn_plugins'
+           'sklearn_plugins',
            'conf',
            'debug',
            'ds_split',

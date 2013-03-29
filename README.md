@@ -1,45 +1,49 @@
 epac
 ====
 
-Embarrassingly Parallel Array Computing
+Embarrassingly Parallel Array Computing. EPAC is a Machine Learning Workflow
+builder.
 
 Principles
 ----------
 
-Combine Machine Learning operations to build an execution tree of tasks that may
-be executed in sequential or in parallel:
+Combine Machine Learning tasks to build a workflow that may be executed in
+sequential or in parallel:
 
 - The composition of operations from the root to a leaf is a sequential pipeline.
-
 - Internal nodes with several children (e.g.: folds of a cross-validation) lead
   to parallel execution of the children.
 
-The execution is based on dataflow paradigm:
+The execution is based on downstream/upstream data-flow paradigm:
 
-- The top-down "downstream" data-flow is processed by "Mappers" from root to leaf node. 
-  The final outputs are stored using a unique (primary) key. Those outputs are
-  the input of the "upstream" flow. Typically, data blocs will be splitted into
-  train and test sets, filtered and predictions will be produced by the leaves.
+- The top-down *downstream data-flow* is processed by Nodes from root to leaf nodes.
+  Each node is identified by a unique *primary key*, it process the downstream
+  data and pass it to its children. The downstream data-flow is a simple python
+  dictionary. The final results are stored (*persistence*) by the leaves using a
+  *intermediary key*.
 
-- The bootum-up "upstream" data-flow: reduces (locally) and combine results up
-  to the tree's root. Typically, predictions will be concatenated or summarized
-  by computing scores from leaves to root.
-
-Key
----
-
-Persistence
------------
-
-- Split = Resampling
-- Tasks = Mapper = etimators
-
-Tree = Pipelines
+- The bottom-up *upstream data-flow* start from results stored by leaves that 
+  are locally reduced by nodes up to the tree's root. If no collision occurs
+  in the upstream between intermediary keys results are simply moved up without
+  interactions. If collision occurs, children results with similar intermediary key
+  are aggregated (stacked) together. User may define a *reducer* that will be 
+  applied to each (intermediary key, result) pair. Typically reducer will perform
+  statistics (average over CV-folds, compute p-values over permutations) or will
+  refit a model using the best arguments.
 
 
-Data-flow
-- top-down (down)stream split based on data-resampling
-- bootum-up (up)stream : local reduce to combine local results
+Application Programing interface
+--------------------------------
+
+    Task
+    Node ::= Seq | ParMethods | ParGrid | ParCV | ParPerm
+    Seq(Task, [Tasks]*)
+    ParMethods(Task, [Tasks]*)
+    ParGrid(Task, [Tasks]*)
+    ParCV(Node|Task, n_folds, y, reducer)
+    ParPerm(Node|Task, n_perms, y, permute, reducer)
+
+
 
 Details
 -------

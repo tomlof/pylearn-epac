@@ -4,29 +4,18 @@ Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard.duchesnay@cea.fr
 """
-# run workflow.py
-
-import numpy as np
-X = np.asarray([[1, 2], [3, 4], [5, 6], [7, 8], [-1, -2], [-3, -4], [-5, -6], [-7, -8]])
-y = np.asarray([1, 1, 1, 1, -1, -1, -1, -1])
 
 from sklearn import datasets
-iris = datasets.load_iris()
-
-# Add the noisy data to the informative features
-X = np.hstack((iris.data, np.random.normal(size=(len(iris.data), 20))))
-y = iris.target
-
-
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 
-## Build sequential Pipeline
-## =========================
+X, y = datasets.make_classification(n_samples=10,
+                                        n_features=50, n_informative=2)
 
-#from workflow import Seq
-# Simple sequential pipeline
+# Build sequential Pipeline
+# -------------------------
+
 # 2  SelectKBest
 # |
 # SVM Classifier

@@ -415,7 +415,7 @@ class WFNode(object):
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
 
-    def reduce(self, store_results=True):
+    def bottum_up(self, store_results=True):
         if conf.DEBUG:
             debug.current = self
         # Terminaison (leaf) node return results
@@ -500,6 +500,8 @@ class WFNode(object):
                                                  axis_name=arg_name,
                                                  axis_values=arg_values)
         return arg_names, arg_values, stacked
+
+    reduce = bottum_up
 
     # -------------------------------- #
     # -- I/O persistance operations -- #

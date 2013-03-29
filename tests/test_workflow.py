@@ -90,7 +90,7 @@ class TestWorkFlow(unittest.TestCase):
                 for key in keys:
                     clf = clfs[key]
                     clf.fit(X_train, y_p_train)
-                    R2[key]['pred_y'][perm_nb][fold_nb] = clf.predict(X_test) + 1
+                    R2[key]['pred_y'][perm_nb][fold_nb] = clf.predict(X_test)
                     R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
                     R2[key]['train_score_y'][perm_nb][fold_nb] =\
                         clf.score(X_train, y_p_train)
