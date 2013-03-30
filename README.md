@@ -52,8 +52,7 @@ Application programing interface
         from sklearn.svm import SVC
         from sklearn.lda import LDA
         from sklearn.feature_selection import SelectKBest
-        X, y = datasets.make_classification(n_samples=10,
-               n_features=50, n_informative=2)
+        X, y = datasets.make_classification(n_samples=10, n_features=50, n_informative=2)
         # 2  SelectKBest
         # |
         # SVM Classifier
@@ -66,6 +65,18 @@ Application programing interface
    reducer (if provided) and results are passed up to the parrent node. It ensure
    that their are collisions between children intermediary by trying to differentiate
    them using arguments.
+
+   *Multi-classifiers
+        #    Par    ParMethods (Splitter)
+        #  /   \
+        # LDA  SVM  Classifiers (Estimator)
+        from epac import ParMethods
+        multi = ParMethods(LDA(),  SVC(kernel="linear"))
+        multi.fit(X=X, y=y)
+        multi.predict(X=X)
+        # Do both
+        multi.fit_predict(X=X, y=y)
+
 - `ParGrid(Node+)`: Similar to `ParMethods` but Nodes should be of the same types
    and differs only with their arguments. This way 
 - `ParCV(Node, n_folds, y, reducer)`: 
