@@ -49,11 +49,11 @@ Application programing interface
 - `Seq(Node+)`: Build pipepline with sequential execution of `Nodes`.
 
 
-    from sklearn import datasets
-    from sklearn.svm import SVC
-    from sklearn.lda import LDA
-    from sklearn.feature_selection import SelectKBest
-    X, y = datasets.make_classification(n_samples=10,
+        from sklearn import datasets
+        from sklearn.svm import SVC
+        from sklearn.lda import LDA
+        from sklearn.feature_selection import SelectKBest
+        X, y = datasets.make_classification(n_samples=10,
                                         n_features=50, n_informative=2)
                                         
 - `ParMethods(Node+, reducer)`: Build workflow with parallel execution of `Nodes`.
