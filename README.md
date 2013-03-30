@@ -66,7 +66,7 @@ Application programing interface
    that their are collisions between children intermediary by trying to differentiate
    them using arguments.
 
-   *Multi-classifiers
+        # Multi-classifiers
         #    Par    ParMethods (Splitter)
         #  /   \
         # LDA  SVM  Classifiers (Estimator)
@@ -76,6 +76,18 @@ Application programing interface
         multi.predict(X=X)
         # Do both
         multi.fit_predict(X=X, y=y)
+
+        # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
+        # No collisions between upstream keys, then no aggretation.
+        #     Par      MultiMethod (Splitter)
+        #  /   |   \
+        # 1    5   10  SelectKBest (Estimator)
+        # |    |    |
+        # SVM SVM SVM  Classifiers (Estimator)
+        anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
+            [1, 5, 10]])
+        anovas_svm.fit_predict(X=X, y=y)
+        anovas_svm.reduce()
 
 - `ParGrid(Node+)`: Similar to `ParMethods` but Nodes should be of the same types
    and differs only with their arguments. This way 
