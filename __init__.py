@@ -8,7 +8,7 @@ Created on Wed Jan 23 13:58:21 2013
 
 from .workflow import WF, Seq, ParCV, ParPerm, ParMethods, ParGrid
 from .workflow import conf, debug
-from .workflow import ds_split, ds_merge
+from .workflow import xy_split, xy_merge
 from .utils import dict_diff
 
 #from .stores import obj_to_dict, dict_to_obj
@@ -26,7 +26,7 @@ __all__ = ['WF',
            'sklearn_plugins',
            'conf',
            'debug',
-           'ds_split',
-           'ds_merge',
+           'xy_split',
+           'xy_merge',
            'dict_diff'
            ]

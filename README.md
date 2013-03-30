@@ -32,23 +32,39 @@ The execution is based on downstream/upstream data-flow paradigm:
 Application programing interface
 --------------------------------
 
-- `Estimator`: an object that implements 4 methods:
-  - `fit(...)`: return `self`
-  - `transform(...)`: is called only if the estimator is a non-leaf node.
+- `Estimator`: is the basic machine-learning building-bloc of the workflow. It is
+   a user-defined object that should implements 4 methods:
+  - `fit(<keyword arguments>)`: return `self`.
+  - `transform(<keyword arguments>)`: is called only if the estimator is a non-leaf node.
      return an array or a dictionary. In the latter case, the returned dictionary
      is added to the downstream data-flow.
-  - `predict(...)`: is called only if the estimator is a leaf node. It return an 
+  - `predict(<keyword arguments>)`: is called only if the estimator is a leaf node. It return an 
      array or a dictionary. In the latter the returned dictionary is added to 
      results.
-  - `score(...)`: is called only if the estimator is a leaf node. It return an 
+  - `score(<keyword arguments>)`: is called only if the estimator is a leaf node. It return an 
      scalar or a dictionary. In the latter the returned dictionary is added to 
      results.
-- `Node ::=` `Seq | ParMethods | ParGrid | ParCV | ParPerm`
-- `Seq(Estimator+)`
-- `ParMethods(Estimator+)`
-- `ParGrid(Estimator+)`
-- `ParCV(Node|Estimator, n_folds, y, reducer)`
-- `ParPerm(Node|Estimator, n_perms, y, permute, reducer)`
+- `Node ::= Estimator | Seq | ParMethods | ParGrid | ParCV | ParPerm`. The workflow
+   is a tree, made of nodes of several types:
+- `Seq(Node+)`: Build pipepline with sequential execution of `Nodes`.
+
+
+    from sklearn import datasets
+    from sklearn.svm import SVC
+    from sklearn.lda import LDA
+    from sklearn.feature_selection import SelectKBest
+    X, y = datasets.make_classification(n_samples=10,
+                                        n_features=50, n_informative=2)
+                                        
+- `ParMethods(Node+, reducer)`: Build workflow with parallel execution of `Nodes`.
+   It is the basic parallelization node. In the bottom-up results it applies the
+   reducer (if provided) and results are passed up to the parrent node. It ensure
+   that their are collisions between children intermediary by trying to differentiate
+   them using arguments.
+- `ParGrid(Node+)`: Similar to `ParMethods` but Nodes should be of the same types
+   and differs only with their arguments. This way 
+- `ParCV(Node, n_folds, y, reducer)`: 
+- `ParPerm(Node, n_perms, y, permute, reducer)`: 
 
 
 

@@ -6,8 +6,6 @@ Epac : Embarrassingly Parallel Array Computing
 print __doc__
 
 ## Abreviations
-## ds: downstream
-## us: upstream
 ## tr: train
 ## te: test
 
@@ -62,14 +60,14 @@ def key_push(key, basename):
 ## == down-stream data-flow manipulation utils == ##
 ## ============================================== ##
 
-def ds_split(ds_kwargs):
-    """Split ds_kwargs into two dictonaries. If input dictonnary whas not build
-    with ds_merge(ds_kwargs1, ds_kwargs2) then return twice the input
+def xy_split(Xy):
+    """Split Xy into two dictonaries. If input dictonnary whas not build
+    with xy_merge(Xy1, Xy2) then return twice the input
     dictonnary.
 
     Parameters
     ----------
-    ds_kwargs: dict
+    Xy: dict
 
     Returns
     -------
@@ -77,34 +75,34 @@ def ds_split(ds_kwargs):
 
     Example
     -------
-    >>> ds_merged = ds_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
-    >>> print ds_merged
+    >>> xy_merged = xy_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    >>> print xy_merged
     {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
-    >>> print ds_split(ds_merged)
+    >>> print xy_split(xy_merged)
     ({'a': 1, 'b': 2}, {'a': 33, 'c': 55, 'b': 44})
-    >>> print ds_split(dict(a=1, b=2))
+    >>> print xy_split(dict(a=1, b=2))
     ({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
     """
-    keys1 = [key1 for key1 in ds_kwargs if (str(key1).find("__1__%") == 0)]
-    keys2 = [key2 for key2 in ds_kwargs if (str(key2).find("__2__%") == 0)]
+    keys1 = [key1 for key1 in Xy if (str(key1).find("__1__%") == 0)]
+    keys2 = [key2 for key2 in Xy if (str(key2).find("__2__%") == 0)]
     if not keys1 and not keys2:
-        return ds_kwargs, ds_kwargs
+        return Xy, Xy
     if keys1 and keys2:
-        ds_kwargs1 = {key1.replace("__1__%", ""):
-                        ds_kwargs[key1] for key1 in keys1}
-        ds_kwargs2 = {key2.replace("__2__%", ""):
-                        ds_kwargs[key2] for key2 in keys2}
-        return ds_kwargs1, ds_kwargs2
+        Xy1 = {key1.replace("__1__%", ""):
+                        Xy[key1] for key1 in keys1}
+        Xy2 = {key2.replace("__2__%", ""):
+                        Xy[key2] for key2 in keys2}
+        return Xy1, Xy2
     raise KeyError("data-flow could not be splitted")
 
 
-def ds_merge(ds_kwargs1, ds_kwargs2):
+def xy_merge(Xy1, Xy2):
     """Merge two dict avoiding keys collision.
 
     Parameters
     ----------
-    ds_kwargs1: dict
-    ds_kwargs2: dict
+    Xy1: dict
+    Xy2: dict
 
     Returns
     -------
@@ -112,13 +110,13 @@ def ds_merge(ds_kwargs1, ds_kwargs2):
 
     Example
     -------
-    >>> ds_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    >>> xy_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
     {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
     """
-    ds_kwargs1 = {"__1__%" + str(k): ds_kwargs1[k] for k in ds_kwargs1}
-    ds_kwargs2 = {"__2__%" + str(k): ds_kwargs2[k] for k in ds_kwargs2}
-    ds_kwargs1.update(ds_kwargs2)
-    return ds_kwargs1
+    Xy1 = {"__1__%" + str(k): Xy1[k] for k in Xy1}
+    Xy2 = {"__2__%" + str(k): Xy2[k] for k in Xy2}
+    Xy1.update(Xy2)
+    return Xy1
 
 
 ## ================================= ##
@@ -179,10 +177,10 @@ class WFNode(object):
         self.combiner = None
         self.reducer = None
 
-    def finalize_init(self, **ds_kwargs):
+    def finalize_init(self, **Xy):
         """Overload this methods if init finalization is required"""
         if self.children:
-            [child.finalize_init(**ds_kwargs) for child in self.children]
+            [child.finalize_init(**Xy) for child in self.children]
 
     # --------------------- #
     # -- Tree operations -- #
@@ -314,7 +312,7 @@ class WFNode(object):
     # -- Top-down data-flow operations        -- #
     # ------------------------------------------ #
 
-    def top_down(self, func_name, recursion=True, **ds_kwargs):
+    def top_down(self, func_name, recursion=True, **Xy):
         """Top-down data processing method
 
             This method does nothing more that recursively call
@@ -331,8 +329,8 @@ class WFNode(object):
                 If it is a leaf, then recursively call the parent before
                 being executed. This a pipeline made of the path from the
                 leaf to the root is executed.
-            **ds_kwargs: dict
-                the keyword dictionnary of data flow
+            **Xy: dict
+                the keyword dictionnary of data-flow
 
             Return
             ------
@@ -342,51 +340,49 @@ class WFNode(object):
             print self.get_key(), func_name
         if conf.DEBUG:
             debug.current = self
-            debug.ds_kwargs = ds_kwargs
+            debug.Xy = Xy
         recursion = self.check_recursion(recursion)
         if recursion is RECURSION_UP:
             # recursively call parent func_name up to root
-            ds_kwargs = self.parent.top_down(func_name=func_name,
-                                             recursion=recursion, **ds_kwargs)
+            Xy = self.parent.top_down(func_name=func_name,
+                                             recursion=recursion, **Xy)
         func = getattr(self, func_name)
-        ds_kwargs = func(recursion=False, **ds_kwargs)
-        #ds_kwargs = self.transform(**ds_kwargs)
+        Xy = func(recursion=False, **Xy)
+        #Xy = self.transform(**Xy)
         if recursion is RECURSION_DOWN:
             # Call children func_name down to leaves
             ret = [child.top_down(func_name=func_name, recursion=recursion,
-                            **ds_kwargs) for child in self.children]
-            ds_kwargs = ret[0] if len(ret) == 1 else ret
-        return ds_kwargs
+                            **Xy) for child in self.children]
+            Xy = ret[0] if len(ret) == 1 else ret
+        return Xy
 
-    def fit(self, recursion=True, **ds_kwargs):
+    def fit(self, recursion=True, **Xy):
         if recursion:
-            return self.top_down(func_name="fit", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
+            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+        return Xy
 
-    def transform(self, recursion=True, **ds_kwargs):
+    def transform(self, recursion=True, **Xy):
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
+                                 **Xy)
+        return Xy
 
-    def predict(self, recursion=True, **ds_kwargs):
+    def predict(self, recursion=True, **Xy):
         if recursion:
-            return self.top_down(func_name="predict", recursion=recursion,
-                                 **ds_kwargs)
-        return ds_kwargs
+            return self.top_down(func_name="predict", recursion=recursion, **Xy)
+        return Xy
 
-    def fit_predict(self, recursion=True, **ds_kwargs):
+    def fit_predict(self, recursion=True, **Xy):
         if recursion:  # fit_predict was called in a top-down recursive context
             return self.top_down(func_name="fit_predict", recursion=recursion,
-                                 **ds_kwargs)
-        ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
-        ds_kwargs_train = self.fit(recursion=False, **ds_kwargs_train)
-        ds_kwargs_test = self.predict(recursion=False, **ds_kwargs_test)
+                                 **Xy)
+        Xy_train, Xy_test = xy_split(Xy)
+        Xy_train = self.fit(recursion=False, **Xy_train)
+        Xy_test = self.predict(recursion=False, **Xy_test)
         if self.children:
-            return ds_merge(ds_kwargs_train, ds_kwargs_test)
+            return xy_merge(Xy_train, Xy_test)
         else:
-            return ds_kwargs_test
+            return Xy_test
 
     def check_recursion(self, recursion):
         """ Check the way a recursion call can go.
@@ -638,13 +634,12 @@ class WFNodeEstimator(WFNode):
     def get_state(self):
         return self.estimator.__dict__
 
-    def fit(self, recursion=True, **ds_kwargs):
+    def fit(self, recursion=True, **Xy):
         # fit was called in a top-down recursive context
         if recursion:
-            return self.top_down(func_name="fit", recursion=recursion,
-                                 **ds_kwargs)
+            return self.top_down(func_name="fit", recursion=recursion, **Xy)
         # Regular fit
-        Xy_dict = _sub_dict(ds_kwargs, self.args_fit)
+        Xy_dict = _sub_dict(Xy, self.args_fit)
         self.estimator.fit(**Xy_dict)
         if not self.children:  # if not children compute scores
             train_score = self.estimator.score(**Xy_dict)
@@ -656,40 +651,40 @@ class WFNodeEstimator(WFNode):
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
             self.add_results(self.get_key(2), y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
-            return self.transform(recursion=False, **ds_kwargs)
+            return self.transform(recursion=False, **Xy)
         else:
             return self
 
-    def transform(self, recursion=True, **ds_kwargs):
+    def transform(self, recursion=True, **Xy):
         # transform was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
-                                 **ds_kwargs)
+                                 **Xy)
         # Regular transform:
         # catch args_transform in ds, transform, store output in a dict
-        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(ds_kwargs,
+        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy,
                                              self.args_transform)),
                        keys=self.args_transform)
         # update ds with transformed values
-        ds_kwargs.update(trn_dict)
-        return ds_kwargs
+        Xy.update(trn_dict)
+        return Xy
 
-    def predict(self, recursion=True, **ds_kwargs):
+    def predict(self, recursion=True, **Xy):
         # fit was called in a top-down recursive context
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
-                                 **ds_kwargs)
+                                 **Xy)
         if self.children:  # if children call transform
-            return self.transform(recursion=False, **ds_kwargs)
+            return self.transform(recursion=False, **Xy)
         # leaf node: do the prediction
-        X_dict = _sub_dict(ds_kwargs, self.args_predict)
+        X_dict = _sub_dict(Xy, self.args_predict)
         y_pred_arr = self.estimator.predict(**X_dict)
         y_pred_names = _list_diff(self.args_fit, self.args_predict)
         y_pred_dict = _as_dict(y_pred_arr, keys=y_pred_names)
         results = _dict_prefix_keys(conf.PREFIX_PRED, y_pred_dict)
         # If true values are provided in ds then store them and compute scores
-        if set(y_pred_names).issubset(set(ds_kwargs.keys())):
-            y_true_dict = _sub_dict(ds_kwargs, y_pred_names)
+        if set(y_pred_names).issubset(set(Xy.keys())):
+            y_true_dict = _sub_dict(Xy, y_pred_names)
             # compute scores
             X_dict.update(y_true_dict)
             test_score = self.estimator.score(**X_dict)
@@ -766,13 +761,13 @@ class ParCV(WFNodeSplitter):
         if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
 
-    def finalize_init(self, **ds_kwargs):
+    def finalize_init(self, **Xy):
         cv = None
-        if "y" in ds_kwargs:
+        if "y" in Xy:
             from sklearn.cross_validation import StratifiedKFold
-            cv = StratifiedKFold(y=ds_kwargs["y"], n_folds=self.n_folds)
-        elif "n" in ds_kwargs:
-            n = ds_kwargs["n"]
+            cv = StratifiedKFold(y=Xy["y"], n_folds=self.n_folds)
+        elif "n" in Xy:
+            n = Xy["n"]
             if n > self.n_folds:
                 from sklearn.cross_validation import KFold
                 cv = KFold(n=n, n_folds=self.n_folds,
@@ -788,13 +783,13 @@ class ParCV(WFNodeSplitter):
                 nb += 1
         # propagate down-way
         if self.children:
-            if "n" in ds_kwargs:
+            if "n" in Xy:
                 for child in self.children:
-                    ds_kwargs["n"] = len(child.slices[ParCV.SUFFIX_TRAIN])
-                    child.finalize_init(**ds_kwargs)
+                    Xy["n"] = len(child.slices[ParCV.SUFFIX_TRAIN])
+                    child.finalize_init(**Xy)
             else:
-                #ICI if n in *ds_kwargs n should be redifined
-                [child.finalize_init(**ds_kwargs) for child in
+                #ICI if n in *Xy n should be redifined
+                [child.finalize_init(**Xy) for child in
                     self.children]
 
     def get_state(self):
@@ -841,10 +836,10 @@ class ParPerm(WFNodeSplitter):
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
-    def finalize_init(self, **ds_kwargs):
-        if not "y" in ds_kwargs:
+    def finalize_init(self, **Xy):
+        if not "y" in Xy:
             raise KeyError("y is not provided to finalize the initialization")
-        y = ds_kwargs["y"]
+        y = Xy["y"]
         from epac.sklearn_plugins import Permutation
         nb = 0
         for perm in Permutation(n=y.shape[0], n_perms=self.n_perms,
@@ -853,8 +848,7 @@ class ParPerm(WFNodeSplitter):
             nb += 1
         # propagate down-way
         if self.children:
-            [child.finalize_init(**ds_kwargs) for child in
-                self.children]
+            [child.finalize_init(**Xy) for child in self.children]
 
     def get_state(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
@@ -938,13 +932,11 @@ class WFNodeRowSlicer(WFNodeSlicer):
         self.n = 0  # the dimension of that array in ds should respect
         self.apply_on = apply_on
 
-    def finalize_init(self, **ds_kwargs):
-        ds_kwargs = self.transform(recursion=False, sample_set="train",
-                                   **ds_kwargs)
+    def finalize_init(self, **Xy):
+        Xy = self.transform(recursion=False, sample_set="train", **Xy)
         # propagate down-way
         if self.children:
-            [child.finalize_init(**ds_kwargs) for child in
-                self.children]
+            [child.finalize_init(**Xy) for child in self.children]
 
     def get_state(self):
         return dict(slices=self.slices)
@@ -965,22 +957,22 @@ class WFNodeRowSlicer(WFNodeSlicer):
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
             self.n = len(self.slices)
 
-    def transform(self, recursion=True, sample_set=None, **ds_kwargs):
+    def transform(self, recursion=True, sample_set=None, **Xy):
         if not self.slices:
             raise ValueError("Slicing hasn't been initialized. "
             "Slicers constructors such as CV or Perm should be called "
             "with a sample. Ex.: CV(..., y=y), Perm(..., y=y)")
         if recursion:
             return self.top_down(func_name="transform", recursion=recursion,
-                                 **ds_kwargs)
-        data_keys = self.apply_on if self.apply_on else ds_kwargs.keys()
+                                 **Xy)
+        data_keys = self.apply_on if self.apply_on else Xy.keys()
         # filter out non-array or array with wrong dimension
         for k in data_keys:
-            if not hasattr(ds_kwargs[k], "shape") or \
-                ds_kwargs[k].shape[0] != self.n:
+            if not hasattr(Xy[k], "shape") or \
+                Xy[k].shape[0] != self.n:
                 data_keys.remove(k)
         for data_key in data_keys:  # slice input data
-            if not data_key in ds_kwargs:
+            if not data_key in Xy:
                 continue
             if isinstance(self.slices, dict):
                 if not sample_set:
@@ -991,22 +983,21 @@ class WFNodeRowSlicer(WFNodeSlicer):
                 indices = self.slices[sample_set]
             else:
                 indices = self.slices
-            ds_kwargs[data_key] = ds_kwargs[data_key][indices]
-        return ds_kwargs
+            Xy[data_key] = Xy[data_key][indices]
+        return Xy
 
-    def fit(self, recursion=True, **ds_kwargs):
+    def fit(self, recursion=True, **Xy):
         """Call transform with sample_set="train" """
         if recursion:
-            return self.top_down(func_name="fit", recursion=recursion,
-                                 **ds_kwargs)
-        return self.transform(recursion=False, sample_set="train", **ds_kwargs)
+            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+        return self.transform(recursion=False, sample_set="train", **Xy)
 
-    def predict(self, recursion=True, **ds_kwargs):
+    def predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
         if recursion:
             return self.top_down(func_name="predict", recursion=recursion,
-                                 **ds_kwargs)
-        return self.transform(recursion=False, sample_set="test", **ds_kwargs)
+                                 **Xy)
+        return self.transform(recursion=False, sample_set="test", **Xy)
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -1016,7 +1007,7 @@ class WFNodeRowSlicer(WFNodeSlicer):
 
 def Seq(*args):
     """
-    Sequential execution of tasks.
+    Sequential execution of Nodes.
 
     Parameters
     ----------
