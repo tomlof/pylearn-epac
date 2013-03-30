@@ -48,18 +48,18 @@ Application programing interface
    is a tree, made of nodes of several types:
 - `Seq(Node+)`: Build pipepline with sequential execution of `Nodes`.
 
-    from sklearn import datasets
-    from sklearn.svm import SVC
-    from sklearn.lda import LDA
-    from sklearn.feature_selection import SelectKBest
-    X, y = datasets.make_classification(n_samples=10,
-           n_features=50, n_informative=2)
-    # 2  SelectKBest
-    # |
-    # SVM Classifier
-    from epac import Seq
-    pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
-    pipe.fit(X=X, y=y).predict(X=X)
+        from sklearn import datasets
+        from sklearn.svm import SVC
+        from sklearn.lda import LDA
+        from sklearn.feature_selection import SelectKBest
+        X, y = datasets.make_classification(n_samples=10,
+               n_features=50, n_informative=2)
+        # 2  SelectKBest
+        # |
+        # SVM Classifier
+        from epac import Seq
+        pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
+        pipe.fit(X=X, y=y).predict(X=X)
 
 - `ParMethods(Node+, reducer)`: Build workflow with parallel execution of `Nodes`.
    It is the basic parallelization node. In the bottom-up results it applies the
