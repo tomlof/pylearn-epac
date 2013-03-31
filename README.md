@@ -93,46 +93,46 @@ Application programing interface
    and differs only with their arguments. This way collusions occur in results
    upstream leading to aggregation (stacking into grid) of results.
 
-      from epac import ParGrid
-      svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
-      svms.fit_predict(X=X, y=y)
-      svms.reduce()
-      [l.get_key() for l in svms]
-      [l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
+        from epac import ParGrid
+        svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+        svms.fit_predict(X=X, y=y)
+        svms.reduce()
+        [l.get_key() for l in svms]
+        [l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
 
 - `ParCV(Node, n_folds, y, reducer)`: Cross-validation parallelization node.
 
-      # CV of LDA
-      #     ParCV               (Splitter)
-      #  /   |   \
-      # 0    1    2  Folds      (Slicer)
-      # |    |    |
-      # LDA LDA LDA  Classifier (Estimator)
-      from epac import ParCV
-      from epac import SummaryStat
-      cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SummaryStat())
-      cv_lda.fit_predict(X=X, y=y)
-      cv_lda.reduce()
+        # CV of LDA
+        #     ParCV               (Splitter)
+        #  /   |   \
+        # 0    1    2  Folds      (Slicer)
+        # |    |    |
+        # LDA LDA LDA  Classifier (Estimator)
+        from epac import ParCV
+        from epac import SummaryStat
+        cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SummaryStat())
+        cv_lda.fit_predict(X=X, y=y)
+        cv_lda.reduce()
 
 - `ParPerm(Node, n_perms, y, permute, reducer)`:  Permutation parallelization node.
 
-      # ParParPermutations + Cross-validation
-      # -------------------------------
-      #           ParPerm                  ParPerm (Splitter)
-      #         /     |       \
-      #        0      1       2            Samples (Slicer)
-      #       |
-      #     ParCV                          CV (Splitter)
-      #  /   |   \
-      # 0    1    2                        Folds (Slicer)
-      # |    |    |
-      # LDA LDA LDA                        Classifier (Estimator)
-      from epac import ParPerm, ParCV
-      from epac import SummaryStat, PvalPermutations
-      perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
-                          n_perms=3, permute="y", y=y, reducer=PvalPermutations())
-      perms_cv_lda.fit_predict(X=X, y=y)
-      tree.reduce()
+        # ParParPermutations + Cross-validation
+        # -------------------------------
+        #           ParPerm                  ParPerm (Splitter)
+        #         /     |       \
+        #        0      1       2            Samples (Slicer)
+        #       |
+        #     ParCV                          CV (Splitter)
+        #  /   |   \
+        # 0    1    2                        Folds (Slicer)
+        # |    |    |
+        # LDA LDA LDA                        Classifier (Estimator)
+        from epac import ParPerm, ParCV
+        from epac import SummaryStat, PvalPermutations
+        perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
+                               n_perms=3, permute="y", y=y, reducer=PvalPermutations())
+        perms_cv_lda.fit_predict(X=X, y=y)
+        tree.reduce()
 
 Details
 -------
