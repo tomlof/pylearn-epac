@@ -53,6 +53,8 @@ Application programing interface
         from sklearn.lda import LDA
         from sklearn.feature_selection import SelectKBest
         X, y = datasets.make_classification(n_samples=10, n_features=50, n_informative=2)
+        # Build sequential Pipeline
+        # -------------------------
         # 2  SelectKBest
         # |
         # SVM Classifier
@@ -67,7 +69,8 @@ Application programing interface
    them using arguments.
 
         # Multi-classifiers
-        # ParMethods    ParMethods (Splitter)
+        # -----------------
+        # ParMethods    ParMethods  (Splitter)
         #  /   \
         # LDA  SVM      Classifiers (Estimator)
         from epac import ParMethods
@@ -92,7 +95,9 @@ Application programing interface
 - `ParGrid(Node+)`: Similar to `ParMethods` but Nodes should be of the same types
    and differs only with their arguments. This way collusions occur in results
    upstream leading to aggregation (stacking into grid) of results.
-
+        #                   ParGrid                ParGrid (Splitter)
+        #                  /     \
+        # SVM(linear, C=1)  .... SVM(rbf, C=10) Classifiers (Estimator)
         from epac import ParGrid
         svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
         svms.fit_predict(X=X, y=y)
@@ -103,7 +108,8 @@ Application programing interface
 - `ParCV(Node, n_folds, y, reducer)`: Cross-validation parallelization node.
 
         # CV of LDA
-        #     ParCV               (Splitter)
+        # ---------
+        #    ParCV                (Splitter)
         #  /   |   \
         # 0    1    2  Folds      (Slicer)
         # |    |    |
@@ -116,8 +122,8 @@ Application programing interface
 
 - `ParPerm(Node, n_perms, y, permute, reducer)`:  Permutation parallelization node.
 
-        # ParParPermutations + Cross-validation
-        # -------------------------------
+        # ParPermutations + Cross-validation
+        # ----------------------------------
         #           ParPerm                  ParPerm (Splitter)
         #         /     |       \
         #        0      1       2            Samples (Slicer)

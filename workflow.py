@@ -170,10 +170,6 @@ class WFNode(object):
         # In upstream flow collisions lead to aggregation of children node
         # with the same signature.
         self.signature_args = None  # dict of args to build the node signature
-        # In upstream flow, sometime we wants to avoid collision
-        # (no aggregation) so we set this flag to True. Sometime (ParGrid)
-        # we want to creat collision and agregate children of the same name.
-        self.sign_upstream_with_args = True
         self.combiner = None
         self.reducer = None
 
@@ -258,38 +254,17 @@ class WFNode(object):
     def get_signature(self, nb=1):
         """The signature of the current Node, used to build the key.
 
-        By default primary and intermediate signatures are identical. If we
-        want to change this behavior in order to trig agregation this function
-        should be overloaded as in WFNodeSlicer.
-
+        By default primary and intermediate signatures are identical.
+        Aggregation behavior of results during up-stream can be controled here:
+        Redefine this method to create key collision and aggregation when nb=2.
         """
-        if nb is 1:  # primary signature, always sign with args if presents
-            args_str = self.get_signature_args_str()
-            args_str = "(" + args_str + ")" if args_str else ""
-            return self.get_signature_name() + args_str
-        elif nb is 2:  # intermediate signature, test if args should be used.
-            if self.sign_upstream_with_args:
-                args_str = self.get_signature_args_str()
-                args_str = "(" + args_str + ")" if args_str else ""
-                return self.get_signature_name() + args_str
-            else:
-                return self.get_signature_name()
-
-    def get_signature_name(self):
-        """The name of the current node, used to build the signature"""
-        return self.__class__.__name__
-
-    def get_signature_args(self):
-        return self.signature_args
-
-    def get_signature_args_str(self):
-        """The arguments names/values of the current node, used to build
-        the signature"""
         if not self.signature_args:
-            return ""
+            return self.__class__.__name__
         else:
-            return ",".join([str(k) + "=" + str(self.signature_args[k]) for k
-                                in self.signature_args])
+            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
+                             for k in self.signature_args])
+            args_str = "(" + args_str + ")"
+            return self.__class__.__name__ + args_str
 
     @abstractmethod
     def get_state(self):
@@ -445,14 +420,7 @@ class WFNode(object):
         # Aggregate (stack) all children results with identical
         # intermediary key, by stacking them according to
         # argumnents. Ex.: stack for a CV stack folds, for a ParGrid
-        # stack results over sevral values of each arguments
-        children_name, children_args = zip(*[(child.get_signature_name(),
-                                               child.get_signature_args())
-                                               for child in self.children])
-        # Check that children have the same name, and same argument name
-        # ie.: they differ only on argument values
-        if len(set(children_name)) != 1:
-            raise ValueError("Children have different names")
+        children_args = [child.signature_args for child in self.children]
         _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
         if diff_arg_names:
@@ -543,7 +511,8 @@ class WFNode(object):
                 clone.parent = ".."
             if hasattr(self, "estimator"):  # Always pickle estimator
                 clone.estimator = None
-                store.save(self.estimator, key_push(key, "estimator"), protocol="bin")
+                store.save(self.estimator, key_push(key, "estimator"), 
+                           protocol="bin")
             store.save(clone, key=key_push(key, conf.STORE_NODE_PREFIX))
         else:
             o = self.__dict__[attr]
@@ -616,6 +585,7 @@ class WFNodeEstimator(WFNode):
 
     def __init__(self, estimator):
         self.estimator = estimator
+        self.signature2_args_str = None
         super(WFNodeEstimator, self).__init__()
         self.args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
@@ -628,8 +598,21 @@ class WFNodeEstimator(WFNode):
         return '%s(estimator=%s)' % (self.__class__.__name__,
             self.estimator.__repr__())
 
-    def get_signature_name(self):
-        return self.estimator.__class__.__name__
+    def get_signature(self, nb=1):
+        """Overload the base name method.
+        - Use estimator.__class__.__name__
+        - If signature2_args_str is not None, use it. This way we have
+        intermediary keys collision which trig aggregation."""
+        if not self.signature_args:
+            return self.estimator.__class__.__name__
+        elif nb is 2 and self.signature2_args_str:
+            return self.estimator.__class__.__name__ + "(" + \
+                    self.signature2_args_str + ")"
+        else:
+            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
+                             for k in self.signature_args])
+            args_str = "(" + args_str + ")"
+            return self.estimator.__class__.__name__ + args_str
 
     def get_state(self):
         return self.estimator.__dict__
@@ -789,8 +772,7 @@ class ParCV(WFNodeSplitter):
                     child.finalize_init(**Xy)
             else:
                 #ICI if n in *Xy n should be redifined
-                [child.finalize_init(**Xy) for child in
-                    self.children]
+                [child.finalize_init(**Xy) for child in self.children]
 
     def get_state(self):
         return dict(n_folds=self.n_folds)
@@ -868,11 +850,11 @@ class ParMethods(WFNodeSplitter):
         if len(signatures) != len(set(signatures)):  # collision
             # in this case complete the signature finding differences
             # in children states and put it in the args attribute
-            child_cls_str = [c.get_signature_name() for c in self.children]
+            child_signatures = [c.get_signature() for c in self.children]
             child_states = [c.get_state() for c in self.children]
             # iterate over each level to solve collision
-            for cls in set(child_cls_str):
-                collision_indices = _list_indices(child_cls_str, cls)
+            for signature in set(child_signatures):
+                collision_indices = _list_indices(child_signatures, signature)
                 if len(collision_indices) == 1:  # no collision for this cls
                     continue
                 # Collision: add differences in states in the signature_args
@@ -888,10 +870,11 @@ class ParGrid(ParMethods):
     processed.
     """
     def __init__(self, *args):
-        #methods = _group_args(*args)
         super(ParGrid, self).__init__(*args)
+        # Set signature2_args_str to"*" to create collision between secondary
+        # keys see WFNodeRowSlicer.get_signature()
         for c in self.children:
-            c.sign_upstream_with_args = False
+            c.signature2_args_str = "*"
 
 
 # -------------------------------- #
@@ -903,13 +886,6 @@ class WFNodeSlicer(WFNode):
     """
     def __init__(self):
         super(WFNodeSlicer, self).__init__()
-
-    def get_signature(self, nb=1):
-        """Overload for secondary key (us data-flow), return empty str."""
-        if nb is 1:  # primary key (ds data-flow)
-            return super(WFNodeSlicer, self).get_signature(nb=1)
-        else:  # secondary key (us data-flow)
-            return ""
 
 
 class WFNodeRowSlicer(WFNodeSlicer):
@@ -941,9 +917,17 @@ class WFNodeRowSlicer(WFNodeSlicer):
     def get_state(self):
         return dict(slices=self.slices)
 
-    def get_signature_name(self):
-        """Overload the base name method"""
-        return self.signature_name
+    def get_signature(self, nb=1):
+        """Overload the base name method.
+        - use self.signature_name
+        - Provoks intermediary keys collision which trig aggregation."""
+        if nb is 1:
+            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
+                             for k in self.signature_args])
+            args_str = "(" + args_str + ")"
+            return self.signature_name + args_str
+        else:
+            return self.signature_name + "(*)"
 
     def set_sclices(self, slices):
         # convert as a list if required

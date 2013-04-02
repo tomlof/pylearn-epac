@@ -9,13 +9,10 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-
-X, y = datasets.make_classification(n_samples=10,
-                                        n_features=50, n_informative=2)
+X, y = datasets.make_classification(n_samples=10, n_features=50, n_informative=2)
 
 # Build sequential Pipeline
 # -------------------------
-
 # 2  SelectKBest
 # |
 # SVM Classifier
@@ -37,15 +34,16 @@ pipe.fit(X=X, y=y).predict(X=X)
 
 # Multi-classifiers
 # -----------------
-# ParMethods    ParMethods (Splitter)
+# ParMethods    ParMethods  (Splitter)
 #  /   \
-# LDA  SVM  Classifiers (Estimator)
+# LDA  SVM      Classifiers (Estimator)
 from epac import ParMethods
 multi = ParMethods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
 # Do both
 multi.fit_predict(X=X, y=y)
+
 
 #        ParMethods          ParMethods (Splitter)
 #          /  \
@@ -56,7 +54,7 @@ svms.reduce()
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
-#     Par      MultiMethod (Splitter)
+# ParMethods   ParMethods (Splitter)
 #  /   |   \
 # 1    5   10  SelectKBest (Estimator)
 # |    |    |
@@ -71,25 +69,23 @@ anovas_svm.reduce()
 
 # Parallelize SVM with several parameters.
 # Collisions between upstream keys, trig aggretation.
-
-#                    Par                ParGrid (Splitter)
+#                   ParGrid                ParGrid (Splitter)
 #                  /     \
 # SVM(linear, C=1)  .... SVM(rbf, C=10) Classifiers (Estimator)
 # ParGrid and PArMethods differ onlys the way they process the upstream
 # flow. With ParGrid Children differs only by theire arguments, and thus
 # are aggregated toggether
 from epac import ParGrid
-svms = ParGrid(*[SVC(kernel=kernel, C=C) for \
-    kernel in ("linear", "rbf") for C in [1, 10]])
+svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms]
-[l.get_key(2) for l in svms]  # key 2 collisions trig aggregation
+[l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
 
 # Cross-validation
-# ---------------
+# ----------------
 # CV of LDA
-#     ParCV               (Splitter)
+#    ParCV                (Splitter)
 #  /   |   \
 # 0    1    2  Folds      (Slicer)
 # |    |    |
@@ -99,6 +95,7 @@ from epac import SummaryStat
 cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SummaryStat())
 cv_lda.fit_predict(X=X, y=y)
 cv_lda.reduce()
+
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test
@@ -110,14 +107,38 @@ cv_lda.reduce()
 cv_lda.transform(X=X, sample_set="train")
 cv_lda.transform(X=X, sample_set="test")
 
-#run epac.py
-#self = cv_lda
-#task=LDA(); n_folds=3; reducer=None; kwargs = dict(n=X.shape[0])
-#self.children = []
-#ds_kwargs = kwargs
+
+# Model selection using CV: ParCV + ParGrid
+# -----------------------------------------
+from epac import ParGrid, ParCV, SummaryStat
+
+#run workflow.py
+wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
+             n_folds=3, y=y, reducer=SummaryStat())
+wf.fit_predict(X=X, y=y)
+[l for l in wf]
+l.get_key()
+l.get_key(2)
+
+
+wf = ParCV(ParMethods(*[SVC(C=C) for C in [1, 10]]),
+             n_folds=3, y=y, reducer=SummaryStat())
+wf.fit_predict(X=X, y=y)
+[l for l in wf]
+l.get_key()
+l.get_key(2)
+
+
+
+
+wf.reduce()
+self = wf
+key2 = self.results.keys()[0]
+val = self.results[key2]
+
 
 # ParParPermutations + Cross-validation
-# -------------------------------
+# -------------------------------------
 #           ParPerm                  CV (Splitter)
 #         /     |       \
 #        0      1       2            Samples (Slicer)
