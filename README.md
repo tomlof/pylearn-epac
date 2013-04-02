@@ -48,7 +48,6 @@ Application programing interface
    is a tree, made of nodes of several types:
 - `Seq(Node+)`: Build pipepline with sequential execution of `Nodes`.
 
-
         from sklearn import datasets
         from sklearn.svm import SVC
         from sklearn.lda import LDA

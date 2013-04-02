@@ -35,11 +35,9 @@ pipe.fit(X=X, y=y).predict(X=X)
 ## Parallelization
 ## ===============
 
-#from epac import Par
 # Multi-classifiers
 # -----------------
-
-#    Par    ParMethods (Splitter)
+# ParMethods    ParMethods (Splitter)
 #  /   \
 # LDA  SVM  Classifiers (Estimator)
 from epac import ParMethods
@@ -49,7 +47,7 @@ multi.predict(X=X)
 # Do both
 multi.fit_predict(X=X, y=y)
 
-#           Par          ParMethods (Splitter)
+#        ParMethods          ParMethods (Splitter)
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
