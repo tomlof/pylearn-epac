@@ -114,27 +114,17 @@ from epac import ParGrid, ParCV, SummaryStat
 
 #run workflow.py
 wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
-             n_folds=3, y=y, reducer=SummaryStat())
+             n_folds=3, y=y)
 wf.fit_predict(X=X, y=y)
 [l for l in wf]
 l.get_key()
 l.get_key(2)
-
-
-wf = ParCV(ParMethods(*[SVC(C=C) for C in [1, 10]]),
-             n_folds=3, y=y, reducer=SummaryStat())
-wf.fit_predict(X=X, y=y)
-[l for l in wf]
-l.get_key()
-l.get_key(2)
-
-
-
 
 wf.reduce()
 self = wf
 key2 = self.results.keys()[0]
-val = self.results[key2]
+result = self.results[key2]
+k = 'test_score_y'
 
 
 # ParParPermutations + Cross-validation
