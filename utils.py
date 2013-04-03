@@ -46,8 +46,8 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
    {'a': [1, 10], 'b': [2, 20]}
     """
     class ListWithMetaInfo(list):
-        __axis_name = None
-        __axis_value = None
+        axis_name = None
+        axis_values = None
     dict_of_list = dict()
     for d in list_of_dict:
         #self.children[child_idx].signature_args
@@ -62,14 +62,14 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
                 for key3 in result.keys():
                     if not key3 in dict_of_list[key2].keys():
                         dict_of_list[key2][key3] = ListWithMetaInfo()
-                        dict_of_list[key2][key3].__axis_name = axis_name
-                        dict_of_list[key2][key3].__axis_value = axis_values
+                        dict_of_list[key2][key3].axis_name = axis_name
+                        dict_of_list[key2][key3].axis_values = axis_values
                     dict_of_list[key2][key3].append(result[key3])
             else:  # simply concatenate
                 if not key2 in dict_of_list.keys():
                     dict_of_list[key2] = ListWithMetaInfo()
-                    dict_of_list[key2].__axis_name = axis_name
-                    dict_of_list[key2].__axis_value = axis_values
+                    dict_of_list[key2].axis_name = axis_name
+                    dict_of_list[key2].axis_values = axis_values
                 dict_of_list[key2].append(result)
     return dict_of_list
 

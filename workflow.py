@@ -9,6 +9,7 @@ print __doc__
 ## tr: train
 ## te: test
 
+import re
 import numpy as np
 import copy
 from abc import abstractmethod
@@ -209,18 +210,83 @@ class WFNode(object):
         return self if not self.children else \
             self.children[-1].get_rightmost_leaf()
 
-    def get_node(self, key):
-        """Return a node given a key"""
-        if key == self.get_key():
-            return self
-        for child in self.children:
-            if key.find(child.get_key()) == 0:
-                return child.get_node(key)
+    def get_node(self, key=None, regexp=None, stop_first_match=False):
+        """Return a node given a key or a list of nodes given regexp
+
+        Parameters
+        ----------
+        key: str
+
+        regexp: str
+            string with wild-cards: "*" to allow several matches.
+
+        Example
+        -------
+        >>> from epac import ParCV, ParGrid, Seq
+        >>> from sklearn.svm import SVC
+        >>> from sklearn.lda import LDA
+        >>> from sklearn.feature_selection import SelectKBest
+        >>> y = [1, 1, 2, 2]
+        >>> wf = ParCV(ParGrid(*[Seq(SelectKBest(k=k), SVC()) \
+        ...     for k in [1, 5]]), n_folds=2, y=y)
+        # List all leaves keys
+        >>> for n in wf:
+        ...     print n.get_key()
+        ...
+        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)/SVC
+        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=5)/SVC
+        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=1)/SVC
+        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=5)/SVC
+        # Get a single node using excat key match
+        >>> wf.get_node(key="ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)").get_key()
+        'ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)'
+        # Get several nodes using wild cards
+        >>> for n in wf.get_node(regexp="ParCV/*"):
+        ...         print n.get_key()
+        ...
+        ParCV/CV(nb=0)
+        ParCV/CV(nb=1)
+        >>> for n in wf.get_node(regexp="*ParCV/CV(*)/*/*/SVC"):
+        ...     print n.get_key()
+        ...
+        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)/SVC
+        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=5)/SVC
+        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=1)/SVC
+        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=5)/SVC
+        """
+        if key:
+            if key == self.get_key():
+                return self
+            for child in self.children:
+                if key.find(child.get_key()) == 0:
+                    return child.get_node(key)
+        elif regexp:
+            if isinstance(regexp, str):
+                regexp = re.compile(regexp.replace("*", ".*").\
+                             replace("(", "\(").replace(")", "\)"))
+            if regexp.match(self.get_key()):
+                return [self]
+            nodes = list()
+            for child in self.children:
+                node = child.get_node(key=None, regexp=regexp,
+                                      stop_first_match=stop_first_match)
+                if node and stop_first_match:
+                    return node[0] if isinstance(node, list) else node
+                nodes += node
+            return nodes
+        else:
+            raise ValueError("Provide at least a key for exact match"
+            "or a regexp for wild card matches")
 
     def get_path_from_root(self):
         if self.parent is None:
             return [self]
         return self.parent.get_path_from_root() + [self]
+
+    def get_path_from_node(self, node):
+        if self is node:
+            return [self]
+        return self.parent.get_path_from_node(node) + [self]
 
     def __iter__(self):
         """ Iterate over leaves"""
@@ -395,7 +461,7 @@ class WFNode(object):
                 print self.get_key(), self.results
             return self.results
         # 1) Build sub-aggregates over children
-        children_results = [child.reduce(store_results=False) for
+        children_results = [child.bottum_up(store_results=False) for
             child in self.children]
         if len(children_results) == 1:
             if store_results:
@@ -430,7 +496,7 @@ class WFNode(object):
                                           children_args)
         # Reduce results if there is a reducer
         if self.reducer:
-            results = {key2: self.reducer.reduce(key2, results[key2]) for
+            results = {key2: self.reducer.reduce(self, key2, results[key2]) for
                 key2 in results}
         if store_results:
             [self.add_results(key2, results[key2]) for key2 in results]
@@ -724,7 +790,7 @@ class ParCV(WFNodeSplitter):
         Pseudo-random number generator state used for random sampling.
 
     reducer: Reducer
-        A Reducer should inmplement the reduce(key2, val) method.
+        A Reducer should inmplement the reduce(node, key2, val) method.
     """
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"

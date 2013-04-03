@@ -110,21 +110,48 @@ cv_lda.transform(X=X, sample_set="test")
 
 # Model selection using CV: ParCV + ParGrid
 # -----------------------------------------
-from epac import ParGrid, ParCV, SummaryStat
+from epac import ParGrid, ParCV, SummaryStat, Seq
 
 #run workflow.py
-wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
-             n_folds=3, y=y)
-wf.fit_predict(X=X, y=y)
-[l for l in wf]
-l.get_key()
-l.get_key(2)
+wf = ParCV(
+        ParGrid(*[Seq(SelectKBest(k=k),
+                      ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+                for k in [1, 5, 10]]),
+           n_folds=5, y=y)
 
+#reducer=SummaryStat()
+#wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
+#             n_folds=3, y=y, reducer=SummaryStat())
+#
+#wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
+#             n_folds=3, y=y)
+wf.fit_predict(X=X, y=y)
 wf.reduce()
+
+node = wf
+key3 = wf.results.keys()[0]
+result = wf.results[key3]
+
+
+#k = 'test_score_y'
+run reducers.py
+self=CVGridSearchRefit()
+self.reduce(node, key3, result)
+
+
+result
 self = wf
-key2 = self.results.keys()[0]
-result = self.results[key2]
-k = 'test_score_y'
+key = 'ParCV/CV(*)/ParGrid/SelectKBest(*)/ParGrid/SVC(*)'
+
+
+
+
+get_node(self, key, wild_card=True)
+
+cur_key = l.get_key()
+cur_key = self.get_key()
+
+regexp.match(cur_key)
 
 
 # ParParPermutations + Cross-validation

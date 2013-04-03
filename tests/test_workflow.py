@@ -100,9 +100,10 @@ class TestWorkFlow(unittest.TestCase):
             for key in keys:
                 # Average over folds
                 R2[key]['mean_test_score_y'][perm_nb] = \
-                    np.mean(R2[key]['test_score_y'][perm_nb])
+                    np.mean(np.asarray(R2[key]['test_score_y'][perm_nb]), axis=0)
                 R2[key]['mean_train_score_y'][perm_nb] = \
-                    np.mean(R2[key]['train_score_y'][perm_nb])
+                    np.mean(np.asarray(R2[key]['train_score_y'][perm_nb]), axis=0)
+                    #np.mean(R2[key]['train_score_y'][perm_nb])
             perm_nb += 1
         # ===================
         # = Comparison
