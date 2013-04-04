@@ -103,11 +103,13 @@ class CVGridSearchRefit(Reducer):
         path = leaf.get_path_from_node(node)
         # Strip of non estimator nodes
         path = [copy.deepcopy(n) for n in path if hasattr(n, "estimator")]
+        re_argnames = re.compile(u'([\w]+)=[\w]')
         for n in path:
             n.signature_args
             args_opt
         path = Seq(*path)
-
+        
+        re_argnames.findall(n.get_signature())
         return out
 
 # self=node

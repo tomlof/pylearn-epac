@@ -129,14 +129,14 @@ wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 node = wf
-key3 = wf.results.keys()[0]
-result = wf.results[key3]
+key2 = wf.results.keys()[0]
+result = wf.results[key2]
 
 
 #k = 'test_score_y'
 run reducers.py
 self=CVGridSearchRefit()
-self.reduce(node, key3, result)
+self.reduce(node, key2, result)
 
 
 result
