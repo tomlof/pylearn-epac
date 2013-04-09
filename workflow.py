@@ -577,7 +577,7 @@ class WFNode(object):
                 clone.parent = ".."
             if hasattr(self, "estimator"):  # Always pickle estimator
                 clone.estimator = None
-                store.save(self.estimator, key_push(key, "estimator"), 
+                store.save(self.estimator, key_push(key, "estimator"),
                            protocol="bin")
             store.save(clone, key=key_push(key, conf.STORE_NODE_PREFIX))
         else:
@@ -1048,6 +1048,85 @@ class WFNodeRowSlicer(WFNodeSlicer):
             return self.top_down(func_name="predict", recursion=recursion,
                                  **Xy)
         return self.transform(recursion=False, sample_set="test", **Xy)
+
+
+class CVGridSearchRefit(WFNodeEstimator):
+    """CV grid search reducer
+
+    Average results over first axis, then find the arguments that maximize or
+    minimise a "score" over other axis.
+
+    Parameters
+    ----------
+    key3: str
+        a regular expression that match the score name to be oprimized.
+        Default is "test.+%s"
+    """ % conf.PREFIX_SCORE
+
+    def __init__(self, task, n_folds, random_state=None, reducer=None,
+                 key3="test.+" + conf.PREFIX_SCORE,
+                 arg_max=True, **kwargs):
+        cv = ParCV(task=task, n_folds=n_folds, random_state=random_state,
+                   reducer=reducer, **kwargs)
+        self.key3 = key3
+        self.arg_max = arg_max
+        
+#    def fit(self, recursion=True, **Xy):
+#        """Call transform with sample_set="train" """
+#        if recursion:
+#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+#        return self.transform(recursion=False, sample_set="train", **Xy)
+#
+#    def predict(self, recursion=True, **Xy):
+#        """Call transform  with sample_set="test" """
+#        if recursion:
+#            return self.top_down(func_name="predict", recursion=recursion,
+#                                 **Xy)
+#        return self.transform(recursion=False, sample_set="test", **Xy)
+
+    def cv_grid_search(self, key2, result):
+        #print node, key2, result
+        match_key3 = [key3 for key3 in result
+            if re.search(self.key3, str(key3))]
+        if len(match_key3) != 1:
+            raise ValueError("None or more than one tertiary key found")
+        # 1) Retrieve pairs of optimal (argument-name, value)
+        key3 = match_key3[0]
+        grid_cv = result[key3]
+        mean_cv = np.mean(np.array(grid_cv), axis=0)
+        mean_cv_opt = np.max(mean_cv) if self.arg_max else  np.min(mean_cv)
+        idx_best = np.where(mean_cv == mean_cv_opt)
+        idx_best = [idx[0] for idx in idx_best]
+        grid = grid_cv[0]
+        args_best = list()
+        while len(idx_best):
+            idx = idx_best[0]
+            args_best.append((grid.axis_name, grid.axis_values[idx]))
+            idx_best = idx_best[1:]
+            grid = grid[0]
+        #args_opt
+        # Retrieve one node that match intermediary key
+        leaf = self.get_node(regexp=key2, stop_first_match=True)
+        # get path from current node
+        path = leaf.get_path_from_node(self)
+        estimators = list()
+        for node in path:
+            if not hasattr(node, "estimator"):  # Strip off non estimator nodes
+                continue
+            estimator_args = copy.deepcopy(node.signature_args)
+            for i in xrange(len(estimator_args)):
+                arg_best = args_best[0]
+                args_best = args_best[1:]
+                print node.get_key(), "Set", arg_best[0], "=", arg_best[1]
+                estimator_args[arg_best[0]] = arg_best[1]
+            new_estimator = copy.deepcopy(node.estimator)
+            new_estimator.__dict__.update(estimator_args)
+            print "=>", new_estimator
+            estimators.append(new_estimator)
+        # Build the sequential pipeline
+        pipeline = Seq(*estimators)
+        return pipeline
+# self=node
 
 ## ======================================================================== ##
 ## ==                                                                    == ##

@@ -9,7 +9,7 @@ import copy
 import numpy as np
 import re
 from abc import abstractmethod
-from epac import conf
+from epac import conf, Seq
 
 ## ======================================================================== ##
 ## == Reducers                                                           == ##
@@ -65,54 +65,6 @@ class SummaryStat(Reducer):
         if not self.filter_out_others:
             out.update(result)
         return out
-
-
-class CVGridSearchRefit(Reducer):
-    """Reducer that select sub-result(s) according to select_regexp, and
-    reduce the sub-result(s) using the statistics stat"""
-
-    def __init__(self, key3="test.+" + conf.PREFIX_SCORE,
-                 arg_max=True):
-        self.key3 = key3
-        self.arg_max = arg_max
-
-    def reduce(self, node, key2, result):
-        #print node, key2, result
-        match_key3 = [key3 for key3 in result
-            if re.search(self.key3, str(key3))]
-        if len(match_key3) != 1:
-            raise ValueError("None or more than one tertiary key found")
-        # 1) Retrieve pairs of optimal (argument-name, value)
-        key3 = match_key3[0]
-        grid_cv = result[key3]
-        mean_cv = np.mean(np.array(grid_cv), axis=0)
-        mean_cv_opt = np.max(mean_cv) if self.arg_max else  np.min(mean_cv)
-        idx_opt = np.where(mean_cv == mean_cv_opt)
-        idx_opt = [idx[0] for idx in idx_opt]
-        grid = grid_cv[0]
-        args_opt = list()
-        while len(idx_opt):
-            idx = idx_opt[0]
-            args_opt.append((grid.axis_name, grid.axis_values[idx]))
-            idx_opt = idx_opt[1:]
-            grid = grid[0]
-        #args_opt
-        # Retrieve one node that match intermediary key
-        leaf = node.get_node(regexp=key2, stop_first_match=True)
-        # get path from current node
-        path = leaf.get_path_from_node(node)
-        # Strip of non estimator nodes
-        path = [copy.deepcopy(n) for n in path if hasattr(n, "estimator")]
-        re_argnames = re.compile(u'([\w]+)=[\w]')
-        for n in path:
-            n.signature_args
-            args_opt
-        path = Seq(*path)
-        
-        re_argnames.findall(n.get_signature())
-        return out
-
-# self=node
 
 
 class PvalPermutations(Reducer):

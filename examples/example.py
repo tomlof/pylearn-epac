@@ -9,7 +9,7 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=10, n_features=50, n_informative=2)
+X, y = datasets.make_classification(n_samples=100, n_features=500, n_informative=5)
 
 # Build sequential Pipeline
 # -------------------------
@@ -59,7 +59,7 @@ svms.reduce()
 # 1    5   10  SelectKBest (Estimator)
 # |    |    |
 # SVM SVM SVM  Classifiers (Estimator)
-anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in 
+anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
@@ -99,7 +99,7 @@ cv_lda.reduce()
 
 # A CV node is a Splitter: it as one child per fold. Each child is a slicer
 # ie.: it re-slices the downstream data-flow according into train or test
-# sample. When it is called with "fit" it uses the train samples. When it is 
+# sample. When it is called with "fit" it uses the train samples. When it is
 # called with "predict" it uses the test samples.
 # If it is called with transform, user has to precise wich sample to use. To
 # do that just add a argument sample_set="train" or "test" in the downstream
@@ -112,46 +112,24 @@ cv_lda.transform(X=X, sample_set="test")
 # -----------------------------------------
 from epac import ParGrid, ParCV, SummaryStat, Seq
 
-#run workflow.py
-wf = ParCV(
+run workflow.py
+wf = CVGridSearchRefit(
         ParGrid(*[Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+                      ParGrid(*[SVC(kernel="linear", C=C) for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]]),
            n_folds=5, y=y)
 
-#reducer=SummaryStat()
-#wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
-#             n_folds=3, y=y, reducer=SummaryStat())
-#
-#wf = ParCV(ParGrid(*[SVC(C=C) for C in [1, 10]]),
-#             n_folds=3, y=y)
-wf.fit_predict(X=X, y=y)
-wf.reduce()
-
-node = wf
-key2 = wf.results.keys()[0]
-result = wf.results[key2]
-
-
-#k = 'test_score_y'
-run reducers.py
-self=CVGridSearchRefit()
-self.reduce(node, key2, result)
-
-
-result
 self = wf
-key = 'ParCV/CV(*)/ParGrid/SelectKBest(*)/ParGrid/SVC(*)'
+super(CVGridSearchRefit, self).fit_predict(X=X, y=y)
+super(CVGridSearchRefit, self).reduce()
 
+for key2 in self.results:
+    #key2 = self.results.keys()[0]
+    #result = wf.results[key2]
+    pipeline = self.cv_grid_search(key2=key2, result=self.results[key2])
+    pipeline.fit_predict(X=X, y=y)
+    pipeline.reduce()
 
-
-
-get_node(self, key, wild_card=True)
-
-cur_key = l.get_key()
-cur_key = self.get_key()
-
-regexp.match(cur_key)
 
 
 # ParParPermutations + Cross-validation
