@@ -1066,25 +1066,50 @@ class CVGridSearchRefit(WFNodeEstimator):
     def __init__(self, task, n_folds, random_state=None, reducer=None,
                  key3="test.+" + conf.PREFIX_SCORE,
                  arg_max=True, **kwargs):
+        super(CVGridSearchRefit, self).__init__(estimator=None)
         cv = ParCV(task=task, n_folds=n_folds, random_state=random_state,
                    reducer=reducer, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max
-        
-#    def fit(self, recursion=True, **Xy):
-#        """Call transform with sample_set="train" """
-#        if recursion:
-#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-#        return self.transform(recursion=False, sample_set="train", **Xy)
-#
-#    def predict(self, recursion=True, **Xy):
-#        """Call transform  with sample_set="test" """
-#        if recursion:
-#            return self.top_down(func_name="predict", recursion=recursion,
-#                                 **Xy)
-#        return self.transform(recursion=False, sample_set="test", **Xy)
+        self.add_child(cv)  # first child is the CV
 
-    def cv_grid_search(self, key2, result):
+    def get_signature(self, nb=1):
+        return self.__class__.__name__
+
+    def fit(self, recursion=True, **Xy):
+        # Fit/predict CV grid search
+        cv_grid_search = self.children[0]
+        cv_grid_search.fit_predict(recursion=RECURSION_DOWN, **Xy)
+        #  Pump-up results
+        methods = list()
+        cv_grid_search.bottum_up(store_results=True)
+        for key2 in cv_grid_search.results:
+            print key2
+            pipeline = self.cv_grid_search(key2=key2,
+                                           result=cv_grid_search.results[key2],
+                                           cv_node=cv_grid_search)
+            methods.append(pipeline)
+        # Add children
+        to_refit = ParMethods(*methods)
+        if len(self.children) == 1:
+            self.add_child(to_refit)
+        else:
+            self.children[1] = to_refit
+        to_refit.fit(recursion=RECURSION_DOWN, **Xy)
+        return self
+
+    def predict(self, recursion=True, **Xy):
+        """Call transform  with sample_set="test" """
+        refited = self.children[1]
+        return refited.predict(recursion=RECURSION_DOWN, **Xy)
+
+    def fit_predict(self, recursion=True, **Xy):
+        Xy_train, Xy_test = xy_split(Xy)
+        self.fit(recursion=False, **Xy_train)
+        Xy_test = self.predict(recursion=False, **Xy_test)
+        return Xy_test
+
+    def cv_grid_search(self, key2, result, cv_node):
         #print node, key2, result
         match_key3 = [key3 for key3 in result
             if re.search(self.key3, str(key3))]
@@ -1106,9 +1131,9 @@ class CVGridSearchRefit(WFNodeEstimator):
             grid = grid[0]
         #args_opt
         # Retrieve one node that match intermediary key
-        leaf = self.get_node(regexp=key2, stop_first_match=True)
+        leaf = cv_node.get_node(regexp=key2, stop_first_match=True)
         # get path from current node
-        path = leaf.get_path_from_node(self)
+        path = leaf.get_path_from_node(cv_node)
         estimators = list()
         for node in path:
             if not hasattr(node, "estimator"):  # Strip off non estimator nodes
@@ -1117,16 +1142,17 @@ class CVGridSearchRefit(WFNodeEstimator):
             for i in xrange(len(estimator_args)):
                 arg_best = args_best[0]
                 args_best = args_best[1:]
-                print node.get_key(), "Set", arg_best[0], "=", arg_best[1]
+                #print node.get_key(), "Set", arg_best[0], "=", arg_best[1]
                 estimator_args[arg_best[0]] = arg_best[1]
             new_estimator = copy.deepcopy(node.estimator)
             new_estimator.__dict__.update(estimator_args)
-            print "=>", new_estimator
-            estimators.append(new_estimator)
+            #print "=>", new_estimator
+            new_estimator_node = WFNodeEstimator(new_estimator)
+            new_estimator_node.signature_args = estimator_args
+            estimators.append(new_estimator_node)
         # Build the sequential pipeline
         pipeline = Seq(*estimators)
         return pipeline
-# self=node
 
 ## ======================================================================== ##
 ## ==                                                                    == ##

@@ -110,27 +110,24 @@ cv_lda.transform(X=X, sample_set="test")
 
 # Model selection using CV: ParCV + ParGrid
 # -----------------------------------------
-from epac import ParGrid, ParCV, SummaryStat, Seq
-
-run workflow.py
+from epac import ParGrid, Seq, CVGridSearchRefit
+#run workflow.py
 wf = CVGridSearchRefit(
         ParGrid(*[Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C) for C in [.0001, .001, .01, .1, 1, 10]]))
+                      ParGrid(*[SVC(kernel="linear", C=C)\
+                          for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]]),
            n_folds=5, y=y)
+wf.fit_predict(X=X, y=y)
+wf.reduce()
+# results contains:
+# - CV-model selection results "CVGridSearchRefit/ParCV/*"
+# - Refited results "CVGridSearchRefit/ParMethods/*"
+print wf.results.keys()
 
-self = wf
-super(CVGridSearchRefit, self).fit_predict(X=X, y=y)
-super(CVGridSearchRefit, self).reduce()
-
-for key2 in self.results:
-    #key2 = self.results.keys()[0]
-    #result = wf.results[key2]
-    pipeline = self.cv_grid_search(key2=key2, result=self.results[key2])
-    pipeline.fit_predict(X=X, y=y)
-    pipeline.reduce()
-
-
+for k in wf.results:
+    if k.find("CVGridSearchRefit/ParMethod") == 0:
+        wf.results[k]
 
 # ParParPermutations + Cross-validation
 # -------------------------------------

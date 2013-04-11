@@ -7,6 +7,7 @@ Created on Wed Jan 23 13:58:21 2013
 
 
 from .workflow import WF, Seq, ParCV, ParPerm, ParMethods, ParGrid
+from .workflow import CVGridSearchRefit
 from .workflow import conf, debug
 from .workflow import xy_split, xy_merge
 from .utils import dict_diff
@@ -21,8 +22,9 @@ __all__ = ['WF',
            'ParPerm',
            'ParGrid',
            'ParMethods',
-           "SummaryStat",
-           "PvalPermutations",
+           'CVGridSearchRefit',
+           'SummaryStat',
+           'PvalPermutations',
            'sklearn_plugins',
            'conf',
            'debug',
