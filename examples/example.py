@@ -18,7 +18,11 @@ X, y = datasets.make_classification(n_samples=100, n_features=500, n_informative
 # SVM Classifier
 from epac import Seq
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
-pipe.fit(X=X, y=y).predict(X=X)
+pipe.fit(X=X, y=y)
+pipe.predict(X=X)
+pipe.fit_predict(X=X, y=y) # Do both
+
+
 # The downstream data-flow is a keyword arguments (dict) containing X and y.
 # It will pass through each processing node, SelectKBest(k=2) and SVC.
 # The Fit:
@@ -39,9 +43,6 @@ pipe.fit(X=X, y=y).predict(X=X)
 # LDA  SVM      Classifiers (Estimator)
 from epac import ParMethods
 multi = ParMethods(LDA(),  SVC(kernel="linear"))
-multi.fit(X=X, y=y)
-multi.predict(X=X)
-# Do both
 multi.fit_predict(X=X, y=y)
 
 

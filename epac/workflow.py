@@ -145,10 +145,6 @@ class debug:
     current = None
 
 
-RECURSION_UP = 1
-RECURSION_DOWN = 2
-
-
 ## ======================================= ##
 ## == Workflow Node base abstract class == ##
 ## ======================================= ##
@@ -382,15 +378,10 @@ class WFNode(object):
         if conf.DEBUG:
             debug.current = self
             debug.Xy = Xy
-        recursion = self.check_recursion(recursion)
-        if recursion is RECURSION_UP:
-            # recursively call parent func_name up to root
-            Xy = self.parent.top_down(func_name=func_name,
-                                             recursion=recursion, **Xy)
         func = getattr(self, func_name)
         Xy = func(recursion=False, **Xy)
         #Xy = self.transform(**Xy)
-        if recursion is RECURSION_DOWN:
+        if recursion and self.children:
             # Call children func_name down to leaves
             ret = [child.top_down(func_name=func_name, recursion=recursion,
                             **Xy) for child in self.children]
@@ -410,7 +401,8 @@ class WFNode(object):
 
     def predict(self, recursion=True, **Xy):
         if recursion:
-            return self.top_down(func_name="predict", recursion=recursion, **Xy)
+            return self.top_down(func_name="predict", recursion=recursion,
+                                 **Xy)
         return Xy
 
     def fit_predict(self, recursion=True, **Xy):
@@ -424,29 +416,6 @@ class WFNode(object):
             return xy_merge(Xy_train, Xy_test)
         else:
             return Xy_test
-
-    def check_recursion(self, recursion):
-        """ Check the way a recursion call can go.
-
-            Parameter
-            ---------
-            recursion: int, bool
-            if bool guess the way the recursion can go
-            else do nothing an return recursion."""
-        if recursion and type(recursion) is bool:
-            if not self.children:
-                recursion = RECURSION_UP
-            elif not self.parent:
-                recursion = RECURSION_DOWN
-            else:
-                raise ValueError("recursion is True, but the node is " + \
-            "neither a leaf nor the root tree, it then not possible to " + \
-            "guess if recurssion should go up or down")
-        if recursion is RECURSION_UP and not self.parent:
-            return False
-        if recursion is RECURSION_DOWN and not self.children:
-            return False
-        return recursion
 
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
@@ -552,10 +521,8 @@ class WFNode(object):
             attribute is saved, by default (None) the whole node is saved.
 
         recursion: bool
-            RECURSION_UP or RECURSION_DOWN, indicates si node should be
-            recursively saved up to the root (RECURSION_UP) or down to
-            the leaves (RECURSION_DOWN). Default (True) try to guess up
-            (if leaf) or down (if root).
+            Indicates if node should be recursively saved down to
+            the leaves . Default (True).
         """
         if conf.DEBUG:
             #global _N
@@ -585,11 +552,7 @@ class WFNode(object):
             # avoid saving attributes of len 0
             if not hasattr(o, "__len__") or (len(o) > 0):
                 store.save(o, key_push(key, attr))
-        recursion = self.check_recursion(recursion)
-        if recursion is RECURSION_UP:
-            # recursively call parent save up to root
-            self.parent.save(attr=attr, recursion=recursion)
-        if recursion is RECURSION_DOWN:
+        if recursion and self.children:
             # Call children save down to leaves
             [child.save(attr=attr, recursion=recursion) for child
                 in self.children]
@@ -609,11 +572,8 @@ class WFNode(object):
             For fs store juste indicate the path to the store.
 
         recursion: int, boolean
-            if True, load recursively, trying to guess the way: if node is a
-            leaf then recursively load the path to root int a bottum-up maner.
-            If the node is a root recursively load the whole tree in a top-down
-            manner.
-            if int should be: RECURSION_UP or RECURSION_DOWN
+            Indicates if node should be recursively loaded down to
+            the leaves . Default (True).
         """
         if key is None:  # assume fs store, and point on the root of the store
             key = key_join(prot=conf.KEY_PROT_FS, path=store)
@@ -622,16 +582,7 @@ class WFNode(object):
         node = loaded.pop(conf.STORE_NODE_PREFIX)
         node.__dict__.update(loaded)
         # Check for attributes to load
-        #attribs = store.load(key_push(key, conf.STORE_ATTRIB_PREFIX))
-        #if len(attribs) > 1:
-        # children contain basename string: Save the string a recursively
-        # walk/load children
-        recursion = node.check_recursion(recursion)
-        if recursion is RECURSION_UP:
-            parent_key = key_pop(key)
-            parent = WF.load(key=parent_key, recursion=recursion)
-            parent.add_child(node)
-        if recursion is RECURSION_DOWN:
+        if recursion and node.children:
             children = node.children
             node.children = list()
             for child in children:
@@ -1079,7 +1030,7 @@ class CVGridSearchRefit(WFNodeEstimator):
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
         cv_grid_search = self.children[0]
-        cv_grid_search.fit_predict(recursion=RECURSION_DOWN, **Xy)
+        cv_grid_search.fit_predict(recursion=True, **Xy)
         #  Pump-up results
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
@@ -1095,13 +1046,13 @@ class CVGridSearchRefit(WFNodeEstimator):
             self.add_child(to_refit)
         else:
             self.children[1] = to_refit
-        to_refit.fit(recursion=RECURSION_DOWN, **Xy)
+        to_refit.fit(recursion=True, **Xy)
         return self
 
     def predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
         refited = self.children[1]
-        return refited.predict(recursion=RECURSION_DOWN, **Xy)
+        return refited.predict(recursion=True, **Xy)
 
     def fit_predict(self, recursion=True, **Xy):
         Xy_train, Xy_test = xy_split(Xy)
@@ -1129,7 +1080,6 @@ class CVGridSearchRefit(WFNodeEstimator):
             args_best.append((grid.axis_name, grid.axis_values[idx]))
             idx_best = idx_best[1:]
             grid = grid[0]
-        #args_opt
         # Retrieve one node that match intermediary key
         leaf = cv_node.get_node(regexp=key2, stop_first_match=True)
         # get path from current node
