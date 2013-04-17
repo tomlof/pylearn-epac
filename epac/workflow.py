@@ -1002,8 +1002,7 @@ class WFNodeRowSlicer(WFNodeSlicer):
 
 
 class CVGridSearchRefit(WFNodeEstimator):
-    """Cross-validation + grid-search then refit
-    with optimals parameters.
+    """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
     minimise a "score" over other axis.
