@@ -856,9 +856,9 @@ class ParPerm(WFNodeSplitter):
 class ParMethods(WFNodeSplitter):
     """Parallelization is based on several runs of different methods
     """
-    def __init__(self, *args):
+    def __init__(self, *tasks):
         super(ParMethods, self).__init__()
-        for task in args:
+        for task in tasks:
             task = copy.deepcopy(task)
             task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
             self.add_child(task)
@@ -886,8 +886,8 @@ class ParGrid(ParMethods):
     """Similar to ParMethods except the way that the upstream data-flow is
     processed.
     """
-    def __init__(self, *args):
-        super(ParGrid, self).__init__(*args)
+    def __init__(self, *tasks):
+        super(ParGrid, self).__init__(*tasks)
         # Set signature2_args_str to"*" to create collision between secondary
         # keys see WFNodeRowSlicer.get_signature()
         for c in self.children:
@@ -1014,11 +1014,12 @@ class CVGridSearchRefit(WFNodeEstimator):
         Default is "test.+%s"
     """ % conf.PREFIX_SCORE
 
-    def __init__(self, task, n_folds, random_state=None, reducer=None,
+    def __init__(self, *tasks, n_folds, random_state=None, reducer=None,
                  key3="test.+" + conf.PREFIX_SCORE,
                  arg_max=True, **kwargs):
         super(CVGridSearchRefit, self).__init__(estimator=None)
-        cv = ParCV(task=task, n_folds=n_folds, random_state=random_state,
+        grid = ParGrid(tasks) if len(tasks) is not 1 else tasks[0]
+        cv = ParCV(task=grid, n_folds=n_folds, random_state=random_state,
                    reducer=reducer, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max

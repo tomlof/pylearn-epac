@@ -112,6 +112,13 @@ cv_lda.transform(X=X, sample_set="test")
 # Model selection using CV: ParCV + ParGrid
 # -----------------------------------------
 from epac import ParGrid, Seq, CVGridSearchRefit
+
+run epac/workflow.py
+wf = CVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
+           n_folds=5, y=y)
+wf.fit_predict(X=X, y=y)
+wf.reduce()
+
 #run workflow.py
 wf = CVGridSearchRefit(
         ParGrid(*[Seq(SelectKBest(k=k),
