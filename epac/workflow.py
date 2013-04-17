@@ -1002,31 +1002,33 @@ class WFNodeRowSlicer(WFNodeSlicer):
 
 
 class CVGridSearchRefit(WFNodeEstimator):
-    """CV grid search reducer
+    """Cross-validation + grid-search then refit
+    with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
     minimise a "score" over other axis.
 
     Parameters
     ----------
+
+    See ParCV parameters
+
     key3: str
         a regular expression that match the score name to be oprimized.
         Default is "test.+%s"
+
+    arg_max: boolean
+        True/False take parameters that maximize/minimize the score. Default
+        is True.
     """ % conf.PREFIX_SCORE
 
     def __init__(self, *tasks, **kwargs):
         super(CVGridSearchRefit, self).__init__(estimator=None)
-        # Ugly but necessary
-        n_folds = kwargs.pop("n_folds")  if "n_folds" in kwargs else 5
-        random_state = kwargs.pop("random_state") if "random_state"  in kwargs\
-            else None
-        reducer = kwargs.pop("reducer") if "reducer" in kwargs else None
         key3 = kwargs.pop("key3") if "key3" in kwargs \
             else "test.+" + conf.PREFIX_SCORE
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         grid = ParGrid(*tasks)
-        cv = ParCV(task=grid, n_folds=n_folds, random_state=random_state,
-                   reducer=reducer, **kwargs)
+        cv = ParCV(task=grid, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max
         self.add_child(cv)  # first child is the CV
