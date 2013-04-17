@@ -1014,11 +1014,17 @@ class CVGridSearchRefit(WFNodeEstimator):
         Default is "test.+%s"
     """ % conf.PREFIX_SCORE
 
-    def __init__(self, *tasks, n_folds, random_state=None, reducer=None,
-                 key3="test.+" + conf.PREFIX_SCORE,
-                 arg_max=True, **kwargs):
+    def __init__(self, *tasks, **kwargs):
         super(CVGridSearchRefit, self).__init__(estimator=None)
-        grid = ParGrid(tasks) if len(tasks) is not 1 else tasks[0]
+        # Ugly but necessary
+        n_folds = kwargs.pop("n_folds")  if "n_folds" in kwargs else 5
+        random_state = kwargs.pop("random_state") if "random_state"  in kwargs\
+            else None
+        reducer = kwargs.pop("reducer") if "reducer" in kwargs else None
+        key3 = kwargs.pop("key3") if "key3" in kwargs \
+            else "test.+" + conf.PREFIX_SCORE
+        arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
+        grid = ParGrid(*tasks)
         cv = ParCV(task=grid, n_folds=n_folds, random_state=random_state,
                    reducer=reducer, **kwargs)
         self.key3 = key3
@@ -1111,7 +1117,7 @@ class CVGridSearchRefit(WFNodeEstimator):
 ## ==
 ## ======================================================================== ##
 
-def Seq(*args):
+def Seq(*tasks):
     """
     Sequential execution of Nodes.
 
@@ -1122,7 +1128,7 @@ def Seq(*args):
     # SEQ(WFNode [, WFNode]*)
     #args = _group_args(*args)
     root = None
-    for task in args:
+    for task in tasks:
         #task = copy.deepcopy(task)
         curr = task if isinstance(task, WFNode) else WFNodeEstimator(task)
         if not root:

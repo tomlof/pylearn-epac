@@ -112,22 +112,21 @@ cv_lda.transform(X=X, sample_set="test")
 # Model selection using CV: ParCV + ParGrid
 # -----------------------------------------
 from epac import ParGrid, Seq, CVGridSearchRefit
-
-run epac/workflow.py
+# CV + Grid search of a simple classifier
 wf = CVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
            n_folds=5, y=y)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
-#run workflow.py
-wf = CVGridSearchRefit(
-        ParGrid(*[Seq(SelectKBest(k=k),
+# CV + Grid search of a pipeline with a nested grid search
+wf = CVGridSearchRefit(*[Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C)\
                           for C in [.0001, .001, .01, .1, 1, 10]]))
-                for k in [1, 5, 10]]),
+                for k in [1, 5, 10]],
            n_folds=5, y=y)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
+
 # results contains:
 # - CV-model selection results "CVGridSearchRefit/ParCV/*"
 # - Refited results "CVGridSearchRefit/ParMethods/*"
