@@ -151,18 +151,18 @@ perms_cv_lda.fit_predict(X=X, y=y)
 tree.reduce()
 ```
 
-- `CVGridSearchRefit(Node+, n_folds, y, reducer)`:  Cross-validation + grid-search then refit with optimals parameters.
+- `ParCVGridSearchRefit(Node+, n_folds, y, reducer)`:  Cross-validation + grid-search then refit with optimals parameters.
 
 ```python
-from epac import ParGrid, Seq, CVGridSearchRefit
+from epac import ParGrid, Seq, ParCVGridSearchRefit
 # CV + Grid search of a simple classifier
-wf = CVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
+wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
            n_folds=5, y=y)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 # CV + Grid search of a pipeline with a nested grid search
-wf = CVGridSearchRefit(*[Seq(SelectKBest(k=k),
+wf = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C)\
                           for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]],

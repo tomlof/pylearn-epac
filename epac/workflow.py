@@ -1001,7 +1001,7 @@ class WFNodeRowSlicer(WFNodeSlicer):
         return self.transform(recursion=False, sample_set="test", **Xy)
 
 
-class CVGridSearchRefit(WFNodeEstimator):
+class ParCVGridSearchRefit(WFNodeEstimator):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
@@ -1022,7 +1022,7 @@ class CVGridSearchRefit(WFNodeEstimator):
     """ % conf.PREFIX_SCORE
 
     def __init__(self, *tasks, **kwargs):
-        super(CVGridSearchRefit, self).__init__(estimator=None)
+        super(ParCVGridSearchRefit, self).__init__(estimator=None)
         key3 = kwargs.pop("key3") if "key3" in kwargs \
             else "test.+" + conf.PREFIX_SCORE
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
