@@ -2,6 +2,7 @@
 Epac : Embarrassingly Parallel Array Computing
 
 @author: edouard.duchesnay@cea.fr
+@author: benoit.da_mota@inria.fr
 """
 print __doc__
 
@@ -167,7 +168,6 @@ class WFNode(object):
         # In upstream flow collisions lead to aggregation of children node
         # with the same signature.
         self.signature_args = None  # dict of args to build the node signature
-        self.combiner = None
         self.reducer = None
 
     def finalize_init(self, **Xy):

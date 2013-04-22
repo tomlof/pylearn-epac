@@ -3,6 +3,7 @@
 Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard.duchesnay@cea.fr
+@author: benoit.da_mota@inria.fr
 """
 
 from sklearn import datasets
@@ -111,7 +112,7 @@ cv_lda.transform(X=X, sample_set="test")
 
 # Model selection using CV: ParCV + ParGrid
 # -----------------------------------------
-from epac import ParGrid, Seq, CVGridSearchRefit
+from epac import ParGrid, Seq, ParCVGridSearchRefit
 # CV + Grid search of a simple classifier
 wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
            n_folds=5, y=y)
@@ -138,7 +139,7 @@ for k in wf.results:
 
 # ParParPermutations + Cross-validation
 # -------------------------------------
-#           ParPerm                  CV (Splitter)
+#           ParPerm                  Perm (Splitter)
 #         /     |       \
 #        0      1       2            Samples (Slicer)
 #       |
@@ -152,6 +153,33 @@ from epac import ParPerm, ParCV, WF
 from epac import SummaryStat, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
+
+perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
+                    n_perms=3, permute="y", y=y, reducer=PvalPermutations())
+# Save tree
+import tempfile
+perms_cv_lda.save(store=tempfile.mktemp())
+# Fit & Predict
+perms_cv_lda.fit_predict(X=X, y=y)
+# Save results
+perms_cv_lda.save(attr="results")
+key = perms_cv_lda.get_key()
+# Reload tree, all you need to know is the key
+tree = WF.load(key)
+# Reduces results
+tree.reduce()
+
+## Realistic example
+from epac import ParPerm, ParCV, WF
+from epac import SummaryStat, PvalPermutations
+
+
+# CV + Grid search of a pipeline with a nested grid search
+wf = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
+                      ParGrid(*[SVC(kernel="linear", C=C)\
+                          for C in [.0001, .001, .01, .1, 1, 10]]))
+                for k in [1, 5, 10]],
+           n_folds=5, y=y)
 
 perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations())

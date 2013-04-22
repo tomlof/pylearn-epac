@@ -3,7 +3,8 @@
 Created on Thu Mar 14 16:12:26 2013
 
 Reducers for EPAC
-@author: edouard.duchesnay@gmail.com
+@author: edouard.duchesnay@cea.fr
+@author: benoit.da_mota@inria.fr
 """
 import copy
 import numpy as np
@@ -51,7 +52,7 @@ class SummaryStat(Reducer):
         self.stat = stat
         self.filter_out_others = filter_out_others
 
-    def reduce(self,  node, key2, result):
+    def reduce(self, node, key2, result):
         if self.do_stats_on_regexp:
             select_keys = [key3 for key3 in result
                 if re.search(self.do_stats_on_regexp, str(key3))]
