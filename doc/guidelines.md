@@ -105,13 +105,12 @@ Python code format
 - No relative imports
 - Declare import standard python modules, and then add one empty line and the other externe imports (for example, aims, soma_workflow) and at the end import internal modules.
 - Use a coherent name with the module for "import something as smthg"
-- The private classes are renamed using the prefix double underscore (not yet applied). The protected method use the prefix by one underscore. For const method, 
+- The private classes are renamed using the prefix double underscore (not yet applied). The protected method use the prefix by one underscore. ??? Pour l’accès par réference const (modification de l’objet autorisé mais pas de la référence), utiliser les properties.???
 - The methods "friends" are should use the prefix with «_friend» in order to show which are protected but accessible for the architecture requirements of other classes, but not users.
 - Data with list type is defined use a name with plural form.
+- To distinguish the file name with path or not, relative or absolute, please use the belowing convention:
 - 
-- Les methodes et membres considérés comme private sont préfixés par deux underscores (règle non utilisée pour l’instant). Les methodes et membres considérés comme protected sont préfixés par un underscore. Pour l’accès par réference const (modification de l’objet autorisé mais pas de la référence), utiliser les properties.
-- Les méthodes “friends” sont préfixées par «_friend» afin d’indiquer qu’elles sont protégées mais accessible pour des besoins d’architecture à d’autres classes, mais pas aux utilisateurs.
-- Les listes sont indiquées par un nom au pluriel
+- 
 - Pour distinguer les nom de fichiers avec le path ou pas, absolu ou relatif, utiliser la convention suivante :
     * filename : le nom du fichier sans le chemin (basename)
     * filepath : le nom du fichier avec le chemin absolu
