@@ -170,6 +170,9 @@ class WFNode(object):
         self.signature_args = None  # dict of args to build the node signature
         self.reducer = None
 
+    def __repr__(self):
+        return self.get_key()
+
     def finalize_init(self, **Xy):
         """Overload this methods if init finalization is required"""
         if self.children:
@@ -611,9 +614,9 @@ class WFNodeEstimator(WFNode):
         self.args_transform = _func_get_args_names(self.estimator.transform) \
             if hasattr(self.estimator, "transform") else None
 
-    def __repr__(self):
-        return '%s(estimator=%s)' % (self.__class__.__name__,
-            self.estimator.__repr__())
+#    def __repr__(self):
+#        return '%s(estimator=%s)' % (self.__class__.__name__,
+#            self.estimator.__repr__())
 
     def get_signature(self, nb=1):
         """Overload the base name method.
