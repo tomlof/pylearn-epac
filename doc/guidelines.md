@@ -68,7 +68,7 @@ Liste des tags pour la première ligne
 General guideline
 ==================
 
-- Functio is better to be smaller (there may be problems since 25 lines)
+- Function is better to be smaller (there may be problems since 25 lines)
 - Discriminant names are preferable for functions, classes, files or a set of files. Because it is easy to debug and rename.
 - Limit your comments. It is better to make functions or code more clearly by using an explicate name rather than adding a comment.
 - Some comments are very important, for example opition explanation.
@@ -91,3 +91,28 @@ Tag list for the first line
 - **PERF**: When improving performance,
 - **TEST**: When adding or modifying a test,
 - **WRG**: When correcting a warning.
+
+
+
+Python code format
+=====================
+
+- Pep 8 
+- Recommandly donot go beyond 80 characters per line, strictly donot go beyond 120 characters.
+- A module contains 400 lines in maximum
+- All the members of an instance should be explictly declared in the function "__init__" or in the methods using the prefixs by "_init_" or called as constructor (don't add it just-in-time)
+- No "import *"
+- No relative imports
+- Declare import standard python modules, and then add one empty line and the other externe imports (for example, aims, soma_workflow) and at the end import internal modules.
+- Use a coherent name with the module for "import something as smthg"
+- The private classes are renamed using the prefix double underscore (not yet applied). The protected method use the prefix by one underscore. For const method, 
+- The methods "friends" are should use the prefix with «_friend» in order to show which are protected but accessible for the architecture requirements of other classes, but not users.
+- Data with list type is defined use a name with plural form.
+- 
+- Les methodes et membres considérés comme private sont préfixés par deux underscores (règle non utilisée pour l’instant). Les methodes et membres considérés comme protected sont préfixés par un underscore. Pour l’accès par réference const (modification de l’objet autorisé mais pas de la référence), utiliser les properties.
+- Les méthodes “friends” sont préfixées par «_friend» afin d’indiquer qu’elles sont protégées mais accessible pour des besoins d’architecture à d’autres classes, mais pas aux utilisateurs.
+- Les listes sont indiquées par un nom au pluriel
+- Pour distinguer les nom de fichiers avec le path ou pas, absolu ou relatif, utiliser la convention suivante :
+    * filename : le nom du fichier sans le chemin (basename)
+    * filepath : le nom du fichier avec le chemin absolu
+    * file_relative_path : le nom du fichier avec un chemin relatif 
