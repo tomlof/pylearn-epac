@@ -64,3 +64,18 @@ Liste des tags pour la première ligne
 - **TEST**: When adding or modifying a test,
 - **WRG**: When correcting a warning.
 
+
+General guideline
+==================
+
+- Functio is better to be smaller (there may be problems since 25 lines)
+- Discriminant names are preferable for functions, classes, files or a set of files. Because it is easy to debug and rename.
+- Limit your comments. It is better to make functions or code more clearly by using an explicate name rather than adding a comment.
+- Some comments are very important, for example opition explanation.
+- Use standard comments which are easy to search and which are adequate for : TODO, FIXME, XXX
+- Boy scout rule: Leave the campground cleaner than you found it. 
+- Write your method from top to down. For example: if a method A use a method B, write A and then B.
+- Class order: top -> down, code client -> code interne (???), high level code -> low level code.
+- Don't leave prints (proper stdout)
+
+
