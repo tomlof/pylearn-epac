@@ -312,6 +312,8 @@ class WFNode(object):
         """
         if not self.parent:
             return key_push(self.store, self.get_signature(nb=nb))
+        elif not hasattr(self.parent, "get_key"):
+            return key_push(str(self.parent), self.get_signature(nb=nb))
         else:
             return key_push(self.parent.get_key(nb=nb),
                             self.get_signature(nb=nb))
@@ -584,13 +586,24 @@ class WFNode(object):
         loaded = store.load(key)
         node = loaded.pop(conf.STORE_NODE_PREFIX)
         node.__dict__.update(loaded)
-        # Check for attributes to load
+        # Recursively load sub-tree
         if recursion and node.children:
             children = node.children
             node.children = list()
             for child in children:
                 child_key = key_push(key, child)
                 node.add_child(WF.load(key=child_key, recursion=recursion))
+        # Recursively load path to root
+        curr = node
+        curr_key = key
+        while recursion and curr.parent == '..':
+            curr_key = key_pop(curr_key)
+            parent = WF.load(key=curr_key, recursion=False)
+            parent.children = list()
+            parent.add_child(curr)
+            curr.parent = parent
+            #parent.add_child(cu
+            curr = parent
         return node
 
 WF = WFNode
@@ -1114,6 +1127,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         # Build the sequential pipeline
         pipeline = Seq(*estimators)
         return pipeline
+
 
 ## ======================================================================== ##
 ## ==                                                                    == ##

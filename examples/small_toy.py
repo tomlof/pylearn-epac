@@ -194,7 +194,7 @@ multi.fit(X=X, y=y)
 multi.predict(X=X)
 # Do both
 multi.fit_predict(X=X, y=y)
-from epac.workflow import conf, debug
+from epac import conf, debug
 conf.DEBUG = True  # set debug to True
 multi.fit_predict(X=X, y=y)  # re-run
 ds_kwargs = dict(X=X, y=y)  # build the down-stream data flow
