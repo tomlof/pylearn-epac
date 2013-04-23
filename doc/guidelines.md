@@ -78,4 +78,16 @@ General guideline
 - Class order: top -> down, code client -> code interne (???), high level code -> low level code.
 - Don't leave prints (proper stdout)
 
+Tag list for the first line
+---------------------------
 
+- **ENH**: When adding or improving an existing or new class in term of capabilities,
+- **COMP**: When fixing a compilation error or warning,
+- **DOC**: When starting or improving the class documentation,
+- **STYLE**: When enhancing the comments or coding style without any effect on the class behaviour,
+- **REFAC**: When refactoring without adding new capabilities,
+- **BUG**: When fixing a bug (if the bug is identified in the tracker, please add the reference),
+- **INST**: When fixing issues related to installation,
+- **PERF**: When improving performance,
+- **TEST**: When adding or modifying a test,
+- **WRG**: When correcting a warning.
