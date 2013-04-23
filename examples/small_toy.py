@@ -10,7 +10,8 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=100, n_features=500, n_informative=5)
+X, y = datasets.make_classification(n_samples=100, n_features=500,
+                                    n_informative=5)
 
 # Build sequential Pipeline
 # -------------------------
@@ -21,7 +22,7 @@ from epac import Seq
 pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
 pipe.fit(X=X, y=y)
 pipe.predict(X=X)
-pipe.fit_predict(X=X, y=y) # Do both
+pipe.fit_predict(X=X, y=y)  # Do both
 
 
 # The downstream data-flow is a keyword arguments (dict) containing X and y.
@@ -53,6 +54,8 @@ multi.fit_predict(X=X, y=y)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
+[l.get_key() for l in svms]
+[l.get_key(2) for l in svms]  # No key 2 collisions, no aggregation
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
@@ -83,6 +86,15 @@ svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms]
 [l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
+
+
+
+svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+svms.fit_predict(X=X, y=y)
+svms.reduce()
+[l.get_key() for l in svms]
+[l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
+
 
 # Cross-validation
 # ----------------
@@ -154,8 +166,12 @@ from epac import SummaryStat, PvalPermutations
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
-perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
-                    n_perms=3, permute="y", y=y, reducer=PvalPermutations())
+perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
+                    n_perms=3, permute="y", y=y, reducer=PvalPermutations(filter_out_others=False))
+                    
+[l.get_key() for l in perms_cv_lda]
+[l.get_key(2) for l in perms_cv_lda]
+
 # Save tree
 import tempfile
 perms_cv_lda.save(store=tempfile.mktemp())
@@ -169,32 +185,6 @@ tree = WF.load(key)
 # Reduces results
 tree.reduce()
 
-## Realistic example
-from epac import ParPerm, ParCV, WF
-from epac import SummaryStat, PvalPermutations
-
-
-# CV + Grid search of a pipeline with a nested grid search
-wf = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C)\
-                          for C in [.0001, .001, .01, .1, 1, 10]]))
-                for k in [1, 5, 10]],
-           n_folds=5, y=y)
-
-perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat()),
-                    n_perms=3, permute="y", y=y, reducer=PvalPermutations())
-# Save tree
-import tempfile
-perms_cv_lda.save(store=tempfile.mktemp())
-# Fit & Predict
-perms_cv_lda.fit_predict(X=X, y=y)
-# Save results
-perms_cv_lda.save(attr="results")
-key = perms_cv_lda.get_key()
-# Reload tree, all you need to know is the key
-tree = WF.load(key)
-# Reduces results
-tree.reduce()
 
 ## DEBUGGING
 ## =========
