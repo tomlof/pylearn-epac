@@ -46,7 +46,7 @@ Commit Message
 Git format
 -------------
 
-- a synthetic line should start by the below tags
+- a synthetic line should start with the below tags
 - a blank (empty) line will be ignored by git
 - a comment can be described by serveral lines 
 
