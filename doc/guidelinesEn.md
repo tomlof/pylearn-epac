@@ -9,7 +9,7 @@ Architecture
 General guideline
 ==================
 
-- Function is better to be smaller (there may be problems since 25 lines)
+- Function is better to be shorter (there may be problems since 25 lines)
 - Discriminant names are preferable for functions, classes, files or a set of files. Because it is easy to debug and rename.
 - Limit your comments. It is better to make functions or code more clearly by using an explicate name rather than adding a comment.
 - Some comments are very important, for example opition explanation.
