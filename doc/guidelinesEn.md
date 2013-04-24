@@ -1,3 +1,11 @@
+Architecture
+============
+
+- Separate components (for example, soma-workflow, pyanatomist, vip etc.). Those can be achieved by adding interfaces for each component.
+- It is better to build the interface according to the requirements of application.
+- To help separate components, it is better to image that each component can have different implementations and each external dependencies can ben replaced.
+
+
 General guideline
 ==================
 
@@ -10,20 +18,6 @@ General guideline
 - Write your method from top to down. For example: if a method A use a method B, write A and then B.
 - Class order: top -> down, code client -> code interne (???), high level code -> low level code.
 - Don't leave prints (proper stdout)
-
-Tag list for the first line
----------------------------
-
-- **ENH**: When adding or improving an existing or new class in term of capabilities,
-- **COMP**: When fixing a compilation error or warning,
-- **DOC**: When starting or improving the class documentation,
-- **STYLE**: When enhancing the comments or coding style without any effect on the class behaviour,
-- **REFAC**: When refactoring without adding new capabilities,
-- **BUG**: When fixing a bug (if the bug is identified in the tracker, please add the reference),
-- **INST**: When fixing issues related to installation,
-- **PERF**: When improving performance,
-- **TEST**: When adding or modifying a test,
-- **WRG**: When correcting a warning.
 
 
 Python code format
@@ -44,4 +38,30 @@ Python code format
     * filename : the file name without the path (basename)
     * filepath : the file name with absolute path 
     * file_relative_path : the file name with a relative path
+
+
+Commit Message
+==============
+
+Git format
+-------------
+
+- a synthetic line should start by the below tags
+- a blank (empty) line will be ignored by git
+- a comment can be described by serveral lines 
+
+Tag list for the first line
+---------------------------
+
+- **ENH**: When adding or improving an existing or new class in term of capabilities,
+- **COMP**: When fixing a compilation error or warning,
+- **DOC**: When starting or improving the class documentation,
+- **STYLE**: When enhancing the comments or coding style without any effect on the class behaviour,
+- **REFAC**: When refactoring without adding new capabilities,
+- **BUG**: When fixing a bug (if the bug is identified in the tracker, please add the reference),
+- **INST**: When fixing issues related to installation,
+- **PERF**: When improving performance,
+- **TEST**: When adding or modifying a test,
+- **WRG**: When correcting a warning.
+
 
