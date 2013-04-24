@@ -576,9 +576,9 @@ class WFNode(object):
         store: string
             For fs store juste indicate the path to the store.
 
-        recursion: int, boolean
-            Indicates if node should be recursively loaded down to
-            the leaves . Default (True).
+        recursion: boolean
+            Indicates if sub-nodes (down to the leaves) and parent nodes
+            (path up to the root) should be recursively loaded. Default (True).
         """
         if key is None:  # assume fs store, and point on the root of the store
             key = key_join(prot=conf.KEY_PROT_FS, path=store)
@@ -593,10 +593,11 @@ class WFNode(object):
             for child in children:
                 child_key = key_push(key, child)
                 node.add_child(WF.load(key=child_key, recursion=recursion))
-        # Recursively load path to root
+        # Recursively load nodes'path up to the root
         curr = node
         curr_key = key
         while recursion and curr.parent == '..':
+            #print node.get_key()
             curr_key = key_pop(curr_key)
             parent = WF.load(key=curr_key, recursion=False)
             parent.children = list()
