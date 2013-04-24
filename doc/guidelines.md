@@ -65,6 +65,11 @@ Liste des tags pour la première ligne
 - **WRG**: When correcting a warning.
 
 
+
+English Version
+==================
+
+
 General guideline
 ==================
 
@@ -93,7 +98,6 @@ Tag list for the first line
 - **WRG**: When correcting a warning.
 
 
-
 Python code format
 =====================
 
@@ -109,9 +113,7 @@ Python code format
 - The methods "friends" are should use the prefix with «_friend» in order to show which are protected but accessible for the architecture requirements of other classes, but not users.
 - Data with list type is defined use a name with plural form.
 - To distinguish the file name with path or not, relative or absolute, please use the belowing convention:
-- 
-- 
-- Pour distinguer les nom de fichiers avec le path ou pas, absolu ou relatif, utiliser la convention suivante :
-    * filename : le nom du fichier sans le chemin (basename)
-    * filepath : le nom du fichier avec le chemin absolu
-    * file_relative_path : le nom du fichier avec un chemin relatif 
+    * filename : the file name without the path (basename)
+    * filepath : the file name with absolute path 
+    * file_relative_path : the file name with a relative path
+
