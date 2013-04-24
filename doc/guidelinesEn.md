@@ -3,7 +3,7 @@ Architecture
 
 - Separate components (for example, soma-workflow, pyanatomist, vip etc.). Those can be achieved by adding interfaces for each component.
 - It is better to build the interface according to the requirements of application.
-- To help separate components, it is better to image that each component can have different implementations and each external dependencies can ben replaced.
+- To help separate components, it is better to image that each component can have different implementations and each external dependencies can be replaced.
 
 
 General guideline
