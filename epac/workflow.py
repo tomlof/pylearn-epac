@@ -127,7 +127,7 @@ def xy_merge(Xy1, Xy2):
 
 class conf:
     DEBUG = False
-    VERBOSE = False
+    TRACE_TOPDOWN = False
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
     STORE_NODE_PREFIX = "node"
@@ -378,7 +378,7 @@ class WFNode(object):
             ------
             A dictionnary of processed data
         """
-        if conf.VERBOSE:
+        if conf.TRACE_TOPDOWN:
             print self.get_key(), func_name
         if conf.DEBUG:
             debug.current = self
@@ -387,6 +387,7 @@ class WFNode(object):
         Xy = func(recursion=False, **Xy)
         #Xy = self.transform(**Xy)
         if recursion and self.children:
+            print "    DEBUG", self.children
             # Call children func_name down to leaves
             ret = [child.top_down(func_name=func_name, recursion=recursion,
                             **Xy) for child in self.children]
@@ -431,8 +432,8 @@ class WFNode(object):
             debug.current = self
         # Terminaison (leaf) node return results
         if not self.children:
-            if conf.DEBUG and conf.VERBOSE:
-                print self.get_key(), self.results
+#            if conf.DEBUG and conf.VERBOSE:
+#                print "bottum_up", self.get_key(), self.results
             return self.results
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up(store_results=False) for
@@ -453,8 +454,8 @@ class WFNode(object):
             [merge.update(item) for item in children_results]
             if store_results:
                 [self.add_results(key2, merge[key2]) for key2 in merge]
-            if conf.DEBUG and conf.VERBOSE:
-                print self.get_key(), merge
+#            if conf.DEBUG and conf.VERBOSE:
+#                print self.get_key(), merge
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -474,8 +475,8 @@ class WFNode(object):
                 key2 in results}
         if store_results:
             [self.add_results(key2, results[key2]) for key2 in results]
-        if conf.DEBUG and conf.VERBOSE:
-            print self.get_key(), results
+#        if conf.DEBUG and conf.VERBOSE:
+#            print self.get_key(), results
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
@@ -602,7 +603,7 @@ class WFNode(object):
             parent = WF.load(key=curr_key, recursion=False)
             parent.children = list()
             parent.add_child(curr)
-            curr.parent = parent
+            #curr.parent = parent
             #parent.add_child(cu
             curr = parent
         return node
@@ -1030,7 +1031,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
     See ParCV parameters
 
     key3: str
-        a regular expression that match the score name to be oprimized.
+        a regular expression that match the score name to be optimized.
         Default is "test.+%s"
 
     arg_max: boolean
@@ -1060,17 +1061,15 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
         for key2 in cv_grid_search.results:
-            print key2
             pipeline = self.cv_grid_search(key2=key2,
                                            result=cv_grid_search.results[key2],
                                            cv_node=cv_grid_search)
             methods.append(pipeline)
         # Add children
         to_refit = ParMethods(*methods)
-        if len(self.children) == 1:
-            self.add_child(to_refit)
-        else:
-            self.children[1] = to_refit
+        if len(self.children) > 1:  # remove potential previously pipe-line
+            self.children = self.children[:1]
+        self.add_child(to_refit)
         to_refit.fit(recursion=True, **Xy)
         return self
 
