@@ -6,11 +6,11 @@ Created on Wed Apr 24 11:18:19 2013
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
+@author: jinpeng.li@cea.fr
 """
 
 import sys
-import os.path
-import getopt
+import optparse
 import numpy as np
 from epac import  WF
 
@@ -20,64 +20,71 @@ def load_datasets(datasets_filepath):
     Xy = np.load(datasets_filepath)
     return {k:Xy[k] for k in Xy.keys()}
 
-def help(cmd):
-    help_str = """
-    Usage: %s [Options]
-
-    Options:
-
-      -h, --all                  Print this help.
-      -d, --datasets             Filepath to ".npz" datasets called X.
-      -f, --format               datasets format default numpy archive ".npz"
-      -k, --keys                 Key(s) of node(s) to be processed.
-      -f, --function             Function to execute. Default "fit_predict"
-    """ % os.path.basename(cmd)
-    print help_str
 
 if __name__ == "__main__":
     # parse command line options
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "d:f:k:h",
-                                   ["datasets=", "format=", "keys=", "help"])
-    except getopt.error, msg:
-        print msg
-        print "for help use --help"
-        sys.exit(2)
+    
+    parser = optparse.OptionParser()
+    
+    parser.add_option('-d', '--datasets', 
+                      help='File path to ".npz" datasets called X.')
+    parser.add_option('-f', '--format', 
+                      help='datasets format default numpy archive ".npz"')
+    parser.add_option('-k', '--keys',  
+                      help='Key(s) of node(s) to be processed.')
+    parser.add_option('-x', '--function',  
+                      help='Function to execute. Default "fit_predict"')
+                      
+    options, args = parser.parse_args(sys.argv)
+    
+    
+    # Set values to parameters
     datasets_filepath = None
     datasets_format = "npz"
     keys = None
     function = "fit_predict"
-    # Process options
-    for o, a in opts:
-        if o in ("-h", "--help"):
-            help(sys.argv[0])
-            sys.exit(0)
-        if o in ("-d", "--datasets"):
-            datasets_filepath = a
-        if o in ("-f", "--format"):
-            datasets_format = a
-        if o in ("-k", "--keys"):
-            keys = a
-        if o in ("-f", "--function"):
-            function = a
-    # Load datasets
-    print "datasets_filepath:", datasets_filepath
-    print "keys:", keys
-    if not keys:
-        raise ValueError("key(s) is not provided use: --key")
-    if not datasets_filepath:
+    
+    if options.datasets != None:
+        datasets_filepath   =repr(options.datasets)
+        # To remove quote signs in the path
+        datasets_filepath   =datasets_filepath.replace("'",'')
+        datasets_filepath   =datasets_filepath.replace('"','')
+    else:
         raise ValueError("key(s) is not provided use: --datasets")
+        
+    if options.format != None:
+        datasets_format     =repr(options.format)
+    
+    if options.keys != None:
+        keys                =repr(options.keys)
+        # To remove quote signs in the path
+        keys                =keys.replace("'",'')
+        keys                =keys.replace('"','')
+    else:
+        raise ValueError("key(s) is not provided use: --key")
+
+
+    if options.function != None:
+        function            =repr(options.function)
+
+    # Load datasets
+    # print "datasets_filepath:", datasets_filepath
+    # print "keys:", keys
     #datasets_filepath = "/tmp/tmpZ2HqYb_datasets.npz"
     #datasets_filepath="/tmp/tmpO8D3dG_datasets.npz"
     #keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
     Xy = load_datasets(datasets_filepath)
     node = WF.load(keys)
-    print "Sequentially run from root to current node"
+    
+    
+    # print "Sequentially run from root to current node"
     for parent_node in node.get_path_from_root()[:-1]:
         func = getattr(parent_node, function)
         Xy = func(recursion=False, **Xy)
-    print "Recursively run from root to current node"
+    # print "Recursively run from root to current node"
     func = getattr(node, function)
     Xy = func(recursion=True, **Xy)
-    print "Save results"
+    # print "Save results"
     node.save(attr="results")
+    
+
