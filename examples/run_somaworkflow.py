@@ -22,18 +22,22 @@ import numpy as np
 ## Setup a working directory (my_working_directory)
 my_working_directory="/tmp/my_epac_working_directory"
 
-## key_file and datasets_file should be RELATIVE path
-## it is mantory for mapping path in soma-workflow
+## key_file and datasets_file should be ***RELATIVE*** path
+## It is mandatory for mapping path in soma-workflow
 ## since my_working_directory will be changed on the cluster
 datasets_file = "./epac_datasets.npz"
 key_file="./storekeys"
 soma_workflow_file="./epac_workflow_example"
 
 
-os.chdir(my_working_directory)
+##############################################################################
+## Change the working directory 
+## so that we can use relative path in the directory my_working_directory
 
 if not os.path.isdir(my_working_directory):
     os.mkdir(my_working_directory)
+
+os.chdir(my_working_directory)
 
 
 ##############################################################################
@@ -45,6 +49,7 @@ X, y = datasets.make_classification(n_samples=100, n_features=500,
                                     n_informative=5)
                                     
 np.savez(datasets_file, X=X, y=y)
+
 
 ##############################################################################
 ## EPAC WORKFLOW
@@ -93,7 +98,6 @@ nodes = wf.get_node(regexp="*/ParPerm/*")
 #for cmd_job in cmd_jobs:
 #   os.system(cmd_job)
 
-
 ##############################################################################
 ## RUN with soma-workflow on the local computer 
 ## (c.f. http://brainvisa.info/soma/soma-workflow/)
@@ -112,7 +116,9 @@ jobs = [Job(command=[u"epac_mapper",
                      name="epac_job_key=%s"%(node.get_key()),
                      working_directory=my_working_directory) for node in nodes]
 
+
 dependencies = [ ]
+
 
 soma_workflow = Workflow(jobs=jobs, dependencies=dependencies)
 
