@@ -387,10 +387,9 @@ class WFNode(object):
         Xy = func(recursion=False, **Xy)
         #Xy = self.transform(**Xy)
         if recursion and self.children:
-            print "    DEBUG", self.children
             # Call children func_name down to leaves
             ret = [child.top_down(func_name=func_name, recursion=recursion,
-                            **Xy) for child in self.children]
+                            **Xy) for child in self.get_children_top_down()]
             Xy = ret[0] if len(ret) == 1 else ret
         return Xy
 
@@ -423,6 +422,10 @@ class WFNode(object):
         else:
             return Xy_test
 
+    def get_children_top_down(self):
+        """Return children during the top-down exection."""
+        return self.children
+
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
@@ -431,13 +434,11 @@ class WFNode(object):
         if conf.DEBUG:
             debug.current = self
         # Terminaison (leaf) node return results
-        if not self.children:
-#            if conf.DEBUG and conf.VERBOSE:
-#                print "bottum_up", self.get_key(), self.results
+        if not self.get_children_bottum_up():
             return self.results
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up(store_results=False) for
-            child in self.children]
+            child in self.get_children_bottum_up()]
         if len(children_results) == 1:
             if store_results:
                 self.add_results(self.get_key(2), children_results[0])
@@ -454,8 +455,6 @@ class WFNode(object):
             [merge.update(item) for item in children_results]
             if store_results:
                 [self.add_results(key2, merge[key2]) for key2 in merge]
-#            if conf.DEBUG and conf.VERBOSE:
-#                print self.get_key(), merge
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -475,8 +474,6 @@ class WFNode(object):
                 key2 in results}
         if store_results:
             [self.add_results(key2, results[key2]) for key2 in results]
-#        if conf.DEBUG and conf.VERBOSE:
-#            print self.get_key(), results
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
@@ -507,6 +504,10 @@ class WFNode(object):
         return arg_names, arg_values, stacked
 
     reduce = bottum_up
+
+    def get_children_bottum_up(self):
+        """Return children during the bottum-up execution."""
+        return self.children
 
     # -------------------------------- #
     # -- I/O persistance operations -- #
@@ -628,10 +629,6 @@ class WFNodeEstimator(WFNode):
             if hasattr(self.estimator, "predict") else None
         self.args_transform = _func_get_args_names(self.estimator.transform) \
             if hasattr(self.estimator, "transform") else None
-
-#    def __repr__(self):
-#        return '%s(estimator=%s)' % (self.__class__.__name__,
-#            self.estimator.__repr__())
 
     def get_signature(self, nb=1):
         """Overload the base name method.
@@ -1053,19 +1050,13 @@ class ParCVGridSearchRefit(WFNodeEstimator):
     def get_signature(self, nb=1):
         return self.__class__.__name__
 
-    def top_down(self, func_name, recursion=True, **Xy):
-        """Top-down data processing method
+    def get_children_top_down(self):
+        """Return children during the top-down exection."""
+        return []
 
-            Overload top_down, to avoid recursive execution of children.
-        """
-        if conf.TRACE_TOPDOWN:
-            print self.get_key(), func_name
-        if conf.DEBUG:
-            debug.current = self
-            debug.Xy = Xy
-        func = getattr(self, func_name)
-        Xy = func(recursion=False, **Xy)
-        return Xy
+    def get_children_bottum_up(self):
+        """Return children during the bottum-up execution."""
+        return self.children[1]
 
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
@@ -1137,6 +1128,8 @@ class ParCVGridSearchRefit(WFNodeEstimator):
             #print "=>", new_estimator
             new_estimator_node = WFNodeEstimator(new_estimator)
             new_estimator_node.signature_args = estimator_args
+            # Parameters should no appear in intermediary key
+            new_estimator_node.signature2_args_str = "*"
             estimators.append(new_estimator_node)
         # Build the sequential pipeline
         pipeline = Seq(*estimators)

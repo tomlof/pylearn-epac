@@ -17,8 +17,6 @@ X, y = datasets.make_classification(n_samples=100, n_features=500,
 from epac import ParPerm, ParCV, WF, ParCVGridSearchRefit, Seq, ParGrid
 from epac import SummaryStat, PvalPermutations
 
-#run epac/workflow.py
-
 # CV + Grid search of a pipeline with a nested grid search
 pipeline = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C)\
@@ -32,27 +30,3 @@ wf = ParPerm(ParCV(pipeline, n_folds=3, reducer=SummaryStat(filter_out_others=Fa
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations(filter_out_others=False))
 wf.fit_predict(X=X, y=y)
 wf.reduce()
-
-wf.get_node(regexp="ParPerm/*/ParCV/*/ParCVGridSearchRefit/ParMethods/SelectKBest*/SVC*")
-
-
-
-#from epac import conf, debug
-conf.DEBUG = True  # set debug to True
-conf.TRACE_TOPDOWN = True
-wf.fit_predict(X=X, y=y)
-#debug.current =None
-debug.Xy
-debug.current.fit_predict(**debug.Xy)
-
-# Save tree
-import tempfile
-wf.save(store=tempfile.mktemp())
-# Fit & Predict
-# Save results
-wf.save(attr="results")
-key = perms_cv_lda.get_key()
-# Reload tree, all you need to know is the key
-tree = WF.load(key)
-# Reduces results
-tree.reduce()
