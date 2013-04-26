@@ -17,7 +17,7 @@ X, y = datasets.make_classification(n_samples=100, n_features=500,
 from epac import ParPerm, ParCV, WF, ParCVGridSearchRefit, Seq, ParGrid
 from epac import SummaryStat, PvalPermutations
 
-run workflow.py
+#run epac/workflow.py
 
 # CV + Grid search of a pipeline with a nested grid search
 pipeline = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
@@ -30,7 +30,13 @@ pipeline = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
 
 wf = ParPerm(ParCV(pipeline, n_folds=3, reducer=SummaryStat(filter_out_others=False)),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations(filter_out_others=False))
-#wf.fit_predict(X=X, y=y)
+wf.fit_predict(X=X, y=y)
+wf.reduce()
+
+wf.get_node(regexp="ParPerm/*/ParCV/*/ParCVGridSearchRefit/ParMethods/SelectKBest*/SVC*")
+
+
+
 #from epac import conf, debug
 conf.DEBUG = True  # set debug to True
 conf.TRACE_TOPDOWN = True

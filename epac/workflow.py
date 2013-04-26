@@ -1053,6 +1053,20 @@ class ParCVGridSearchRefit(WFNodeEstimator):
     def get_signature(self, nb=1):
         return self.__class__.__name__
 
+    def top_down(self, func_name, recursion=True, **Xy):
+        """Top-down data processing method
+
+            Overload top_down, to avoid recursive execution of children.
+        """
+        if conf.TRACE_TOPDOWN:
+            print self.get_key(), func_name
+        if conf.DEBUG:
+            debug.current = self
+            debug.Xy = Xy
+        func = getattr(self, func_name)
+        Xy = func(recursion=False, **Xy)
+        return Xy
+
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
         cv_grid_search = self.children[0]
