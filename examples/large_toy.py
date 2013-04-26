@@ -14,7 +14,7 @@ X, y = datasets.make_classification(n_samples=100, n_features=500,
 
 
 ## Realistic example
-from epac import ParPerm, ParCV, WF, ParCVGridSearchRefit, Seq, ParGrid
+from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
 from epac import SummaryStat, PvalPermutations
 
 # CV + Grid search of a pipeline with a nested grid search
