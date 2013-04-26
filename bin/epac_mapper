@@ -36,7 +36,7 @@ if __name__ == "__main__":
                       help='Function to execute. Default "fit_predict"')
                       
     options, args = parser.parse_args(sys.argv)
-    
+     
     
     # Set default values to parameters
     datasets_filepath = None
@@ -87,6 +87,4 @@ if __name__ == "__main__":
     # print "Save results"
     node.save(attr="results")
     
-
-   
 

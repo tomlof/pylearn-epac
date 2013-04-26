@@ -14,20 +14,26 @@ import sys
 
 ## Reursive load
 import tempfile
-
 import numpy as np
 
-## Setup a working directory (workdir)
-## which would  be RELATIVE path
-## it is useful for mapping path in soma-workflow
+##############################################################################
+## Input paths
 
-# my_working_directory=os.path.dirname(os.path.abspath(__file__))
+## Setup a working directory (my_working_directory)
+my_working_directory="/tmp/my_epac_working_directory"
 
-my_working_directory="/tmp/my_working_directory"
+## key_file and datasets_file should be RELATIVE path
+## it is mantory for mapping path in soma-workflow
+## since my_working_directory will be changed on the cluster
+datasets_file = "./epac_datasets.npz"
+key_file="./storekeys"
+soma_workflow_file="./epac_workflow_example"
 
-workdir="."
-datasets_file = workdir+"/epac_datasets.npz"
-key_file=workdir+"/storekeys"
+
+os.chdir(my_working_directory)
+
+if not os.path.isdir(my_working_directory):
+    os.mkdir(my_working_directory)
 
 
 ##############################################################################
@@ -94,7 +100,6 @@ nodes = wf.get_node(regexp="*/ParPerm/*")
 
 from soma.workflow.client import Job, Workflow, Helper, FileTransfer
 
-
 my_working_directory = FileTransfer(is_input=True,
                                     client_path=my_working_directory,
                                     name="working directory")
@@ -107,25 +112,17 @@ jobs = [Job(command=[u"epac_mapper",
                      name="epac_job_key=%s"%(node.get_key()),
                      working_directory=my_working_directory) for node in nodes]
 
-print repr(jobs)
-print repr(my_working_directory)
-
-
 dependencies = [ ]
-
 
 soma_workflow = Workflow(jobs=jobs, dependencies=dependencies)
 
-
-# You can save the workflow into "/tmp/epac_workflow_exampl" using Helper. 
+# You can save the workflow into soma_workflow_file using Helper. 
 # This workflow can be opened by $ soma_workflow_gui
-Helper.serialize("/tmp/epac_workflow_example", soma_workflow)
-
+Helper.serialize(soma_workflow_file, soma_workflow)
 
 # Or you can submit directly to the server using WorkflowController
 # from soma.workflow.client import WorkflowController
 # controller = WorkflowController("Resource id", login, password)
 # controller.submit_workflow(workflow=workflow,
 #                          name="epac workflow")
-
 
