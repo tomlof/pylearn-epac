@@ -38,7 +38,7 @@ if __name__ == "__main__":
     options, args = parser.parse_args(sys.argv)
     
     
-    # Set values to parameters
+    # Set default values to parameters
     datasets_filepath = None
     datasets_format = "npz"
     keys = None
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     Xy = load_datasets(datasets_filepath)
     node = WF.load(keys)
     
-    
+
     # print "Sequentially run from root to current node"
     for parent_node in node.get_path_from_root()[:-1]:
         func = getattr(parent_node, function)
@@ -87,4 +87,6 @@ if __name__ == "__main__":
     # print "Save results"
     node.save(attr="results")
     
+
+   
 
