@@ -45,7 +45,7 @@ os.chdir(my_working_directory)
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=100, n_features=500,
+X, y = datasets.make_classification(n_samples=10000, n_features=500,
                                     n_informative=5)
                                     
 np.savez(datasets_file, X=X, y=y)
@@ -72,18 +72,19 @@ np.savez(datasets_file, X=X, y=y)
 
 
 from epac import ParPerm, ParCV, WF, Seq, ParGrid
+
 pipeline = Seq(SelectKBest(k=2), 
                ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
 wf = ParPerm(ParCV(pipeline, n_folds=3),
-                    n_perms=3, permute="y", y=y)
+                    n_perms=400, permute="y", y=y)
 wf.save(store=key_file)
 
 
 ##############################################################################
 ## Nodes to run
-nodes = wf.get_node(regexp="*/ParPerm/*")
+# nodes = wf.get_node(regexp="*/ParPerm/*")
 ## You can try another level
-# nodes = wf.get_node(regexp="*/ParGrid/*")
+nodes = wf.get_node(regexp="*/ParGrid/*")
 
 
 ##############################################################################
@@ -116,11 +117,10 @@ jobs = [Job(command=[u"epac_mapper",
                      name="epac_job_key=%s"%(node.get_key()),
                      working_directory=my_working_directory) for node in nodes]
 
-
 dependencies = [ ]
 
-
 soma_workflow = Workflow(jobs=jobs, dependencies=dependencies)
+
 
 # You can save the workflow into soma_workflow_file using Helper. 
 # This workflow can be opened by $ soma_workflow_gui
@@ -131,4 +131,13 @@ Helper.serialize(soma_workflow_file, soma_workflow)
 # controller = WorkflowController("Resource id", login, password)
 # controller.submit_workflow(workflow=workflow,
 #                          name="epac workflow")
+
+
+##############################################################################
+## Get results using reduce after soma_workflow finish all the jobs.
+
+# from epac import ParPerm, ParCV, WF
+# tree = WF.load(key)
+### Reduces results
+# tree.reduce()
 
