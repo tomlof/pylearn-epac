@@ -149,7 +149,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import ParCV, ParGrid
         grid = ParGrid(*tasks)
-        cv = ParCV(task=grid, **kwargs)
+        cv = ParCV(node=grid, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max
         self.add_child(cv)  # first child is the CV
