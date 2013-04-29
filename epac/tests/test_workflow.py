@@ -120,5 +120,29 @@ class TestWorkFlow(unittest.TestCase):
                 self.assertTrue(comp[key][subkey],
                 u'Diff for key: "%s" and attribute: "%s"' % (key, subkey))
 
+
+class TestParMethods(unittest.TestCase):
+
+    def test_constructor_avoid_collision_level1(self):
+        # Test that level 1 collisions are avoided
+        pm = ParMethods(*[SVC(kernel="linear", C=C) for C in [1, 10]])
+        leaves_key = [l.get_key() for l in pm.get_leaves()]
+        self.assertTrue(len(leaves_key) == len(set(leaves_key)),
+                        u'Collision could not be avoided')
+
+    def test_constructor_avoid_collision_level2(self):
+        # Test that level 2 collisions are avoided
+        pm = ParMethods(*[Seq(SelectKBest(k=2), SVC(kernel="linear", C=C))\
+                          for C in [1, 10]])
+        leaves_key = [l.get_key() for l in pm.get_leaves()]
+        self.assertTrue(len(leaves_key) == len(set(leaves_key)),
+                        u'Collision could not be avoided')
+
+    def test_constructor_cannot_avoid_collision_level2(self):
+        # This should raise an exception since collision cannot be avoided
+        self.assertRaises(ValueError, ParMethods,
+                         *[Seq(SelectKBest(k=2), SVC(kernel="linear", C=C))\
+                          for C in [1, 1]])
+
 if __name__ == '__main__':
     unittest.main()

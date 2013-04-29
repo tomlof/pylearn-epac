@@ -42,7 +42,7 @@ class ParCV(WFNodeSplitter):
 
     Parameters
     ----------
-    task: Node | Estimator
+    node: Node | Estimator
         Estimator: should implement fit/predict/score function
         Node: Seq | Par*
 
@@ -64,7 +64,7 @@ class ParCV(WFNodeSplitter):
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, task, n_folds, random_state=None, reducer=None,
+    def __init__(self, node, n_folds, random_state=None, reducer=None,
                  **kwargs):
         super(ParCV, self).__init__()
         self.n_folds = n_folds
@@ -73,9 +73,9 @@ class ParCV(WFNodeSplitter):
         self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
-            task = copy.deepcopy(task)
-            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
-            split.add_child(task)
+            node = copy.deepcopy(node)
+            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+            split.add_child(node)
         if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -118,7 +118,7 @@ class ParPerm(WFNodeSplitter):
 
     Parameters
     ----------
-    task: Node | Estimator
+    node: Node | Estimator
         Estimator: should implement fit/predict/score function
         Node: Seq | Par*
 
@@ -137,7 +137,7 @@ class ParPerm(WFNodeSplitter):
     reducer: Reducer
         A Reducer should inmplement the reduce(key2, val) method.
     """
-    def __init__(self, task, n_perms, permute="y", random_state=None,
+    def __init__(self, node, n_perms, permute="y", random_state=None,
                  reducer=None, **kwargs):
         super(ParPerm, self).__init__()
         self.n_perms = n_perms
@@ -147,9 +147,9 @@ class ParPerm(WFNodeSplitter):
         self.add_children([WFNodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
-            task = copy.deepcopy(task)
-            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
-            perm.add_child(task)
+            node = copy.deepcopy(node)
+            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+            perm.add_child(node)
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -171,41 +171,77 @@ class ParPerm(WFNodeSplitter):
         return dict(n_perms=self.n_perms, permute=self.permute)
 
 
+#class ParMethods(WFNodeSplitter):
+#    """Parallelization is based on several runs of different methods
+#    """
+#    def __init__(self, *nodes):
+#        super(ParMethods, self).__init__()
+#        for node in nodes:
+#            node = copy.deepcopy(node)
+#            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+#            self.add_child(node)
+#        # detect collisions in children signature
+#        signatures = [c.get_signature() for c in self.children]
+#        if len(signatures) != len(set(signatures)):  # collision
+#            # in this case complete the signature finding differences
+#            # in children states and put it in the args attribute
+#            child_signatures = [c.get_signature() for c in self.children]
+#            child_states = [c.get_state() for c in self.children]
+#            # iterate over each level to solve collision
+#            for signature in set(child_signatures):
+#                collision_indices = _list_indices(child_signatures, signature)
+#                if len(collision_indices) == 1:  # no collision for this cls
+#                    continue
+#                # Collision: add differences in states in the signature_args
+#                diff_arg_keys = dict_diff(*[child_states[i] for i
+#                                            in collision_indices]).keys()
+#                for child_idx in collision_indices:
+#                    self.children[child_idx].signature_args = \
+#                        _sub_dict(child_states[child_idx], diff_arg_keys)
+
+
 class ParMethods(WFNodeSplitter):
     """Parallelization is based on several runs of different methods
     """
-    def __init__(self, *tasks):
+    def __init__(self, *nodes):
         super(ParMethods, self).__init__()
-        for task in tasks:
-            task = copy.deepcopy(task)
-            task = task if isinstance(task, WFNode) else WFNodeEstimator(task)
-            self.add_child(task)
-        # detect collisions in children signature
-        signatures = [c.get_signature() for c in self.children]
-        if len(signatures) != len(set(signatures)):  # collision
-            # in this case complete the signature finding differences
-            # in children states and put it in the args attribute
-            child_signatures = [c.get_signature() for c in self.children]
-            child_states = [c.get_state() for c in self.children]
-            # iterate over each level to solve collision
-            for signature in set(child_signatures):
-                collision_indices = _list_indices(child_signatures, signature)
+        for node in nodes:
+            node = copy.deepcopy(node)
+            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+            self.add_child(node)
+        children = self.children
+        children_key = [c.get_key() for c in children]
+        # while collision, recursively explore children to avoid collision
+        # adding arguments to signature
+        while len(children_key) != len(set(children_key)) and children:
+            children_state = [c.get_state() for c in children]
+            for key in set(children_key):
+                collision_indices = _list_indices(children_key, key)
                 if len(collision_indices) == 1:  # no collision for this cls
                     continue
-                # Collision: add differences in states in the signature_args
-                diff_arg_keys = dict_diff(*[child_states[i] for i
+                diff_arg_keys = dict_diff(*[children_state[i] for i
                                             in collision_indices]).keys()
-                for child_idx in collision_indices:
-                    self.children[child_idx].signature_args = \
-                        _sub_dict(child_states[child_idx], diff_arg_keys)
+                if diff_arg_keys:
+                    for child_idx in collision_indices:
+                        children[child_idx].signature_args = \
+                            _sub_dict(children_state[child_idx], diff_arg_keys)
+                children_next = list()
+                for c in children:
+                    children_next += c.children
+                children = children_next
+                children_key = [c.get_key() for c in children]
+        leaves_key = [l.get_key() for l in self.get_leaves()]
+        if len(leaves_key) != len(set(leaves_key)):
+            raise ValueError("Some methods are identical, they could not be "
+                    "differentiated according to their arguments")
 
 
 class ParGrid(ParMethods):
     """Similar to ParMethods except the way that the upstream data-flow is
     processed.
     """
-    def __init__(self, *tasks):
-        super(ParGrid, self).__init__(*tasks)
+    def __init__(self, *nodes):
+        super(ParGrid, self).__init__(*nodes)
         # Set signature2_args_str to"*" to create collision between secondary
         # keys see WFNodeRowSlicer.get_signature()
         for c in self.children:

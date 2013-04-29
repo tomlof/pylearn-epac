@@ -17,7 +17,7 @@ X, y = datasets.make_classification(n_samples=100, n_features=500,
 from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
 from epac import SummaryStat, PvalPermutations
 
-# CV + Grid search of a pipeline with a nested grid search
+## CV + Grid search of a pipeline with a nested grid search
 pipeline = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C)\
                           for C in [.1, 1, 10]]))
