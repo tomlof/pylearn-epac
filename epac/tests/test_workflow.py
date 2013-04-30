@@ -103,7 +103,6 @@ class TestWorkFlow(unittest.TestCase):
                     np.mean(np.asarray(R2[key]['test_score_y'][perm_nb]), axis=0)
                 R2[key]['mean_train_score_y'][perm_nb] = \
                     np.mean(np.asarray(R2[key]['train_score_y'][perm_nb]), axis=0)
-                    #np.mean(R2[key]['train_score_y'][perm_nb])
             perm_nb += 1
         # ===================
         # = Comparison
@@ -168,7 +167,7 @@ class TestParCVGridSearchRefit(unittest.TestCase):
         from sklearn.pipeline import Pipeline
         from sklearn import grid_search
 
-        clfs = {'SelectKBest(*)/SVC(*)': \
+        clfs = {keys[0]: \
             Pipeline([('anova', SelectKBest(k=3)), ('svm', SVC(kernel="linear"))])}
         parameters = {'anova__k': k_values, 'svm__C': C_values}
 
@@ -231,6 +230,7 @@ class TestParCVGridSearchRefit(unittest.TestCase):
             for subkey in comp[key]:
                 self.assertTrue(comp[key][subkey],
                 u'Diff for key: "%s" and attribute: "%s"' % (key, subkey))
+
 
 class TestParMethods(unittest.TestCase):
 
