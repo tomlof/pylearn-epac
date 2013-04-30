@@ -75,9 +75,9 @@ class ParCV(WFNodeSplitter):
         self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
-            node = copy.deepcopy(node)
-            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
-            split.add_child(node)
+            node_cp = copy.deepcopy(node)
+            node_cp = node if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            split.add_child(node_cp)
         if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -141,6 +141,7 @@ class ParPerm(WFNodeSplitter):
     """
     def __init__(self, node, n_perms, permute="y", random_state=None,
                  reducer=None, **kwargs):
+        print "Call ParPerm.__init__()"
         super(ParPerm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
@@ -149,9 +150,9 @@ class ParPerm(WFNodeSplitter):
         self.add_children([WFNodeRowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
-            node = copy.deepcopy(node)
-            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
-            perm.add_child(node)
+            node_cp = copy.deepcopy(node)
+            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            perm.add_child(node_cp)
         if "y" in kwargs:
             self.finalize_init(**kwargs)
 
@@ -179,9 +180,9 @@ class ParMethods(WFNodeSplitter):
     def __init__(self, *nodes):
         super(ParMethods, self).__init__()
         for node in nodes:
-            node = copy.deepcopy(node)
-            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
-            self.add_child(node)
+            node_cp = copy.deepcopy(node)
+            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            self.add_child(node_cp)
         children = self.children
         children_key = [c.get_key() for c in children]
         # while collision, recursively explore children to avoid collision
