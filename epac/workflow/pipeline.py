@@ -1,10 +1,9 @@
 """
-Epac : Embarrassingly Parallel Array Computing
+Define "Seq": the primitive to build sequential execution of tasks.
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 """
-print __doc__
 
 ## Abreviations
 ## tr: train

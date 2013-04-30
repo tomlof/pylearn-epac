@@ -1,17 +1,12 @@
 """
-Epac : Embarrassingly Parallel Array Computing
+Base Workflow node plus keys manipulation utilities.
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 """
-print __doc__
 
-## Abreviations
-## tr: train
-## te: test
 
 import re
-#import numpy as np
 import copy
 from abc import abstractmethod
 from epac.stores import get_store

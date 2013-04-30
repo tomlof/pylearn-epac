@@ -1,10 +1,27 @@
 """
-Epac : Embarrassingly Parallel Array Computing
+Estimator is the basic machine-learning building-bloc of the workflow.
+It is a user-defined object that should implements 4 methods:
+
+
+- fit(<keyword arguments>): return self.
+
+- transform(<keyword arguments>): is called only if the estimator is a
+  non-leaf node.
+  Return an array or a dictionary. In the latter case, the returned dictionary
+  is added to the downstream data-flow.
+
+- predict(<keyword arguments>): is called only if the estimator is a leaf node.
+  It return an array or a dictionary. In the latter the returned dictionary is
+  added to results.
+
+- score(<keyword arguments>): is called only if the estimator is a leaf node.
+  It return an scalar or a dictionary. In the latter the returned dictionary is
+  added to results.
+
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 """
-print __doc__
 
 ## Abreviations
 ## tr: train
@@ -17,6 +34,7 @@ from epac.workflow.base import WFNode, conf, xy_split
 from epac.utils import _as_dict, _dict_prefix_keys
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _list_diff
+
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
@@ -118,8 +136,6 @@ class WFNodeEstimator(WFNode):
             results.update(y_test_score_dict)
             self.add_results(self.get_key(2), results)
         return y_pred_arr
-
-
 
 
 class ParCVGridSearchRefit(WFNodeEstimator):

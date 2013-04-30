@@ -1,10 +1,12 @@
 """
-Epac : Embarrassingly Parallel Array Computing
+Spliters divide the work to do into several parallel sub-tasks.
+They are of two types data spliters (ParCV, ParPerm) or tasks
+splitter (ParMethods, ParGrid).
+
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 """
-print __doc__
 
 ## Abreviations
 ## tr: train
@@ -169,35 +171,6 @@ class ParPerm(WFNodeSplitter):
 
     def get_state(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
-
-
-#class ParMethods(WFNodeSplitter):
-#    """Parallelization is based on several runs of different methods
-#    """
-#    def __init__(self, *nodes):
-#        super(ParMethods, self).__init__()
-#        for node in nodes:
-#            node = copy.deepcopy(node)
-#            node = node if isinstance(node, WFNode) else WFNodeEstimator(node)
-#            self.add_child(node)
-#        # detect collisions in children signature
-#        signatures = [c.get_signature() for c in self.children]
-#        if len(signatures) != len(set(signatures)):  # collision
-#            # in this case complete the signature finding differences
-#            # in children states and put it in the args attribute
-#            child_signatures = [c.get_signature() for c in self.children]
-#            child_states = [c.get_state() for c in self.children]
-#            # iterate over each level to solve collision
-#            for signature in set(child_signatures):
-#                collision_indices = _list_indices(child_signatures, signature)
-#                if len(collision_indices) == 1:  # no collision for this cls
-#                    continue
-#                # Collision: add differences in states in the signature_args
-#                diff_arg_keys = dict_diff(*[child_states[i] for i
-#                                            in collision_indices]).keys()
-#                for child_idx in collision_indices:
-#                    self.children[child_idx].signature_args = \
-#                        _sub_dict(child_states[child_idx], diff_arg_keys)
 
 
 class ParMethods(WFNodeSplitter):
