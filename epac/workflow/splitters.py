@@ -76,7 +76,7 @@ class ParCV(WFNodeSplitter):
                                apply_on=None) for nb in xrange(n_folds)])
         for split in self.children:
             node_cp = copy.deepcopy(node)
-            node_cp = node if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
             split.add_child(node_cp)
         if "y" in kwargs or "n" in kwargs:
             self.finalize_init(**kwargs)
@@ -141,7 +141,6 @@ class ParPerm(WFNodeSplitter):
     """
     def __init__(self, node, n_perms, permute="y", random_state=None,
                  reducer=None, **kwargs):
-        print "Call ParPerm.__init__()"
         super(ParPerm, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
