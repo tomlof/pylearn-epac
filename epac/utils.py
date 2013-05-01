@@ -6,6 +6,12 @@ Created on Thu Mar 14 16:13:26 2013
 """
 import numpy as np
 
+def range_log2(n, add_n=True):
+    """Return log2 range starting from 1"""
+    rang = (2**np.arange(int(np.floor(np.log2(n)))+1)).tolist()
+    if add_n:
+        rang.append(int(n))
+    return rang
 
 ## =========== ##
 ## == Utils == ##
