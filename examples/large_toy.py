@@ -14,18 +14,23 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import range_log2
 
+
 def do_all(**kwargs):
     random_state = 0
     k_values = range_log2(n_features, add_n=True)
+    #k_values = [3, 5]
     C_values = [1, 10]
-    X, y = datasets.make_classification(n_samples=n_samples, n_features=n_features,
+    X, y = datasets.make_classification(n_samples=n_samples, 
+                                        n_features=n_features,
                                         n_informative=n_informative)
     # ===================
     # = With EPAC
     # ===================
     from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
     from epac import SummaryStat, PvalPermutations
-    
+    from guppy import hpy;
+    hp = hpy()
+    h = hp.heap()
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
     pipeline = ParCVGridSearchRefit(*[
@@ -33,21 +38,22 @@ def do_all(**kwargs):
                       ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
                   n_folds=n_folds_nested, y=y, random_state=random_state)
+    print pipeline.stats(group_by="class")
     wf = ParPerm(
              ParCV(pipeline,
                    n_folds=n_folds,
-                   reducer=SummaryStat(filter_out_others=False)),
+                   reducer=SummaryStat(filter_out_others=True)),
              n_perms=n_perms, permute="y", y=y,
-             reducer=PvalPermutations(filter_out_others=False),
+             reducer=PvalPermutations(filter_out_others=True),
              random_state=random_state)
-    
+    print hp.heap()
+    print wf.stats(group_by="class")
     time_fit_predict = time.time()
     print "Time ellapsed, tree construction:", time_fit_predict - time_start
-    
+
     wf.fit_predict(X=X, y=y)
     time_reduce = time.time()
     print "Time ellapsed, fit predict:",  time_reduce - time_fit_predict
-    
     wf.reduce()
     time_end = time.time()
     print "Time ellapsed, reduce:",   time_end - time_reduce
@@ -57,7 +63,7 @@ if __name__ == "__main__":
     n_samples = 100
     n_features = int(1E03)
     n_informative = 5
-    n_perms = 1000
+    n_perms = 100
     n_folds = 10
     n_folds_nested = 5
     # parse command line options
@@ -70,8 +76,6 @@ if __name__ == "__main__":
     #argv = ['examples/large_toy.py', '--n_perms=10']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
-    print sys.argv
-    #print options
-    print options, type(options)#, {k: options[k] for k in options}
-    #do_all(**options)
+    print options
+    do_all(**vars(options))
 ##python -m cProfile examples/large_toy.py >/tmp/large_toy_1000perm-10cv-5cv-1000p-100n.csv

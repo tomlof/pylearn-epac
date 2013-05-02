@@ -6,8 +6,9 @@ Base Workflow node plus keys manipulation utilities.
 """
 
 
-import re
+import re, sys
 import copy
+import numpy as np
 from abc import abstractmethod
 from epac.stores import get_store
 from epac.utils import _list_union_inter_diff, _list_indices
@@ -192,6 +193,15 @@ class WFNode(object):
                 leaves = leaves + child.get_leaves()
             return leaves
 
+    def get_all_nodes(self):
+        if not self.children:
+            return [self]
+        else:
+            nodes = [self]
+            for child in self.children:
+                nodes = nodes + child.get_all_nodes()
+            return nodes
+
     def get_leftmost_leaf(self):
         """Return the left most leaf of a tree"""
         return self if not self.children else \
@@ -280,11 +290,10 @@ class WFNode(object):
             return [self]
         return self.parent.get_path_from_node(node) + [self]
 
-    def __iter__(self):
-        """ Iterate over leaves"""
-        for leaf in self.get_leaves():
-            yield leaf
-
+#    def __iter__(self):
+#        """ Iterate over leaves"""
+#        for node in self.get_all_nodes():
+#            yield node
     # --------------------- #
     # -- Key             -- #
     # --------------------- #
@@ -342,6 +351,32 @@ class WFNode(object):
         if not key2 in self.results:
             self.results[key2] = dict()
         self.results[key2].update(val_dict)
+
+    def stats(self, group_by="key", sort_by="count"):
+        """Statistics on the workflow
+            Parameters
+            ----------
+            group_by: str
+                Group by "key" or class name: "class" (default "key")
+            sort_by: str
+                Sort by "count" or "size" (default "count")
+        """
+        stat_dict = dict()
+        nodes = self.get_all_nodes()
+        for n in nodes:
+            if group_by == "class":
+                name = n.__class__.__name__
+            else:
+                name = n.get_signature()
+            if not (name in stat_dict):
+                stat_dict[name] = [0, 0]
+            stat_dict[name][0] += 1
+            stat_dict[name][1] += sys.getsizeof(n)
+        stat = [(name, stat_dict[name][0], stat_dict[name][1]) for name in
+                stat_dict]
+        idx = 2 if sort_by == "size" else 1
+        order = np.argsort([s[idx] for s in stat])[::-1]
+        return [stat[i] for i in order]
 
     # ------------------------------------------ #
     # -- Top-down data-flow operations        -- #

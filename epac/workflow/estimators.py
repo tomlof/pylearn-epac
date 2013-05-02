@@ -179,7 +179,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
 
     def get_children_bottum_up(self):
         """Return children during the bottum-up execution."""
-        return self.children[1]
+        return [self.children[1]]
 
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
