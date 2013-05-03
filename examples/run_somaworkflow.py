@@ -7,17 +7,53 @@ Created on Wed Apr 24 12:13:11 2013
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 @author: jinpeng.li@cea.fr
+
 """
 
 import os
 import sys
 
 ## Reursive load
-import tempfile
 import numpy as np
 
+
+from epac.exports import export2somaworkflow
+
 ##############################################################################
-## Input paths
+## Map process and reduce process
+
+class ExampleOptions:
+    # Map process: compute all the results
+    option_map_process="Using map process"
+    option_run_without_soma_workflow="Run without soma-workflow"
+    option_run_with_soma_workflow_gui="Run with soma_workflow_gui"
+    option_run_with_soma_workflow_code="Run with soma-workflow using code"
+    # Reduce process: get results
+    option_reduce_tree="Reduce the tree"
+    
+## You can choose an example here:
+    
+#ChosenExampleOption=ExampleOptions.option_run_without_soma_workflow
+ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_gui
+#ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_code
+#ChosenExampleOption=ExampleOptions.option_reduce_tree
+
+
+IsMapProcess=True
+
+if ChosenExampleOption==ExampleOptions.option_reduce_tree:
+    IsMapProcess=False
+
+
+##############################################################################
+## Working directory and input paths
+'''
++my_epac_working_directory
+  -epac_datasets.npz
+  +storekeys
+    +...
+  -epac_workflow_example
+'''
 
 ## Setup a working directory (my_working_directory)
 my_working_directory="/tmp/my_epac_working_directory"
@@ -45,10 +81,19 @@ os.chdir(my_working_directory)
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=10000, n_features=500,
-                                    n_informative=5)
-                                    
-np.savez(datasets_file, X=X, y=y)
+
+
+X=None
+y=None
+
+if not IsMapProcess:
+    db=np.load(datasets_file)
+    X=db["X"]
+    y=db["y"]
+else:   
+    X, y = datasets.make_classification(n_samples=10000, n_features=500,
+                                        n_informative=5)                   
+    np.savez(datasets_file, X=X, y=y)
 
 
 ##############################################################################
@@ -73,11 +118,48 @@ np.savez(datasets_file, X=X, y=y)
 
 from epac import ParPerm, ParCV, WF, Seq, ParGrid
 
-pipeline = Seq(SelectKBest(k=2), 
-               ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-wf = ParPerm(ParCV(pipeline, n_folds=3),
-                    n_perms=400, permute="y", y=y)
-wf.save(store=key_file)
+
+wf=None
+
+if IsMapProcess:
+    
+    pipeline = Seq(SelectKBest(k=2), 
+                   ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+                   
+    wf = ParPerm(ParCV(pipeline, n_folds=3),
+                        n_perms=100, permute="y", y=y)
+                        
+    wf.save(store=key_file)
+    
+    wf_key=wf.get_key()
+
+    print ("### After the map process, you can use this key to load the "
+          +"tree, and then run reduce")
+          
+    print "wf_key="+wf_key
+    
+else:
+    #########################################################################
+    ## Reduce Process
+    ## Get results using reduce after soma_workflow finish all the jobs.
+    
+    from epac.workflow.base import conf
+    
+    os.chdir(my_working_directory)
+    
+    ##### wf_key depends on your output in your map process
+    wf_key=(
+    conf.KEY_PROT_FS+
+    conf.KEY_PROT_PATH_SEP+
+    key_file+
+    os.path.sep+os.walk(key_file).next()[1][0]
+    )
+    
+    wf = WF.load(wf_key)
+    
+    if ChosenExampleOption==ExampleOptions.option_reduce_tree:
+        ## Reduces results
+        wf.reduce()
 
 
 ##############################################################################
@@ -87,57 +169,42 @@ wf.save(store=key_file)
 nodes = wf.get_node(regexp="*/ParGrid/*")
 
 
-##############################################################################
-## RUN without soma-workflow
-# Associate 1 job to each permutation
 
-#cmd_jobs = [u'epac_mapper --datasets="%s" --keys="%s"' % (
-#                           datasets_file, node.get_key()
-#                           ) for node in nodes]
-#print repr(cmd_jobs)
-#
-#for cmd_job in cmd_jobs:
-#   os.system(cmd_job)
+if ChosenExampleOption==ExampleOptions.option_run_without_soma_workflow:
+    ##############################################################################
+    ## RUN without soma-workflow
+    # Associate 1 job to each permutation
+    
+    cmd_jobs = [u'epac_mapper --datasets="%s" --keys="%s"' % (
+                               datasets_file, node.get_key()
+                               ) for node in nodes]
+    
+    print repr(cmd_jobs)
+    
+    for cmd_job in cmd_jobs:
+       os.system(cmd_job)
 
-##############################################################################
-## RUN with soma-workflow on the local computer 
-## (c.f. http://brainvisa.info/soma/soma-workflow/)
-
-from soma.workflow.client import Job, Workflow, Helper, FileTransfer
-
-my_working_directory = FileTransfer(is_input=True,
-                                    client_path=my_working_directory,
-                                    name="working directory")
-
-jobs = [Job(command=[u"epac_mapper", 
-                     u'--datasets', '"%s"' % (datasets_file),
-                     u'--keys','"%s"'% (node.get_key())], 
-                     referenced_input_files=[my_working_directory],
-                     referenced_output_files=[my_working_directory],
-                     name="epac_job_key=%s"%(node.get_key()),
-                     working_directory=my_working_directory) for node in nodes]
-
-dependencies = [ ]
-
-soma_workflow = Workflow(jobs=jobs, dependencies=dependencies)
-
-
-# You can save the workflow into soma_workflow_file using Helper. 
-# This workflow can be opened by $ soma_workflow_gui
-Helper.serialize(soma_workflow_file, soma_workflow)
-
-# Or you can submit directly to the server using WorkflowController
-# from soma.workflow.client import WorkflowController
-# controller = WorkflowController("Resource id", login, password)
-# controller.submit_workflow(workflow=workflow,
-#                          name="epac workflow")
+if (ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_gui 
+   or ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_code):
+    ##############################################################################
+    ## RUN with soma-workflow on the local computer 
+    ## (c.f. http://brainvisa.info/soma/soma-workflow/)
+    
+    
+    export2somaworkflow(datasets_file, my_working_directory, nodes, soma_workflow_file)
+    
+    
+ 
+#    if ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_code:
+#        
+#        # Or you can submit directly to the server using WorkflowController
+#        from soma.workflow.client import WorkflowController
+#        login="xxxxx"        
+#        password="xxxxx"
+#        controller = WorkflowController("Resource id", login, password)
+#        wf_id=controller.submit_workflow(workflow=soma_workflow,
+#                                  name="epac workflow")
+#        Helper.transfer_input_files(wf_id, controller)
 
 
-##############################################################################
-## Get results using reduce after soma_workflow finish all the jobs.
-
-# from epac import ParPerm, ParCV, WF
-# tree = WF.load(key)
-### Reduces results
-# tree.reduce()
 
