@@ -193,18 +193,4 @@ if (ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_gui
     
     export2somaworkflow(datasets_file, my_working_directory, nodes, soma_workflow_file)
     
-    
- 
-#    if ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_code:
-#        
-#        # Or you can submit directly to the server using WorkflowController
-#        from soma.workflow.client import WorkflowController
-#        login="xxxxx"        
-#        password="xxxxx"
-#        controller = WorkflowController("Resource id", login, password)
-#        wf_id=controller.submit_workflow(workflow=soma_workflow,
-#                                  name="epac workflow")
-#        Helper.transfer_input_files(wf_id, controller)
-
-
 
