@@ -1,10 +1,9 @@
 """
-Epac : Embarrassingly Parallel Array Computing
+Define "Seq": the primitive to build sequential execution of tasks.
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
 """
-print __doc__
 
 ## Abreviations
 ## tr: train
@@ -19,7 +18,7 @@ from epac.workflow.estimators import WFNodeEstimator
 ## ==
 ## ======================================================================== ##
 
-def Seq(*tasks):
+def Seq(*nodes):
     """
     Sequential execution of Nodes.
 
@@ -30,9 +29,8 @@ def Seq(*tasks):
     # SEQ(WFNode [, WFNode]*)
     #args = _group_args(*args)
     root = None
-    for task in tasks:
-        #task = copy.deepcopy(task)
-        curr = task if isinstance(task, WFNode) else WFNodeEstimator(task)
+    for node in nodes:
+        curr = node if isinstance(node, WFNode) else WFNodeEstimator(node)
         if not root:
             root = curr
         else:

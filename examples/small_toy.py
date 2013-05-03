@@ -168,7 +168,6 @@ from epac import SummaryStat, PvalPermutations
 
 perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
                     n_perms=3, permute="y", y=y, reducer=PvalPermutations(filter_out_others=False))
-                    
 [l.get_key() for l in perms_cv_lda]
 [l.get_key(2) for l in perms_cv_lda]
 
