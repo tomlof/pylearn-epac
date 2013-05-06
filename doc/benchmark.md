@@ -18,13 +18,12 @@ Command::
     C_values = [1, 10]
 ```
 
-=================   ===================     =====================   ==========
-Step                Time  s/permutation     Memory MB/permutation   100perms
-=================   ===================     =====================   ==========
-Tree construction   0.12s                   3-6                     12s, 500MB
-Fit_predict         15s                     68-80                   25mns, 6GB
-Reduce              0.000469439s
-=================   ===================     =====================   ==========
+```
+    Step              | Time  s/permutation | Memory MB/permutation | 100perms
+    Tree construction | 0.12s               | 3-6                   | 12s, 500MB
+    Fit_predict       | 15s                 | 68-80                 | 25mns, 6GB
+    Reduce            | 0.000469439s        |                       |
+```
 
 
 
