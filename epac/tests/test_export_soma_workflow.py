@@ -170,7 +170,7 @@ class EpacWorkflowTest(unittest.TestCase):
     Helper.wait_workflow(wf_id,controller)
     ## transfer the output files from the workflow
     Helper.transfer_output_files(wf_id,controller)
-    # controller.delete_workflow(wf_id)
+    controller.delete_workflow(wf_id)
     
     self.start2cmp()
     
