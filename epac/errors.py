@@ -13,7 +13,15 @@ class NoSomaWFError(Exception):
     """The soma-workflow is not found 
     
     The soma-workflow is not found. Please verify your soma-workflow on 
-    your computer.
+    your computer. For example, the "PYTHONPATH" environment variable.
+    
+    """
+    pass
+
+class NoEpacTreeRoot(Exception):
+    """The tree root is none
+    
+    The tree root node is none. Please make sure tree root is set.
     
     """
     pass

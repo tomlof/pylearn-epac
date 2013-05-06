@@ -64,14 +64,10 @@ def isequal(array1,array2):
 
 class EpacWorkflowTest(unittest.TestCase):
     
+
+  
   def setUp(self):
-      pass
-  
-  def tearDown(self): 
-      pass
-  
-  def test_workflow(self):
-    
+      
     ########################################################################
     ## Input paths
     '''
@@ -83,28 +79,26 @@ class EpacWorkflowTest(unittest.TestCase):
     '''
     
     ## Setup a working directory (my_working_directory)
-    my_working_directory="/tmp/my_epac_working_directory"
+    self.my_working_directory="/tmp/my_epac_working_directory"  
     
     ## key_file and datasets_file should be ***RELATIVE*** path
     ## It is mandatory for mapping path in soma-workflow
     ## since my_working_directory will be changed on the cluster
-    datasets_file = "./epac_datasets.npz"
-    key_file="./storekeys"
-    soma_workflow_file="./epac_workflow_example"      
+    self.datasets_file = "./epac_datasets.npz"
+    self.key_file="./storekeys"
+    self.soma_workflow_file="./epac_workflow_example"      
     
     #######################################################################
-    ## Change the working directory 
+    ## Clean and change the working directory 
     ## so that we can use relative path in the directory my_working_directory
     
     
+    if os.path.isdir(self.my_working_directory):
+        shutil.rmtree(self.my_working_directory)
     
-    if os.path.isdir(my_working_directory):
-        shutil.rmtree(my_working_directory)
+    os.mkdir(self.my_working_directory)
+    os.chdir(self.my_working_directory)
     
-    os.mkdir(my_working_directory)
-    
-    os.chdir(my_working_directory)
-      
     ######################################################################
     ## DATASET
     from sklearn import datasets
@@ -112,11 +106,10 @@ class EpacWorkflowTest(unittest.TestCase):
     from sklearn.feature_selection import SelectKBest
     
     
-    X, y = datasets.make_classification(n_samples=10, n_features=50,
+    self.X, self.y = datasets.make_classification(n_samples=10, n_features=50,
                                         n_informative=5) 
                                         
-    np.savez(datasets_file, X=X, y=y)
-    
+    np.savez(self.datasets_file, X=self.X, y=self.y)
     
     #######################################################################
     ## EPAC WORKFLOW
@@ -137,41 +130,66 @@ class EpacWorkflowTest(unittest.TestCase):
     # |                     \
     # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
     
-    from epac import ParPerm, ParCV, WF, Seq, ParGrid
+    from epac import ParPerm, ParCV, Seq, ParGrid
     
-    wf=None
+    self.wf=None
     
     pipeline = Seq(SelectKBest(k=2), 
                    ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
                    
-    wf = ParPerm(ParCV(pipeline, n_folds=3),
-                        n_perms=10, permute="y", y=y)
+    self.wf = ParPerm(ParCV(pipeline, n_folds=3),
+                        n_perms=10, permute="y", y=self.y)
                         
     
-    wf.save(store=key_file)
+    self.wf.save(store=self.key_file)
     
-    
-    
-    
-    
-    ########################################################################
-    ## Nodes to run with soma-workflow
-    # nodes = wf.get_node(regexp="*/ParPerm/*")
-    ## You can try another level
-    nodes = wf.get_node(regexp="*/ParGrid/*")
-    
+  
+  def tearDown(self): 
+      pass
+  
+  
+  def test_soma_workflow_cluster(self):
+
+
     from soma.workflow.client import Helper
     from epac.exports import export2somaworkflow
     
     (wf_id,controller)=export2somaworkflow(
-                        datasets_file, 
-                        my_working_directory, 
-                        nodes, 
-                        soma_workflow_file,
-                        True,
-                        "",
-                        "",
-                        "")
+                        in_datasets_file        =self.datasets_file,
+                        in_working_directory    =self.my_working_directory,
+                        out_soma_workflow_file  =self.soma_workflow_file,
+                        in_tree_root            =self.wf,
+                        in_is_sumbit            =True,
+                        in_resource_id          ="ed203246@gabriel",
+                        in_login                ="ed203246",
+                        in_pw                   =""
+                        )
+    
+    
+    ## wait the workflow to finish
+    Helper.wait_workflow(wf_id,controller)
+    ## transfer the output files from the workflow
+    Helper.transfer_output_files(wf_id,controller)
+    # controller.delete_workflow(wf_id)
+    
+    self.start2cmp()
+    
+  def test_soma_workflow(self):
+
+
+    from soma.workflow.client import Helper
+    from epac.exports import export2somaworkflow
+    
+    (wf_id,controller)=export2somaworkflow(
+                        in_datasets_file        =self.datasets_file,
+                        in_working_directory    =self.my_working_directory,
+                        out_soma_workflow_file  =self.soma_workflow_file,
+                        in_tree_root            =self.wf,
+                        in_is_sumbit            =True,
+                        in_resource_id          ="",
+                        in_login                ="",
+                        in_pw                   =""
+                        )
     
     
     ## wait the workflow to finish
@@ -180,38 +198,68 @@ class EpacWorkflowTest(unittest.TestCase):
     Helper.transfer_output_files(wf_id,controller)
     controller.delete_workflow(wf_id)
     
+    self.start2cmp()
     
+  def test_soma_workflow_nodes(self):
+
+
+    from soma.workflow.client import Helper
+    from epac.exports import export2somaworkflow
+    
+    nodes = self.wf.get_node(regexp="*/ParPerm/*")
+    
+    (wf_id,controller)=export2somaworkflow(
+                        in_datasets_file        =self.datasets_file,
+                        in_working_directory    =self.my_working_directory,
+                        out_soma_workflow_file  =self.soma_workflow_file,
+                        in_nodes                =nodes,
+                        in_is_sumbit            =True,
+                        in_resource_id          ="",
+                        in_login                ="",
+                        in_pw                   =""
+                        )
+    
+    
+    ## wait the workflow to finish
+    Helper.wait_workflow(wf_id,controller)
+    ## transfer the output files from the workflow
+    Helper.transfer_output_files(wf_id,controller)
+    controller.delete_workflow(wf_id)
+    
+    self.start2cmp()
+
+
+  def start2cmp(self):
+      
     from epac.workflow.base import conf
     from epac import WF
     
-    os.chdir(my_working_directory)
+    os.chdir(self.my_working_directory)
     
     ##### wf_key depends on your output in your map process
     wf_key=(
     conf.KEY_PROT_FS+
     conf.KEY_PROT_PATH_SEP+
-    key_file+
-    os.path.sep+os.walk(key_file).next()[1][0]
+    self.key_file+
+    os.path.sep+os.walk(self.key_file).next()[1][0]
     )
     
-    swf_wf = WF.load(wf_key)
-    
-    res_swf=swf_wf.reduce()
-    
-    displayres(res_swf)
+    swf_wf = WF.load(wf_key) # Results from soma-workflow
+    res_swf=swf_wf.reduce() # Reduce process
     
     ########################################################################
     ## Run without soma-workflow
-    wf.fit_predict(X=X, y=y)
+    self.wf.fit_predict(X=self.X, y=self.y)
+    res_epac=self.wf.reduce()
     
-    res_epac=wf.reduce()
+    self.compare_res(res_epac,res_swf)
     
-    displayres(res_epac)
+
+  
+  def compare_res(self, R1, R2):
     
-    
-    R1=res_epac
-    R2=res_swf
-    
+    #displayres(R1)
+    #displayres(R2)
     
     comp = dict()
     for key in R1.keys():
@@ -221,7 +269,12 @@ class EpacWorkflowTest(unittest.TestCase):
         
         comp[key]=True
         
-        for k in set(r1.keys()).intersection(set(r2.keys())):
+#        for k in set(r1.keys()).intersection(set(r2.keys())):
+#            comp[k]=True
+#            if not isequal(r1[k],r2[k]):
+#               comp[k]=False
+
+        for k in r1.keys():
             comp[k]=True
             if not isequal(r1[k],r2[k]):
                comp[k]=False
@@ -229,8 +282,6 @@ class EpacWorkflowTest(unittest.TestCase):
     
     for key in comp.keys():
         self.assertTrue(comp[key])
-
-
 
 #return comp
 #for key in comp:

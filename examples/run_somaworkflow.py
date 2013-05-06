@@ -12,30 +12,37 @@ Created on Wed Apr 24 12:13:11 2013
 
 import os
 import sys
+import shutil
+
 
 ## Reursive load
 import numpy as np
 
 
-from epac.exports import export2somaworkflow
+from epac.exports import export2somaworkflow, exportNodes4somaworkflow
+from epac.workflow.base import conf
 
-##############################################################################
+#############################################################################
 ## Map process and reduce process
+## Map process means we compute results for leaves
+## Reduce process means we collect results from leaves.
+## We should firstly run one of map processes, and secondly run the reduce 
+## process
+## Here you are four examples, three for map process and one for reduce 
+## process
 
 class ExampleOptions:
     # Map process: compute all the results
-    option_map_process="Using map process"
     option_run_without_soma_workflow="Run without soma-workflow"
     option_run_with_soma_workflow_gui="Run with soma_workflow_gui"
-    option_run_with_soma_workflow_code="Run with soma-workflow using code"
+    option_run_with_soma_workflow_submit="Run with soma-workflow and submit"
     # Reduce process: get results
     option_reduce_tree="Reduce the tree"
     
 ## You can choose an example here:
-    
-#ChosenExampleOption=ExampleOptions.option_run_without_soma_workflow
-ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_gui
-#ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_code
+ChosenExampleOption=ExampleOptions.option_run_without_soma_workflow
+#ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_gui
+#ChosenExampleOption=ExampleOptions.option_run_with_soma_workflow_submit
 #ChosenExampleOption=ExampleOptions.option_reduce_tree
 
 
@@ -44,9 +51,8 @@ IsMapProcess=True
 if ChosenExampleOption==ExampleOptions.option_reduce_tree:
     IsMapProcess=False
 
-
-##############################################################################
-## Working directory and input paths
+#############################################################################
+## Working directory, input and output paths
 '''
 +my_epac_working_directory
   -epac_datasets.npz
@@ -56,27 +62,29 @@ if ChosenExampleOption==ExampleOptions.option_reduce_tree:
 '''
 
 ## Setup a working directory (my_working_directory)
+## All the data should be saved and run in this directory
 my_working_directory="/tmp/my_epac_working_directory"
 
 ## key_file and datasets_file should be ***RELATIVE*** path
-## It is mandatory for mapping path in soma-workflow
+## It is mandatory for mapping path operation in soma-workflow
 ## since my_working_directory will be changed on the cluster
-datasets_file = "./epac_datasets.npz"
-key_file="./storekeys"
-soma_workflow_file="./epac_workflow_example"
+datasets_file = "./epac_datasets.npz" # Training and test data
+key_file="./storekeys" # Epac tree
+soma_workflow_file="./epac_workflow_example" # Soma-workflow file
 
 
-##############################################################################
-## Change the working directory 
-## so that we can use relative path in the directory my_working_directory
+#############################################################################
+## Clean and change the working directory 
+## so that we can use relative path in the directory "my_working_directory"
 
-if not os.path.isdir(my_working_directory):
-    os.mkdir(my_working_directory)
+if os.path.isdir(my_working_directory):
+    shutil.rmtree(my_working_directory)
 
+os.mkdir(my_working_directory)
 os.chdir(my_working_directory)
 
 
-##############################################################################
+#############################################################################
 ## DATASET
 from sklearn import datasets
 from sklearn.svm import SVC
@@ -118,32 +126,32 @@ else:
 
 from epac import ParPerm, ParCV, WF, Seq, ParGrid
 
-
 wf=None
 
 if IsMapProcess:
     
     pipeline = Seq(SelectKBest(k=2), 
                    ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-                   
+    
     wf = ParPerm(ParCV(pipeline, n_folds=3),
-                        n_perms=100, permute="y", y=y)
-                        
+                        n_perms=10, permute="y", y=y)
+       
     wf.save(store=key_file)
     
+    
     wf_key=wf.get_key()
+    
 
-    print ("### After the map process, you can use this key to load the "
+    print ("After the map process, you can use this key to load the "
           +"tree, and then run reduce")
           
-    print "wf_key="+wf_key
+    print "    wf_key="+wf_key
     
 else:
     #########################################################################
     ## Reduce Process
     ## Get results using reduce after soma_workflow finish all the jobs.
     
-    from epac.workflow.base import conf
     
     os.chdir(my_working_directory)
     
@@ -152,45 +160,97 @@ else:
     conf.KEY_PROT_FS+
     conf.KEY_PROT_PATH_SEP+
     key_file+
-    os.path.sep+os.walk(key_file).next()[1][0]
+    os.path.sep+os.walk(key_file).next()[1][0] # to get the root node
     )
+    
     
     wf = WF.load(wf_key)
     
     if ChosenExampleOption==ExampleOptions.option_reduce_tree:
         ## Reduces results
         wf.reduce()
-
-
-##############################################################################
-## Nodes to run
-# nodes = wf.get_node(regexp="*/ParPerm/*")
-## You can try another level
-nodes = wf.get_node(regexp="*/ParGrid/*")
-
+    
+    sys.exit(0)
 
 
 if ChosenExampleOption==ExampleOptions.option_run_without_soma_workflow:
-    ##############################################################################
+    #########################################################################
     ## RUN without soma-workflow
-    # Associate 1 job to each permutation
     
-    cmd_jobs = [u'epac_mapper --datasets="%s" --keys="%s"' % (
-                               datasets_file, node.get_key()
-                               ) for node in nodes]
+    num_cores=3
+    nodes_per_processor_list=exportNodes4somaworkflow(wf,num_cores)
+
+    jobi=0
+    jobfile_list=list()
+    for npp_key in nodes_per_processor_list.keys():
+        keysfile="."+os.path.sep+repr(jobi)+"."+conf.SUFFIX_JOB
+        jobfile_list.append(keysfile)
+        f = open(keysfile,'w')
+        for keynode in nodes_per_processor_list[npp_key]:        
+            f.write("%s\n"%keynode)
+        f.close()
+        jobi=jobi+1    
+
+    cmd_jobs = [u'epac_mapper --datasets="%s" --keysfile="%s"' \
+    % (datasets_file, jobfile) for jobfile in jobfile_list]
     
+  
     print repr(cmd_jobs)
     
     for cmd_job in cmd_jobs:
        os.system(cmd_job)
 
-if (ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_gui 
-   or ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_code):
-    ##############################################################################
+if (ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_gui):
+    #########################################################################
     ## RUN with soma-workflow on the local computer 
     ## (c.f. http://brainvisa.info/soma/soma-workflow/)
-    
-    
-    export2somaworkflow(datasets_file, my_working_directory, nodes, soma_workflow_file)
-    
 
+    # If you know nothing about your machine, you can run this code
+    export2somaworkflow(in_datasets_file        =datasets_file,
+                        in_working_directory    =my_working_directory,
+                        out_soma_workflow_file  =soma_workflow_file,
+                        in_tree_root            =wf
+                        )
+
+#    # If you want run your algorithm with 4 processors (in_num_cores), 
+#    # you can run this code
+#    export2somaworkflow(in_datasets_file        =datasets_file,
+#                        in_working_directory    =my_working_directory,
+#                        out_soma_workflow_file  =soma_workflow_file,
+#                        in_tree_root            =wf,
+#                        in_num_cores            =4
+#                        )
+    
+#    # If you want run your algorithm with defined nodes
+#    # for instance, nodes = wf.get_node(regexp="*/ParPerm/*")
+#    nodes = wf.get_node(regexp="*/ParPerm/*")
+#    export2somaworkflow(in_datasets_file        =datasets_file,
+#                        in_working_directory    =my_working_directory,
+#                        out_soma_workflow_file  =soma_workflow_file,
+#                        in_nodes                =nodes
+#                        )
+
+if ChosenExampleOption==ExampleOptions.option_run_with_soma_workflow_submit:
+    #########################################################################
+    ## RUN with soma-workflow and submit on the local computer 
+    ## in_resource_id == "" means that we use the local computer
+    ## (c.f. http://brainvisa.info/soma/soma-workflow/)
+    (wf_id,controller)=export2somaworkflow(
+                        in_datasets_file        =datasets_file,
+                        in_working_directory    =my_working_directory,
+                        out_soma_workflow_file  =soma_workflow_file,
+                        in_tree_root            =wf,
+                        in_is_sumbit            =True,
+                        in_resource_id          ="",
+                        in_login                ="",
+                        in_pw                   =""
+                        )
+                        
+    from soma.workflow.client import Helper
+    
+    ## wait the workflow to finish
+    Helper.wait_workflow(wf_id,controller)
+    ## transfer the output files from the workflow
+    Helper.transfer_output_files(wf_id,controller)
+    ## Remove the workflow in soma-workflow
+    controller.delete_workflow(wf_id)

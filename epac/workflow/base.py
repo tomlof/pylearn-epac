@@ -134,6 +134,7 @@ class conf:
     KEY_PROT_FS = "fs"  # key storage protocol: file system
     KEY_PATH_SEP = "/"
     KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
+    SUFFIX_JOB = "job"
 
 
 class debug:

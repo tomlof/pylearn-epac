@@ -31,17 +31,22 @@ if __name__ == "__main__":
     parser.add_option('-f', '--format', 
                       help='datasets format default numpy archive ".npz"')
     parser.add_option('-k', '--keys',  
-                      help='Key(s) of node(s) to be processed.')
+                      help='Key(s) of node(s) to be processed. \
+You can put multiple keys using a separating sign ";".')
+    parser.add_option('-s', '--keysfile',  
+                      help='Key(s) of node(s) to be processed. \
+Those keys are saved in a file. Each line \
+represents a key node')
     parser.add_option('-x', '--function',  
                       help='Function to execute. Default "fit_predict"')
-                      
+
     options, args = parser.parse_args(sys.argv)
-     
-    
+
     # Set default values to parameters
     datasets_filepath = None
     datasets_format = "npz"
     keys = None
+    listkey = list()
     function = "fit_predict"
     
     if options.datasets != None:
@@ -56,10 +61,33 @@ if __name__ == "__main__":
         datasets_format     =repr(options.format)
     
     if options.keys != None:
+        
         keys                =repr(options.keys)
-        # To remove quote signs in the path
+        # To remove quote sisgns in the path
         keys                =keys.replace("'",'')
         keys                =keys.replace('"','')
+        listkey=keys.split(";")
+        
+    elif options.keysfile != None:
+        
+        relative_filepath    =options.keysfile   
+        relative_filepath    =relative_filepath.replace("'",'')
+        relative_filepath    =relative_filepath.replace('"','')
+        
+        key_lines = None
+        
+        f = open(relative_filepath, 'r')
+        key_lines=f.readlines()
+        f.close()
+
+                    
+        if key_lines :
+            for key_line in key_lines:
+                key_line=key_line.strip('\n')
+                key_line=key_line.strip()
+                key_line=key_line.replace("'",'')
+                key_line=key_line.replace('"','')
+                listkey.append(key_line)
     else:
         raise ValueError("key(s) is not provided use: --key")
 
@@ -70,21 +98,25 @@ if __name__ == "__main__":
     # Load datasets
     # print "datasets_filepath:", datasets_filepath
     # print "keys:", keys
-    #datasets_filepath = "/tmp/tmpZ2HqYb_datasets.npz"
-    #datasets_filepath="/tmp/tmpO8D3dG_datasets.npz"
-    #keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
+    # datasets_filepath = "/tmp/tmpZ2HqYb_datasets.npz"
+    # datasets_filepath ="/tmp/tmpO8D3dG_datasets.npz"
+    # keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
     Xy = load_datasets(datasets_filepath)
-    node = WF.load(keys)
-    
 
-    # print "Sequentially run from root to current node"
-    for parent_node in node.get_path_from_root()[:-1]:
-        func = getattr(parent_node, function)
-        Xy = func(recursion=False, **Xy)
-    # print "Recursively run from root to current node"
-    func = getattr(node, function)
-    Xy = func(recursion=True, **Xy)
-    # print "Save results"
-    node.save(attr="results")
-    
 
+    for key in listkey:
+    
+        node = WF.load(key)
+        
+        cpXy=Xy
+        
+        # print "Sequentially run from root to current node"
+        for parent_node in node.get_path_from_root()[:-1]:
+            func = getattr(parent_node, function)
+            cpXy = func(recursion=False, **cpXy)
+        # print "Recursively run from root to current node"
+        func = getattr(node, function)
+        cpXy = func(recursion=True, **cpXy)
+        # print "Save results"
+        node.save(attr="results")
+    
