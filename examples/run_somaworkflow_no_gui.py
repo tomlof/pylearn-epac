@@ -144,4 +144,3 @@ os.chdir(my_working_directory)
 wf = WF.load(wf_key)
 
 wf.reduce()
-

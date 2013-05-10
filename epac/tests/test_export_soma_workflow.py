@@ -145,34 +145,34 @@ class EpacWorkflowTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_soma_workflow_cluster(self):
-
-        from soma.workflow.client import Helper
-        from epac.exports import export2somaworkflow
-
-        (wf_id, controller) = export2somaworkflow(
-            in_datasets_file=self.datasets_file,
-            in_working_directory=self.my_working_directory,
-            out_soma_workflow_file=self.soma_workflow_file,
-            in_tree_root=self.wf,
-            in_is_sumbit=True,
-            in_resource_id="ed203246@gabriel",
-            in_login="ed203246",
-            in_pw=""
-        )
-
-        ## wait the workflow to finish
-        Helper.wait_workflow(wf_id, controller)
-        ## transfer the output files from the workflow
-        Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
-
-        self.start2cmp()
+#    def test_soma_workflow_cluster(self):
+#
+#        from soma.workflow.client import Helper
+#        from epac.export_multi_processes import export2somaworkflow
+#
+#        (wf_id, controller) = export2somaworkflow(
+#            in_datasets_file=self.datasets_file,
+#            in_working_directory=self.my_working_directory,
+#            out_soma_workflow_file=self.soma_workflow_file,
+#            in_tree_root=self.wf,
+#            in_is_sumbit=True,
+#            in_resource_id="ed203246@gabriel",
+#            in_login="ed203246",
+#            in_pw=""
+#        )
+#
+#        ## wait the workflow to finish
+#        Helper.wait_workflow(wf_id, controller)
+#        ## transfer the output files from the workflow
+#        Helper.transfer_output_files(wf_id, controller)
+#        controller.delete_workflow(wf_id)
+#
+#        self.start2cmp()
 
     def test_soma_workflow(self):
 
         from soma.workflow.client import Helper
-        from epac.exports import export2somaworkflow
+        from epac.export_multi_processes import export2somaworkflow
 
         (wf_id, controller) = export2somaworkflow(
             in_datasets_file=self.datasets_file,
@@ -196,7 +196,7 @@ class EpacWorkflowTest(unittest.TestCase):
     def test_soma_workflow_nodes(self):
 
         from soma.workflow.client import Helper
-        from epac.exports import export2somaworkflow
+        from epac.export_multi_processes import export2somaworkflow
 
         nodes = self.wf.get_node(regexp="*/ParPerm/*")
 
@@ -219,6 +219,24 @@ class EpacWorkflowTest(unittest.TestCase):
 
         self.start2cmp()
 
+
+    def test_multi_processes(self):
+
+        from soma.workflow.client import Helper
+        from epac.export_multi_processes import run_multi_processes
+
+
+        run_multi_processes(
+            in_datasets_file=self.datasets_file,
+            in_working_directory=self.my_working_directory,
+            in_tree_root=self.wf,
+            in_num_cores=2,
+            in_is_wait=True
+        )
+        
+        self.start2cmp()
+
+ 
     def start2cmp(self):
 
         from epac.workflow.base import conf

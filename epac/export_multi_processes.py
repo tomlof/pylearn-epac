@@ -139,7 +139,8 @@ def export2somaworkflow(in_datasets_file,
     Examples
     ----------
 
-    See pylearn-epac/examples/run_somaworkflow.py
+    See pylearn-epac/examples/run_somaworkflow_gui.py
+    See pylearn-epac/examples/run_somaworkflow_no_gui.py
 
     Parameters
     ----------
@@ -285,6 +286,44 @@ def run_multi_processes(
 ):
     ''' Run Epac directly on local machine with n cores
 
+
+    Examples
+    ----------
+
+    See pylearn-epac/examples/run_multi_processes.py
+
+    Parameters
+    ----------
+    in_datasets_file: string
+        The X and y database file. This should use relative path.
+
+    in_working_directory: string
+        Since all the data (e.g. in_datasets_file) should use relative paths,
+        "in_working_directory" contains those data, and
+        "in_working_directory" can be absolute path on client side.
+
+    in_tree_root: epac.base.WFNode
+        Epac tree root where you want to start to parallelly compute
+        using "in_num_cores" cores.
+
+    in_num_cores: integer
+        This parameter is used for optimizing exported nodes (in_nodes)
+        according to the number of processors that you have on your running
+        machine. "in_num_cores" should bigger than the real number of cores
+        that you have, otherwise you cannot use the full performance of your
+        machine.
+
+    in_is_wait: boolean
+         Do we need to wait for the termination of all the processes.
+
+    Return
+    ----------
+    if set in_is_wait = False, and then this function will return
+
+    processes: list of processes
+        List of processes which is "p = subprocess.Popen(args)"
+
+
     '''
     nodes_per_processor_list = export_nodes2somaworkflow(
         in_tree_root,
@@ -314,24 +353,24 @@ def run_multi_processes(
 #            sys.stdout.write("cmd_job="+cmd_job+"\n")
 #            sys.stdout.write("stdout_file="+stdout_file+"\n")
 #            sys.stdout.write("stderr_file="+stderr_file+"\n")
-#            sys.stdout.write("in_working_directory="+in_working_directory+"\n")
+# sys.stdout.write("in_working_directory="+in_working_directory+"\n")
 
             stdout_file = open(stdout_file, "wb")
             stderr_file = open(stderr_file, "wb")
 
-            cmd_job=cmd_job.split()
+            cmd_job = cmd_job.split()
             process = subprocess.Popen(cmd_job,
                                        stdout=stdout_file,
                                        stderr=stderr_file,
                                        cwd=in_working_directory)
-                                       
+
         except Exception, e:
             s = '%s: %s \n' % (type(e), e)
             sys.stderr.write(s)
             processes.append(None)
         finally:
             processes.append(process)
-    
+
     if not in_is_wait:
         return processes
     else:
