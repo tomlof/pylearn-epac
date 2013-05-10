@@ -15,7 +15,7 @@ import os
 import socket
 import subprocess
 
-from epac.errors import NoSomaWFError, NoEpacTreeRoot
+from epac.errors import NoSomaWFError, NoEpacTreeRootError
 from epac.workflow.base import conf
 
 
@@ -203,7 +203,7 @@ def export2somaworkflow(in_datasets_file,
     epac.errors.NoSomaWFError
         The function can not find soma-workflow on the client machine.
 
-    epac.errors.NoEpacTreeRoot
+    epac.errors.NoEpacTreeRootError
         The tree root node is none. Please make sure tree root is set.
     """
     try:
@@ -233,7 +233,7 @@ def export2somaworkflow(in_datasets_file,
                 for node in in_nodes]
     else:
         if not in_tree_root:
-            raise NoEpacTreeRoot
+            raise NoEpacTreeRootError
 
         nodes_per_processor_list = export_nodes2somaworkflow(
             in_tree_root,

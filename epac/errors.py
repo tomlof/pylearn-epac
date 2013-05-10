@@ -21,7 +21,7 @@ class NoSomaWFError(Exception):
     pass
 
 
-class NoEpacTreeRoot(Exception):
+class NoEpacTreeRootError(Exception):
     """The tree root is none
 
     The tree root node is none. Please make sure tree root is set.
