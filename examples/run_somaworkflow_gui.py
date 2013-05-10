@@ -146,13 +146,6 @@ export2somaworkflow(
 #
 # os.chdir(my_working_directory)
 #
-###### wf_key depends on your output in your map process
-# wf_key = (
-#    conf.KEY_PROT_FS +
-#    conf.KEY_PROT_PATH_SEP +
-#    key_file +
-#    os.path.sep+os.walk(key_file).next()[1][0]  # to get the root node
-#)
 ## Load Epac tree
 # wf = WF.load(wf_key)
 #
