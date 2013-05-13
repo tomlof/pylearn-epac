@@ -17,7 +17,6 @@ from epac import range_log2
 
 
 def do_all(options):
-    random_state = 0
     if options.k_max != "auto":
         k_values = range_log2(np.minimum(int(options.k_max),
                                          options.n_features), add_n=True)
@@ -46,8 +45,7 @@ def do_all(options):
                   Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
-                  n_folds=options.n_folds_nested, y=y,
-                  random_state=random_state)
+                  n_folds=options.n_folds_nested, y=y)
 
     #print pipeline.stats(group_by="class")
     wf = ParPerm(
@@ -55,8 +53,7 @@ def do_all(options):
                    n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
              n_perms=options.n_perms, permute="y", y=y,
-             reducer=PvalPermutations(filter_out_others=True),
-             random_state=random_state)
+             reducer=PvalPermutations(filter_out_others=True))
     print "Time ellapsed, tree construction:", time.time() - time_start
 
     ## 3) Run Workflow

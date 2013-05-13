@@ -28,8 +28,6 @@ from epac.export_multi_processes import export2somaworkflow
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import range_log2, WF
-from epac.export_multi_processes import  run_multi_processes
 
 def do_all(options):
     '''
@@ -43,7 +41,6 @@ def do_all(options):
     # root key for Epac tree
     tree_root_relative_path = "./epac_tree"
     somaworkflow_relative_path = "./soma-workflow_epac_tree"
-    random_state = 0
 
     ## 1) Create Working directory
     ## ===========================
@@ -85,8 +82,11 @@ def do_all(options):
     # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
     pipeline = Seq(SelectKBest(k=2),
                    ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-    wf = ParPerm(ParCV(pipeline, n_folds=3),
-                 n_perms=10, permute="y", y=y)
+    wf = ParPerm(
+             ParCV(pipeline, n_folds=options.n_folds,
+                   reducer=SummaryStat(filter_out_others=True)),
+             n_perms=options.n_perms, permute="y", y=y,
+             reducer=PvalPermutations(filter_out_others=True))
 
     print "Time ellapsed, tree construction:", time.time() - time_start
     time_save = time.time()
@@ -112,13 +112,11 @@ def do_all(options):
 #    ## ==========================
     reduce_filename = os.path.join(os.getcwd(), "reduce.py")
     f = open(reduce_filename, 'w')
-    reduce_str = \
-    """from epac import WF
+    reduce_str = """from epac import WF
 import os
 os.chdir("%s")
 wf = WF.load("%s")
-print wf.reduce()
-    """ % (options.working_dir_path, wf.get_key())
+print wf.reduce()""" % (options.working_dir_path, wf.get_key())
     f.write(reduce_str)
     f.close()
     print "#First run\nsoma_workflow_gui\n#When done run:\npython %s" % reduce_filename
@@ -159,7 +157,7 @@ if __name__ == "__main__":
         help='(default %d)' % n_cores, default=n_cores, type="int")
     parser.add_option('-w', '--working_dir_path',
         help='(default %s)' % working_dir_path, default=working_dir_path)
-    #argv = ['examples/large_toy.py', '--n_perms=3']
+    #argv = []
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     do_all(options)
