@@ -8,6 +8,7 @@ Created on Tue Apr 23 10:06:54 2013
 import sys
 import optparse
 import time
+import numpy as np
 
 from sklearn import datasets
 from sklearn.svm import SVC
@@ -17,23 +18,28 @@ from epac import range_log2
 
 def do_all(options):
     random_state = 0
-    if options.k_values == "fixed":
-        k_values = [1, 2, 4, 8, 16, 32, 64, 100]
+    if options.k_max != "auto":        
+        k_values = range_log2(np.minimum(int(options.k_max),
+                                         options.n_features), add_n=True)
     else:
         k_values = range_log2(options.n_features, add_n=True)
     C_values = [1, 10]
-    #print options, k_values
-    #sys.exit(0)    
+    #print options
+    #sys.exit(0)
+    if options.trace:
+        from epac import conf
+        conf.TRACE_TOPDOWN = True
+
+    ## 1) Build dataset
+    ## ================
     X, y = datasets.make_classification(n_samples=options.n_samples, 
                                         n_features=options.n_features,
                                         n_informative=options.n_informative)
-    # ===================
-    # = With EPAC
-    # ===================
+
+    ## 2) Build Workflow
+    ## =================
     from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
     from epac import SummaryStat, PvalPermutations
-    from epac import conf
-    conf.TRACE_TOPDOWN = True
     #h = hp.heap()
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
@@ -51,15 +57,24 @@ def do_all(options):
              reducer=PvalPermutations(filter_out_others=True),
              random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
-    from guppy import hpy    
-    hp = hpy()    
-    print hp.heap()
-    print wf.stats(group_by="class")
+    mem_profiler = None
+    try:
+        mem_profiler = __import__("guppy").hpy()
+        print mem_profiler.heap()
+    except ImportError:
+        pass
+
+    ## 3) Run Workflow
+    ## ===============
     time_fit_predict = time.time()
     wf.fit_predict(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
-    print hp.heap()
-    time_reduce = time.time()    
+    if mem_profiler:  
+        print mem_profiler.heap()
+    time_reduce = time.time()
+
+    ## 4) Reduce Workflow
+    ## ==================
     wf.reduce()
     time_end = time.time()
     print "Time ellapsed, reduce:",   time_end - time_reduce
@@ -72,7 +87,7 @@ if __name__ == "__main__":
     n_perms = 10
     n_folds = 10
     n_folds_nested = 5
-    k_values = "auto"
+    k_max = "auto"
     # parse command line options
     parser = optparse.OptionParser()
     parser.add_option('-n', '--n_samples',
@@ -87,8 +102,11 @@ if __name__ == "__main__":
         help='(default %d)' % n_folds, default=n_folds, type="int")
     parser.add_option('-g', '--n_folds_nested',
         help='(default %d)' % n_folds_nested, default=n_folds_nested, type="int")
-    parser.add_option('-k', '--k_values',
-        help='"auto": 1, 2, 4, ... n_features values. "fixed": 1, 2, 4, ...64, 100 (default %s)' % k_values, default=k_values, type="string")
+    parser.add_option('-k', '--k_max',
+        help='"auto": 1, 2, 4, ... n_features values. "fixed": 1, 2, 4, ..., k_max (default %s)' % k_max, default=k_max, type="string")
+    parser.add_option('-t', '--trace',
+        help='Trace execution (default %s)' % False, action='store_true', default=False)
+
     #argv = ['examples/large_toy.py', '--n_perms=10']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
