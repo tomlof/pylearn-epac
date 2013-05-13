@@ -32,7 +32,7 @@ def do_all(options):
 
     ## 1) Build dataset
     ## ================
-    X, y = datasets.make_classification(n_samples=options.n_samples, 
+    X, y = datasets.make_classification(n_samples=options.n_samples,
                                         n_features=options.n_features,
                                         n_informative=options.n_informative)
 
@@ -46,8 +46,9 @@ def do_all(options):
                   Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
-                  n_folds=options.n_folds_nested, y=y, random_state=random_state)
-                
+                  n_folds=options.n_folds_nested, y=y,
+                  random_state=random_state)
+
     #print pipeline.stats(group_by="class")
     wf = ParPerm(
              ParCV(pipeline,

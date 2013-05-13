@@ -174,16 +174,21 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         return self.__class__.__name__
 
     def get_children_top_down(self):
-        """Return children during the top-down exection."""
+        """Return children during the top-down execution."""
         return []
 
-    def get_children_bottum_up(self):
-        """Return children during the bottum-up execution."""
-        return [self.children[1]]
+#    def get_children_bottum_up(self):
+#        """Return children during the bottum-up execution."""
+#        return [self.children[0]]
 
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
         cv_grid_search = self.children[0]
+        from epac.workflow.splitters import ParCV
+        if not isinstance(cv_grid_search, ParCV):
+            raise ValueError('Child of %s is not a "ParCV."'
+            % self.__class__.__name__)
+        self.children = list()  # forget about this sub-tree
         cv_grid_search.fit_predict(recursion=True, **Xy)
         #  Pump-up results
         methods = list()
@@ -196,15 +201,13 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         # Add children
         from epac.workflow.splitters import ParMethods
         to_refit = ParMethods(*methods)
-        if len(self.children) > 1:  # remove potential previously pipe-line
-            self.children = self.children[:1]
         self.add_child(to_refit)
         to_refit.fit(recursion=True, **Xy)
         return self
 
     def predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
-        refited = self.children[1]
+        refited = self.children[0]
         return refited.predict(recursion=True, **Xy)
 
     def fit_predict(self, recursion=True, **Xy):
