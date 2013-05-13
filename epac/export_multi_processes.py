@@ -343,10 +343,8 @@ def run_multi_processes(
     for index in range(len(cmd_jobs)):
         cmd_job = cmd_jobs[index]
         jobfile = keysfile_list[index]
-
-        stdout_file = os.path.join(in_working_directory, jobfile+".stdout")
-        stderr_file = os.path.join(in_working_directory, jobfile+".stderr")
-
+        stdout_file = os.path.join(in_working_directory, jobfile + ".stdout")
+        stderr_file = os.path.join(in_working_directory, jobfile + ".stderr")
         process = None
         try:
 
@@ -357,7 +355,6 @@ def run_multi_processes(
 
             stdout_file = open(stdout_file, "wb")
             stderr_file = open(stderr_file, "wb")
-
             cmd_job = cmd_job.split()
             process = subprocess.Popen(cmd_job,
                                        stdout=stdout_file,

@@ -40,7 +40,6 @@ def do_all(options):
     ## =================
     from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
     from epac import SummaryStat, PvalPermutations
-    #h = hp.heap()
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
     pipeline = ParCVGridSearchRefit(*[
@@ -48,6 +47,7 @@ def do_all(options):
                       ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
                   n_folds=options.n_folds_nested, y=y, random_state=random_state)
+                
     #print pipeline.stats(group_by="class")
     wf = ParPerm(
              ParCV(pipeline,
@@ -57,27 +57,18 @@ def do_all(options):
              reducer=PvalPermutations(filter_out_others=True),
              random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
-    mem_profiler = None
-    try:
-        mem_profiler = __import__("guppy").hpy()
-        print mem_profiler.heap()
-    except ImportError:
-        pass
 
     ## 3) Run Workflow
     ## ===============
     time_fit_predict = time.time()
     wf.fit_predict(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
-    if mem_profiler:  
-        print mem_profiler.heap()
     time_reduce = time.time()
 
     ## 4) Reduce Workflow
     ## ==================
     wf.reduce()
-    time_end = time.time()
-    print "Time ellapsed, reduce:",   time_end - time_reduce
+    print "Time ellapsed, reduce:",   time.time() - time_reduce
 
 if __name__ == "__main__":
     # Set default values to parameters

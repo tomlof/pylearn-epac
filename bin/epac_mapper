@@ -16,9 +16,11 @@ from epac import  WF
 
 def load_workflow(key):
     pass
+
+
 def load_datasets(datasets_filepath):
     Xy = np.load(datasets_filepath)
-    return {k:Xy[k] for k in Xy.keys()}
+    return {k: Xy[k] for k in Xy.keys()}
 
 
 if __name__ == "__main__":
@@ -108,8 +110,7 @@ represents a key node')
     for key in listkey:
     
         node = WF.load(key)
-        
-        cpXy=Xy
+        cpXy = Xy
         
         # print "Sequentially run from root to current node"
         for parent_node in node.get_path_from_root()[:-1]:
