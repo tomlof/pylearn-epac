@@ -18,7 +18,7 @@ from epac import range_log2
 
 def do_all(options):
     random_state = 0
-    if options.k_max != "auto":        
+    if options.k_max != "auto":
         k_values = range_log2(np.minimum(int(options.k_max),
                                          options.n_features), add_n=True)
     else:

@@ -68,12 +68,12 @@ def do_all(options):
     C_values = [1, 10]
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
-#    pipeline = ParCVGridSearchRefit(*[
-#                  Seq(SelectKBest(k=k),
-#                      ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
-#                  for k in k_values],
-#                  n_folds=options.n_folds_nested, y=y,
-#                  random_state=random_state)
+    pipeline = ParCVGridSearchRefit(*[
+                  Seq(SelectKBest(k=k),
+                      ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+                  for k in k_values],
+                  n_folds=options.n_folds_nested, y=y,
+                  random_state=random_state)
 
     pipeline = Seq(SelectKBest(k=5), SVC(kernel="linear", C=1))
     #print pipeline.stats(group_by="class")

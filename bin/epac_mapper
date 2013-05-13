@@ -14,9 +14,6 @@ import optparse
 import numpy as np
 from epac import  WF
 
-def load_workflow(key):
-    pass
-
 
 def load_datasets(datasets_filepath):
     Xy = np.load(datasets_filepath)
@@ -25,21 +22,21 @@ def load_datasets(datasets_filepath):
 
 if __name__ == "__main__":
     # parse command line options
-    
+
     parser = optparse.OptionParser()
-    
-    parser.add_option('-d', '--datasets', 
+
+    parser.add_option('-d', '--datasets',
                       help='File path to ".npz" datasets called X.')
-    parser.add_option('-f', '--format', 
+    parser.add_option('-f', '--format',
                       help='datasets format default numpy archive ".npz"')
-    parser.add_option('-k', '--keys',  
+    parser.add_option('-k', '--keys',
                       help='Key(s) of node(s) to be processed. \
 You can put multiple keys using a separating sign ";".')
-    parser.add_option('-s', '--keysfile',  
+    parser.add_option('-s', '--keysfile',
                       help='Key(s) of node(s) to be processed. \
 Those keys are saved in a file. Each line \
 represents a key node')
-    parser.add_option('-x', '--function',  
+    parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
 
     options, args = parser.parse_args(sys.argv)
@@ -50,53 +47,45 @@ represents a key node')
     keys = None
     listkey = list()
     function = "fit_predict"
-    
+
     if options.datasets != None:
-        datasets_filepath   =repr(options.datasets)
+        datasets_filepath = repr(options.datasets)
         # To remove quote signs in the path
-        datasets_filepath   =datasets_filepath.replace("'",'')
-        datasets_filepath   =datasets_filepath.replace('"','')
+        datasets_filepath = datasets_filepath.replace("'", '')
+        datasets_filepath = datasets_filepath.replace('"', '')
     else:
         raise ValueError("key(s) is not provided use: --datasets")
-        
-    if options.format != None:
-        datasets_format     =repr(options.format)
-    
-    if options.keys != None:
-        
-        keys                =repr(options.keys)
-        # To remove quote sisgns in the path
-        keys                =keys.replace("'",'')
-        keys                =keys.replace('"','')
-        listkey=keys.split(";")
-        
-    elif options.keysfile != None:
-        
-        relative_filepath    =options.keysfile   
-        relative_filepath    =relative_filepath.replace("'",'')
-        relative_filepath    =relative_filepath.replace('"','')
-        
-        key_lines = None
-        
-        f = open(relative_filepath, 'r')
-        key_lines=f.readlines()
-        f.close()
 
-                    
-        if key_lines :
+    if options.format != None:
+        datasets_format = repr(options.format)
+
+    if options.keys != None:
+        keys = repr(options.keys)
+        # To remove quote sisgns in the path
+        keys = keys.replace("'", '')
+        keys = keys.replace('"', '')
+        listkey = keys.split(";")
+    elif options.keysfile != None:
+        relative_filepath = options.keysfile
+        relative_filepath = relative_filepath.replace("'", '')
+        relative_filepath = relative_filepath.replace('"', '')
+
+        key_lines = None
+
+        f = open(relative_filepath, 'r')
+        key_lines = f.readlines()
+        f.close()
+        if key_lines:
             for key_line in key_lines:
-                key_line=key_line.strip('\n')
-                key_line=key_line.strip()
-                key_line=key_line.replace("'",'')
-                key_line=key_line.replace('"','')
+                key_line = key_line.strip('\n')
+                key_line = key_line.strip()
+                key_line = key_line.replace("'", '')
+                key_line = key_line.replace('"', '')
                 listkey.append(key_line)
     else:
         raise ValueError("key(s) is not provided use: --key")
-
-
     if options.function != None:
-        function            =repr(options.function)
-
+        function = repr(options.function)
     # Load datasets
     # print "datasets_filepath:", datasets_filepath
     # print "keys:", keys
@@ -105,13 +94,9 @@ represents a key node')
     # keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
     Xy = load_datasets(datasets_filepath)
 
-    
-
     for key in listkey:
-    
         node = WF.load(key)
         cpXy = Xy
-        
         # print "Sequentially run from root to current node"
         for parent_node in node.get_path_from_root()[:-1]:
             func = getattr(parent_node, function)
@@ -121,4 +106,3 @@ represents a key node')
         cpXy = func(recursion=True, **cpXy)
         # print "Save results"
         node.save(attr="results")
-    
