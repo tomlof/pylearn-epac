@@ -52,8 +52,8 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
    {'a': [1, 10], 'b': [2, 20]}
     """
     class ListWithMetaInfo(list):
-        axis_name = None
-        axis_values = None
+        pass
+
     dict_of_list = dict()
     for d in list_of_dict:
         #self.children[child_idx].signature_args
@@ -160,4 +160,28 @@ def _func_get_args_names(f):
         args_names.remove("self")
     return args_names
 
+import collections
 
+
+class CallbackList(collections.MutableSequence):
+
+    def __init__(self, len_callback, getitem_callback=None,
+                 setitem_callback=None, *args):
+        self.list = list()
+        self.extend(list(args))
+
+    def __len__(self):
+        return len(self.list)
+
+    def __getitem__(self, i):
+        return self.list[i]
+
+    def __delitem__(self, i):
+        del self.list[i]
+
+    def __setitem__(self, i, v):
+        self.check(v)
+        self.list[i] = v
+
+    def __str__(self):
+        return str(self.list)
