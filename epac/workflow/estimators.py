@@ -188,7 +188,6 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         if not isinstance(cv_grid_search, ParCV):
             raise ValueError('Child of %s is not a "ParCV."'
             % self.__class__.__name__)
-        self.children = list()  # forget about this sub-tree
         cv_grid_search.fit_predict(recursion=True, **Xy)
         #  Pump-up results
         methods = list()
@@ -201,6 +200,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         # Add children
         from epac.workflow.splitters import ParMethods
         to_refit = ParMethods(*methods)
+        self.children = list()  # forget about the CV-grid search sub-tree        
         self.add_child(to_refit)
         to_refit.fit(recursion=True, **Xy)
         return self

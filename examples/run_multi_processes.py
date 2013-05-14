@@ -37,7 +37,7 @@ def do_all(options):
     '''
     ## All the file paths should be ***RELATIVE*** path in the working directory
     # Training and test data
-    datasets_file = "./epac_datasets.npz"
+    datasets_file_relative_path = "./epac_datasets.npz"
     # root key for Epac tree
     tree_root_relative_path = "./epac_tree"
     random_state = 0
@@ -54,7 +54,7 @@ def do_all(options):
     X, y = datasets.make_classification(n_samples=options.n_samples,
                                         n_features=options.n_features,
                                         n_informative=options.n_informative)
-    np.savez(datasets_file, X=X, y=y)
+    np.savez(datasets_file_relative_path, X=X, y=y)
 
     ## 3) Build Workflow
     ## =================
@@ -75,7 +75,7 @@ def do_all(options):
                   n_folds=options.n_folds_nested, y=y,
                   random_state=random_state)
 
-    pipeline = Seq(SelectKBest(k=5), SVC(kernel="linear", C=1))
+    #pipeline = Seq(SelectKBest(k=5), SVC(kernel="linear", C=1))
     #print pipeline.stats(group_by="class")
     wf = ParPerm(
              ParCV(pipeline,
@@ -93,21 +93,21 @@ def do_all(options):
     ## 5) Run
     ## ======
     time_fit_predict = time.time()
-    wf.fit_predict(X=X, y=y)
-#    run_multi_processes(
-#    in_datasets_file=datasets_file,
-#    in_working_directory=options.working_dir_path,
-#    in_tree_root=wf,
-#    in_num_cores=options.n_cores,
-#    in_is_wait=True
-#    )
+#    wf.fit_predict(X=X, y=y)
+    run_multi_processes(
+    in_datasets_file_relative_path=datasets_file_relative_path,
+    in_working_directory=options.working_dir_path,
+    in_tree_root=wf,
+    in_num_cores=options.n_cores,
+    in_is_wait=True
+    )
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     wf_key = wf.get_key()
 
     time_reduce = time.time()
     ## 6) Load Epac tree & Reduce
     ## ==========================
-    #wf = WF.load(wf_key)
+    wf = WF.load(wf_key)
 
     print wf.reduce()
     print "Time ellapsed, reduce:",   time.time() - time_reduce
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         help='(default %d)' % n_cores, default=n_cores, type="int")
     parser.add_option('-w', '--working_dir_path',
         help='(default %s)' % working_dir_path, default=working_dir_path)
-    #argv = ['examples/large_toy.py', '--n_perms=3']
+    #argv = ['examples/large_toy.py']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     do_all(options)

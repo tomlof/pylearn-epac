@@ -132,7 +132,6 @@ if __name__ == "__main__":
     n_folds = 10
     n_folds_nested = 5
     k_max = "auto"
-    n_cores = 2
     working_dir_path = "/tmp/my_working_directory"
 
     # parse command line options
@@ -153,8 +152,6 @@ if __name__ == "__main__":
         help='"auto": 1, 2, 4, ... n_features values. "fixed": 1, 2, 4, ..., k_max (default %s)' % k_max, default=k_max, type="string")
     parser.add_option('-t', '--trace',
         help='Trace execution (default %s)' % False, action='store_true', default=False)
-    parser.add_option('-c', '--n_cores',
-        help='(default %d)' % n_cores, default=n_cores, type="int")
     parser.add_option('-w', '--working_dir_path',
         help='(default %s)' % working_dir_path, default=working_dir_path)
     #argv = []

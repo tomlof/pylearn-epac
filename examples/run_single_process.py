@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser.add_option('-t', '--trace',
         help='Trace execution (default %s)' % False, action='store_true', default=False)
 
-    #argv = ['examples/large_toy.py', '--n_perms=10']
+    #argv = []
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     do_all(options)
