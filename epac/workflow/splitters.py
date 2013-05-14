@@ -51,11 +51,8 @@ class ParCV(WFNodeSplitter):
     n_folds: int
         Number of folds.
 
-    y: array
-        if an array is provided do a StratifiedKFold.
-
-    n: int
-       Do a KFold CV, or a LeaveOneOut if n==n_folds
+    cv_type: string
+        Values: "stratified", "random", "loo". Default "stratified".
 
     random_state : int or RandomState
         Pseudo-random number generator state used for random sampling.
@@ -66,11 +63,12 @@ class ParCV(WFNodeSplitter):
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, node, n_folds, random_state=None, reducer=None,
-                 **kwargs):
+    def __init__(self, node, n_folds=None, random_state=None, reducer=None,
+                 cv_type="stratified", **kwargs):
         super(ParCV, self).__init__()
         self.n_folds = n_folds
         self.random_state = random_state
+        self.cv_type = cv_type
         self.reducer = reducer
         self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
                                apply_on=None) for nb in xrange(n_folds)])
@@ -78,38 +76,41 @@ class ParCV(WFNodeSplitter):
             node_cp = copy.deepcopy(node)
             node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
             split.add_child(node_cp)
-        if "y" in kwargs or "n" in kwargs:
-            self.finalize_init(**kwargs)
 
-    def finalize_init(self, **Xy):
-        cv = None
-        if "y" in Xy:
+    def fit(self, recursion=True, **Xy):
+        """Call transform with sample_set="train" """
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+        return self.transform(recursion=False, **Xy)
+
+    def transform(self, recursion=True, **Xy):
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **Xy)
+        # Set the slicing
+        if not "y" in Xy:
+            raise ValueError('"y" should be provided')
+        if self.cv_type == "stratified":
+            if not self.n_folds:
+                raise ValueError('"n_folds" should be set')
             from sklearn.cross_validation import StratifiedKFold
             cv = StratifiedKFold(y=Xy["y"], n_folds=self.n_folds)
-        elif "n" in Xy:
-            n = Xy["n"]
-            if n > self.n_folds:
-                from sklearn.cross_validation import KFold
-                cv = KFold(n=n, n_folds=self.n_folds,
+        elif self.cv_type == "random":
+            if not self.n_folds:
+                raise ValueError('"n_folds" should be set')
+            from sklearn.cross_validation import KFold
+            cv = KFold(n=Xy["y"].shape[0], n_folds=self.n_folds,
                            random_state=self.random_state)
-            elif n == self.n_folds:
-                from sklearn.cross_validation import LeaveOneOut
-                cv = LeaveOneOut(n=n)
-        if cv:
-            nb = 0
-            for train, test in cv:
-                self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
-                                     ParCV.SUFFIX_TEST: test})
-                nb += 1
-        # propagate down-way
-        if self.children:
-            if "n" in Xy:
-                for child in self.children:
-                    Xy["n"] = len(child.slices[ParCV.SUFFIX_TRAIN])
-                    child.finalize_init(**Xy)
-            else:
-                #ICI if n in *Xy n should be redifined
-                [child.finalize_init(**Xy) for child in self.children]
+        elif self.cv_type == "loo":
+            from sklearn.cross_validation import LeaveOneOut
+            cv = LeaveOneOut(n=Xy["y"].shape[0])
+        #if cv:
+        nb = 0
+        for train, test in cv:
+            self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
+                                 ParCV.SUFFIX_TEST: test})
+            nb += 1
+        return Xy
 
     def get_state(self):
         return dict(n_folds=self.n_folds)
@@ -152,25 +153,31 @@ class ParPerm(WFNodeSplitter):
             node_cp = copy.deepcopy(node)
             node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
             perm.add_child(node_cp)
-        if "y" in kwargs:
-            self.finalize_init(**kwargs)
-
-    def finalize_init(self, **Xy):
-        if not "y" in Xy:
-            raise KeyError("y is not provided to finalize the initialization")
-        y = Xy["y"]
-        from epac.sklearn_plugins import Permutation
-        nb = 0
-        for perm in Permutation(n=y.shape[0], n_perms=self.n_perms,
-                                random_state=self.random_state):
-            self.children[nb].set_sclices(perm)
-            nb += 1
-        # propagate down-way
-        if self.children:
-            [child.finalize_init(**Xy) for child in self.children]
 
     def get_state(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
+
+    def fit(self, recursion=True, **Xy):
+        """Call transform with sample_set="train" """
+        if recursion:
+            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+        return self.transform(recursion=False, **Xy)
+
+    def transform(self, recursion=True, **Xy):
+        if recursion:
+            return self.top_down(func_name="transform", recursion=recursion,
+                                 **Xy)
+        # Set the slicing
+        if not "y" in Xy:
+            raise ValueError('"y" should be provided')
+        from epac.sklearn_plugins import Permutation
+        perms = Permutation(n=Xy["y"].shape[0], n_perms=self.n_perms,
+                                random_state=self.random_state)
+        nb = 0
+        for perm in perms:
+            self.children[nb].set_sclices(perm)
+            nb += 1
+        return Xy
 
 
 class ParMethods(WFNodeSplitter):
@@ -251,12 +258,6 @@ class WFNodeRowSlicer(WFNodeSlicer):
         self.slices = None
         self.n = 0  # the dimension of that array in ds should respect
         self.apply_on = apply_on
-
-    def finalize_init(self, **Xy):
-        Xy = self.transform(recursion=False, sample_set="train", **Xy)
-        # propagate down-way
-        if self.children:
-            [child.finalize_init(**Xy) for child in self.children]
 
     def get_state(self):
         return dict(slices=self.slices)

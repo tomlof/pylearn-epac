@@ -12,6 +12,16 @@ from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=100, n_features=500,
                                     n_informative=5)
+                                    
+Xy = dict(X=X, y=y)
+from epac import ParCV
+from epac import SummaryStat
+from epac import conf, debug
+conf.TRACE_TOPDOWN = True
+self = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
+self.fit_predict(**Xy)
+self.reduce()
+
 
 # Build sequential Pipeline
 # -------------------------
@@ -54,8 +64,8 @@ multi.fit_predict(X=X, y=y)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms]
-[l.get_key(2) for l in svms]  # No key 2 collisions, no aggregation
+[l.get_key() for l in svms.get_all_nodes()]
+[l.get_key(2) for l in svms.get_all_nodes()]  # No key 2 collisions, no aggregation
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
@@ -68,8 +78,8 @@ anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
-[l.get_key() for l in anovas_svm]
-[l.get_key(2) for l in anovas_svm]  # No key 2 collisions, no aggregation
+[l.get_key() for l in anovas_svm.get_all_nodes()]
+[l.get_key(2) for l in anovas_svm.get_all_nodes()]  # No key 2 collisions, no aggregation
 
 
 # Parallelize SVM with several parameters.
@@ -84,16 +94,16 @@ from epac import ParGrid
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms]
-[l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
+[l.get_key() for l in svms.get_all_nodes()]
+[l.get_key(2) for l in svms.get_all_nodes()]  # intermediary key collisions: trig aggregation
 
 
 
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms]
-[l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
+[l.get_key() for l in svms.get_all_nodes()]
+[l.get_key(2) for l in svms.get_all_nodes()]  # intermediary key collisions: trig aggregation
 
 
 # Cross-validation
@@ -106,7 +116,7 @@ svms.reduce()
 # LDA LDA LDA  Classifier (Estimator)
 from epac import ParCV
 from epac import SummaryStat
-cv_lda = ParCV(LDA(), n_folds=3, y=y, reducer=SummaryStat())
+cv_lda = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
 cv_lda.fit_predict(X=X, y=y)
 cv_lda.reduce()
 
@@ -118,8 +128,8 @@ cv_lda.reduce()
 # If it is called with transform, user has to precise wich sample to use. To
 # do that just add a argument sample_set="train" or "test" in the downstream
 # data-flow. This argument will be catched by the slicer.
-cv_lda.transform(X=X, sample_set="train")
-cv_lda.transform(X=X, sample_set="test")
+cv_lda.transform(X=X, y=y, sample_set="train")
+cv_lda.transform(X=X, y=y, sample_set="test")
 
 
 # Model selection using CV: ParCV + ParGrid
@@ -127,7 +137,7 @@ cv_lda.transform(X=X, sample_set="test")
 from epac import ParGrid, Seq, ParCVGridSearchRefit
 # CV + Grid search of a simple classifier
 wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
-           n_folds=5, y=y)
+           n_folds=5)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
@@ -136,7 +146,7 @@ wf = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C)\
                           for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]],
-           n_folds=5, y=y)
+           n_folds=5)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
@@ -167,9 +177,10 @@ from epac import SummaryStat, PvalPermutations
 # _obj_to_dict, _dict_to_obj
 
 perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
-                    n_perms=3, permute="y", y=y, reducer=PvalPermutations(filter_out_others=False))
-[l.get_key() for l in perms_cv_lda]
-[l.get_key(2) for l in perms_cv_lda]
+                    n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
+
+[l.get_key() for l in perms_cv_lda.get_leaves()]
+[l.get_key(2) for l in perms_cv_lda.get_leaves()]
 
 # Save tree
 import tempfile

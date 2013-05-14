@@ -33,7 +33,7 @@ class TestWorkFlow(unittest.TestCase):
         wf = ParPerm(
             ParCV(anovas_svm, n_folds=n_folds,
                   reducer=SummaryStat(filter_out_others=False)),
-            n_perms=n_perms, permute="y", y=y, random_state=rnd,
+            n_perms=n_perms, permute="y", random_state=rnd,
             reducer=PvalPermutations(filter_out_others=False))
         # Save workflow
         # -------------
@@ -144,12 +144,12 @@ class TestParCVGridSearchRefit(unittest.TestCase):
                       Seq(SelectKBest(k=k),
                           ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                       for k in k_values],
-                      n_folds=n_folds_nested, y=y, random_state=random_state)
+                      n_folds=n_folds_nested, random_state=random_state)
         wf = ParPerm(
                  ParCV(pipeline,
                        n_folds=n_folds,
                        reducer=SummaryStat(filter_out_others=False)),
-                 n_perms=n_perms, permute="y", y=y,
+                 n_perms=n_perms, permute="y",
                  reducer=PvalPermutations(filter_out_others=False),
                  random_state=random_state)
 

@@ -168,11 +168,6 @@ class WFNode(object):
     def __repr__(self):
         return self.get_key()
 
-    def finalize_init(self, **Xy):
-        """Overload this methods if init finalization is required"""
-        if self.children:
-            [child.finalize_init(**Xy) for child in self.children]
-
     # --------------------- #
     # -- Tree operations -- #
     # --------------------- #
