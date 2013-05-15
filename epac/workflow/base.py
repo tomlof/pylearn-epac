@@ -10,7 +10,7 @@ import re, sys
 import copy
 import numpy as np
 from abc import abstractmethod
-from epac.stores import get_store
+#from epac.stores import get_store
 from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
 
@@ -151,10 +151,7 @@ class WFNode(object):
     def __init__(self):
         self.parent = None
         self.children = list()
-        self.store = ""
-        # Results are indexed by intermediary keys. Each item is itself
-        # a dictionnary
-        self.results = dict()
+        self.store = None
         # The Key is the concatenation of nodes signatures from root to
         # Leaf.
         # Arguments are used to avoid collisions between keys.
@@ -180,23 +177,22 @@ class WFNode(object):
         for child in children:
             self.add_child(child)
 
-    def get_leaves(self):
+    def walk_leaves(self):
+        """Leaves iterator"""
         if not self.children:
-            return [self]
+            yield self
         else:
-            leaves = []
             for child in self.children:
-                leaves = leaves + child.get_leaves()
-            return leaves
+                for yielded in child.walk_leaves():
+                    yield yielded
 
-    def get_all_nodes(self):
-        if not self.children:
-            return [self]
-        else:
-            nodes = [self]
+    def walk_nodes(self):
+        """Leaves iterator"""
+        yield self
+        if self.children:
             for child in self.children:
-                nodes = nodes + child.get_all_nodes()
-            return nodes
+                for yielded in child.walk_nodes():
+                    yield yielded
 
     def get_leftmost_leaf(self):
         """Return the left most leaf of a tree"""
@@ -286,10 +282,6 @@ class WFNode(object):
             return [self]
         return self.parent.get_path_from_node(node) + [self]
 
-#    def __iter__(self):
-#        """ Iterate over leaves"""
-#        for node in self.get_all_nodes():
-#            yield node
     # --------------------- #
     # -- Key             -- #
     # --------------------- #
@@ -309,7 +301,8 @@ class WFNode(object):
             2 return the intermediate key (us data-flow).
         """
         if not self.parent:
-            return key_push(self.store, self.get_signature(nb=nb))
+            return self.get_signature(nb=nb)
+            #return key_push(self.store, self.get_signature(nb=nb))
         elif not hasattr(self.parent, "get_key"):
             return key_push(str(self.parent), self.get_signature(nb=nb))
         else:
@@ -331,22 +324,34 @@ class WFNode(object):
             args_str = "(" + args_str + ")"
             return self.__class__.__name__ + args_str
 
+    def get_signature_args(self):
+        return self.signature_args
+
     @abstractmethod
     def get_state(self):
         """Return the state of the object"""
 
-    def add_results(self, key2=None, val_dict=None):
-        """ Collect result output
+    def get_store(self):
+        curr = self
+        while True:
+            if curr.store:
+                return curr.store
+            curr = curr.parent
+            if not curr:
+                raise ValueError("Reached tree root and found no store")
 
-        Parameters
-        ----------
-        key2 : (string) the intermediary key
-        val_dict : dictionary of the intermediary value produced by the leaf
-        nodes.
-        """
-        if not key2 in self.results:
-            self.results[key2] = dict()
-        self.results[key2].update(val_dict)
+#    def add_results(self, key2=None, val_dict=None):
+#        """ Collect result output
+#
+#        Parameters
+#        ----------
+#        key2 : (string) the intermediary key
+#        val_dict : dictionary of the intermediary value produced by the leaf
+#        nodes.
+#        """
+#        if not key2 in self.results:
+#            self.results[key2] = dict()
+#        self.results[key2].update(val_dict)
 
     def stats(self, group_by="key", sort_by="count"):
         """Statistics on the workflow
@@ -358,8 +363,7 @@ class WFNode(object):
                 Sort by "count" or "size" (default "count")
         """
         stat_dict = dict()
-        nodes = self.get_all_nodes()
-        for n in nodes:
+        for n in self.walk_nodes():
             if group_by == "class":
                 name = n.__class__.__name__
             else:
@@ -484,7 +488,7 @@ class WFNode(object):
         # Aggregate (stack) all children results with identical
         # intermediary key, by stacking them according to
         # argumnents. Ex.: stack for a CV stack folds, for a ParGrid
-        children_args = [child.signature_args for child in self.children]
+        children_args = [child.get_signature_args() for child in self.children]
         _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
         if diff_arg_names:
@@ -558,14 +562,11 @@ class WFNode(object):
         if conf.DEBUG:
             #global _N
             debug.current = self
-        if store:
-            if len(key_split(store)) < 2:  # no store provided default use fs
-                store = key_join(conf.KEY_PROT_FS, store)
-            self.store = store
-        if not self.store and not self.parent:
-            raise ValueError("No store has been defined")
+        if not store:
+            store = self.get_store()
+#        if not self.store and not self.parent:
+#            raise ValueError("No store has been defined")
         key = self.get_key()
-        store = get_store(key)
         if not attr:  # save the entire node
             # Prevent recursion saving of children/parent in a single dump:
             # replace reference to chidren/parent by basename strings
@@ -575,40 +576,40 @@ class WFNode(object):
                 clone.parent = ".."
             if hasattr(self, "estimator"):  # Always pickle estimator
                 clone.estimator = None
-                store.save(self.estimator, key_push(key, "estimator"),
+                store.save(key=key_push(key, "estimator"), obj=self.estimator,
                            protocol="bin")
-            store.save(clone, key=key_push(key, conf.STORE_NODE_PREFIX))
+            store.save(key=key_push(key, conf.STORE_NODE_PREFIX), obj=clone)
         else:
             o = self.__dict__[attr]
             # avoid saving attributes of len 0
             if not hasattr(o, "__len__") or (len(o) > 0):
-                store.save(o, key_push(key, attr))
+                store.save(key=key_push(key, attr), obj=o)
         if recursion and self.children:
             # Call children save down to leaves
-            [child.save(attr=attr, recursion=recursion) for child
+            [child.save(store=store, attr=attr, recursion=recursion) for child
                 in self.children]
 
     @classmethod
-    def load(cls, key=None, store=None, recursion=True):
+    def load(cls, store, key, recursion=True):
         """I/O (persistance) load a node indexed by key from the store.
 
         Parameters
         ----------
+        store: Store()
+
         key: string
             Load the node indexed by its key from the store. If missing then
             assume file system store and the key will point on the root of the
             store.
 
-        store: string
-            For fs store juste indicate the path to the store.
-
         recursion: boolean
             Indicates if sub-nodes (down to the leaves) and parent nodes
             (path up to the root) should be recursively loaded. Default (True).
         """
-        if key is None:  # assume fs store, and point on the root of the store
-            key = key_join(prot=conf.KEY_PROT_FS, path=store)
-        store = get_store(key)
+#        if key is None:  # assume fs store, and point on the root of the store
+#            key = key_join(prot=conf.KEY_PROT_FS, path=store)
+        #store = self.get_store()
+        print store, key
         loaded = store.load(key)
         node = loaded.pop(conf.STORE_NODE_PREFIX)
         node.__dict__.update(loaded)
@@ -618,14 +619,15 @@ class WFNode(object):
             node.children = list()
             for child in children:
                 child_key = key_push(key, child)
-                node.add_child(WF.load(key=child_key, recursion=recursion))
+                node.add_child(WF.load(store=store, key=child_key,
+                                       recursion=recursion))
         # Recursively load nodes'path up to the root
         curr = node
         curr_key = key
         while recursion and curr.parent == '..':
             #print node.get_key()
             curr_key = key_pop(curr_key)
-            parent = WF.load(key=curr_key, recursion=False)
+            parent = WF.load(store=store, key=curr_key, recursion=False)
             parent.children = list()
             parent.add_child(curr)
             #curr.parent = parent

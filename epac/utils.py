@@ -159,29 +159,3 @@ def _func_get_args_names(f):
     if "self" in args_names:
         args_names.remove("self")
     return args_names
-
-import collections
-
-
-class CallbackList(collections.MutableSequence):
-
-    def __init__(self, len_callback, getitem_callback=None,
-                 setitem_callback=None, *args):
-        self.list = list()
-        self.extend(list(args))
-
-    def __len__(self):
-        return len(self.list)
-
-    def __getitem__(self, i):
-        return self.list[i]
-
-    def __delitem__(self, i):
-        del self.list[i]
-
-    def __setitem__(self, i, v):
-        self.check(v)
-        self.list[i] = v
-
-    def __str__(self):
-        return str(self.list)

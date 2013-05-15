@@ -11,7 +11,7 @@ splitter (ParMethods, ParGrid).
 ## Abreviations
 ## tr: train
 ## te: test
-
+import collections
 import numpy as np
 import copy
 
@@ -70,12 +70,18 @@ class ParCV(WFNodeSplitter):
         self.random_state = random_state
         self.cv_type = cv_type
         self.reducer = reducer
-        self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
-                               apply_on=None) for nb in xrange(n_folds)])
-        for split in self.children:
-            node_cp = copy.deepcopy(node)
-            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
-            split.add_child(node_cp)
+        slicer = WFNodeRowSlicer(signature_name="CV", nb=0, apply_on=None)
+        slicer.parent = self
+        subtree = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+        slicer.add_child(subtree)
+        self.children = SlicerVirtualList(size=n_folds, slicer=slicer)
+
+#        self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
+#                               apply_on=None) for nb in xrange(n_folds)])
+#        for split in self.children:
+#            node_cp = copy.deepcopy(node)
+#            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+#            split.add_child(node_cp)
 
     def fit(self, recursion=True, **Xy):
         """Call transform with sample_set="train" """
@@ -210,7 +216,7 @@ class ParMethods(WFNodeSplitter):
                     children_next += c.children
                 children = children_next
                 children_key = [c.get_key() for c in children]
-        leaves_key = [l.get_key() for l in self.get_leaves()]
+        leaves_key = [l.get_key() for l in self.walk_leaves()]
         if len(leaves_key) != len(set(leaves_key)):
             raise ValueError("Some methods are identical, they could not be "
                     "differentiated according to their arguments")
@@ -232,12 +238,52 @@ class ParGrid(ParMethods):
 # -- Slicers                    -- #
 # -------------------------------- #
 
+class SlicerVirtualList(collections.Sequence):
+    def __init__(self, size, slicer):
+        self.size = size
+        self.slicer = slicer
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, i):
+        if i >= self.size:
+            raise IndexError("%s index out of range" % self.__class__.__name__)
+        self.slicer.set_nb(i)
+        return self.slicer
+
+    def __iter__(self):
+        """ Iterate over leaves"""
+        for i in xrange(self.size):
+            yield self.__getitem__(i)
+
+
 class WFNodeSlicer(WFNode):
     """ Slicers are Splitters' children, they re-sclice the downstream blocs.
     """
-    def __init__(self):
+    def __init__(self, signature_name, nb):
         super(WFNodeSlicer, self).__init__()
+        self.signature_name = signature_name
+        self.signature_args = dict(nb=nb)
 
+    def set_nb(self, nb):
+        self.signature_args["nb"] = nb
+
+    def get_state(self):
+        return dict(slices=self.slices)
+
+    def get_signature(self, nb=1):
+        """Overload the base name method.
+        - Use self.signature_name
+        - Cause intermediary keys collision which trig aggregation."""
+        if nb is 1:
+            return self.signature_name + "(nb=" + str(self.signature_args["nb"]) + ")"
+        else:
+            return self.signature_name + "(*)"
+
+    def get_signature_args(self):
+        """overried get_signature_args to return a copy"""
+        return copy.copy(self.signature_args)
 
 class WFNodeRowSlicer(WFNodeSlicer):
     """Row-wise reslicing of the downstream blocs.
@@ -252,27 +298,10 @@ class WFNodeRowSlicer(WFNodeSlicer):
     """
 
     def __init__(self, signature_name, nb, apply_on):
-        super(WFNodeRowSlicer, self).__init__()
-        self.signature_name = signature_name
-        self.signature_args = dict(nb=nb)
+        super(WFNodeRowSlicer, self).__init__(signature_name, nb)
         self.slices = None
         self.n = 0  # the dimension of that array in ds should respect
         self.apply_on = apply_on
-
-    def get_state(self):
-        return dict(slices=self.slices)
-
-    def get_signature(self, nb=1):
-        """Overload the base name method.
-        - use self.signature_name
-        - Provoks intermediary keys collision which trig aggregation."""
-        if nb is 1:
-            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
-                             for k in self.signature_args])
-            args_str = "(" + args_str + ")"
-            return self.signature_name + args_str
-        else:
-            return self.signature_name + "(*)"
 
     def set_sclices(self, slices):
         # convert as a list if required

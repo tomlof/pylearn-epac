@@ -20,7 +20,7 @@ class Store(object):
     """Abstract Store"""
 
     @abstractmethod
-    def save(self, obj, key):
+    def save(self, key, obj):
         """Store abstract method"""
 
     @abstractmethod
@@ -28,54 +28,58 @@ class Store(object):
         """Store abstract method"""
 
 
-class StoreLo(Store):
-    """ Store based on Living Objects"""
+class StoreMem(Store):
+    """ Store based on memory"""
 
-    def save(self, obj, key):
-        raise ValueError("Not implemented")
+    def __init__(self):
+        self.dict = dict()
 
     def load(self, key):
-        raise ValueError("Not implemented")
+        return self.dict[key]
+
+    def save(self, key, obj):
+        self.dict[key] = obj
 
 
 class StoreFs(Store):
     """ Store based of file system"""
 
-    def __init__(self):
-        pass
+    def __init__(self, dirpath):
+        self.dirpath = dirpath
 
-    def key2path(self, key):
-        from epac.workflow.base import key_split
-        prot, path = key_split(key)
-        return path
+#    def key2path(self, key):
+#        from epac.workflow.base import key_split
+#        prot, path = key_split(key)
+#        return path
 
-    def save(self, obj, key, protocol="txt"):
+    def save(self, key, obj, protocol="txt"):
         """ Save object
 
         Parameters
         ----------
 
-        obj:
-            object to be saved
-
         key: str
             The primary key
+
+        obj:
+            object to be saved
 
         protocol: str
             "txt": try with JSON if fail use "bin": (pickle)
         """
-        path = self.key2path(key)
+        #path = self.key2path(key)
+        path = os.path.join(self.dirpath, key)
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         # JSON
         from epac.workflow.base import conf
         if protocol is "txt":
             file_path = path + conf.STORE_FS_JSON_SUFFIX
-            json_failed = self.save_json(obj, file_path)
+            json_failed = self.save_json(file_path, obj)
         if protocol is "bin" or json_failed:
             # saving in json failed => pickle
             file_path = path + conf.STORE_FS_PICKLE_SUFFIX
-            self.save_pickle(obj, file_path)
+            self.save_pickle(file_path, obj)
 
     def load(self, key):
         """Load everything that is prefixed with key.
@@ -93,7 +97,7 @@ class StoreFs(Store):
             single object with an empty key.
         """
         from epac.workflow.base import conf
-        path = self.key2path(key)
+        path = os.path.join(self.dirpath, key)
         #prefix = os.path.join(path, conf.STORE_FS_NODE_PREFIX)
         if os.path.isdir(path):
             path = path + os.path.sep
@@ -116,7 +120,7 @@ class StoreFs(Store):
                     (file_path, ext))
         return loaded
 
-    def save_pickle(self, obj, file_path):
+    def save_pickle(self, file_path, obj):
         output = open(file_path, 'wb')
         pickle.dump(obj, output)
         output.close()
@@ -128,7 +132,7 @@ class StoreFs(Store):
         inputf.close()
         return obj
 
-    def save_json(self, obj, file_path):
+    def save_json(self, file_path,  obj):
         obj_dict = obj_to_dict(obj)
         output = open(file_path, 'wb')
         try:
@@ -147,25 +151,25 @@ class StoreFs(Store):
         return dict_to_obj(obj_dict)
 
 
-def get_store(key):
-    """ factory function returning the Store object of the class
-    associated with the key parameter"""
-    from epac.workflow.base import  key_split, conf
-    splits = key_split(key)
-    if len(splits) != 2 and \
-        not(splits[0] in (conf.KEY_PROT_FS, conf.KEY_PROT_MEM)):
-        raise ValueError('No valid storage has been associated with key: "%s"'
-            % key)
-    prot, path = splits
-    if prot == conf.KEY_PROT_FS:
-        return StoreFs()
-#    FIXME
-#    elif prot == conf.KEY_PROT_MEM:
-#        return StoreLo(storage_root=_Node.roots[path])
-    else:
-        raise ValueError("Invalid value for key: should be:" +\
-        "lo for no persistence and storage on living objects or" +\
-        "fs and a directory path for file system based storage")
+#def get_store(key):
+#    """ factory function returning the Store object of the class
+#    associated with the key parameter"""
+#    from epac.workflow.base import  key_split, conf
+#    splits = key_split(key)
+#    if len(splits) != 2 and \
+#        not(splits[0] in (conf.KEY_PROT_FS, conf.KEY_PROT_MEM)):
+#        raise ValueError('No valid storage has been associated with key: "%s"'
+#            % key)
+#    prot, path = splits
+#    if prot == conf.KEY_PROT_FS:
+#        return StoreFs()
+##    FIXME
+##    elif prot == conf.KEY_PROT_MEM:
+##        return StoreLo(storage_root=_Node.roots[path])
+#    else:
+#        raise ValueError("Invalid value for key: should be:" +\
+#        "lo for no persistence and storage on living objects or" +\
+#        "fs and a directory path for file system based storage")
 
 
 ## ============================== ##

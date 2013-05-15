@@ -14,7 +14,7 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
-
+from epac import StoreFs
 
 class TestWorkFlow(unittest.TestCase):
 
@@ -38,15 +38,16 @@ class TestWorkFlow(unittest.TestCase):
         # Save workflow
         # -------------
         import tempfile
-        wf.save(store=tempfile.mktemp())
+        store = StoreFs(tempfile.mktemp())
+        wf.save(store=store)
         key = wf.get_key()
-        wf = WF.load(key)
+        wf = WF.load(store=store, key)
         ## Fit & Predict
         wf.fit_predict(X=X, y=y)
         ## Save results
         wf.save(attr="results")
         ### Reload tree, all you need to know is the key
-        wf = WF.load(key)
+        wf = WF.load(store=store, key=key)
         ### Reduces results
         R1 = wf.reduce()
         rm = os.path.dirname(os.path.dirname(R1.keys()[0])) + "/"
@@ -237,7 +238,7 @@ class TestParMethods(unittest.TestCase):
     def test_constructor_avoid_collision_level1(self):
         # Test that level 1 collisions are avoided
         pm = ParMethods(*[SVC(kernel="linear", C=C) for C in [1, 10]])
-        leaves_key = [l.get_key() for l in pm.get_leaves()]
+        leaves_key = [l.get_key() for l in pm.walk_leaves()]
         self.assertTrue(len(leaves_key) == len(set(leaves_key)),
                         u'Collision could not be avoided')
 
@@ -245,7 +246,7 @@ class TestParMethods(unittest.TestCase):
         # Test that level 2 collisions are avoided
         pm = ParMethods(*[Seq(SelectKBest(k=2), SVC(kernel="linear", C=C))\
                           for C in [1, 10]])
-        leaves_key = [l.get_key() for l in pm.get_leaves()]
+        leaves_key = [l.get_key() for l in pm.walk_leaves()]
         self.assertTrue(len(leaves_key) == len(set(leaves_key)),
                         u'Collision could not be avoided')
 

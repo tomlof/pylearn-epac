@@ -12,16 +12,20 @@ from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=100, n_features=500,
                                     n_informative=5)
-                                    
-Xy = dict(X=X, y=y)
-from epac import ParCV
-from epac import SummaryStat
-from epac import conf, debug
-conf.TRACE_TOPDOWN = True
-self = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
-self.fit_predict(**Xy)
-self.reduce()
 
+
+
+from epac import ParGrid, Seq, ParCVGridSearchRefit
+# CV + Grid search of a simple classifier
+wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
+           n_folds=5)
+self = wf
+Xy = dict(X=X, y=y)
+from epac import  xy_split
+wf.fit_predict(X=X, y=y)
+
+self = wf
+wf.reduce()
 
 # Build sequential Pipeline
 # -------------------------
@@ -64,8 +68,8 @@ multi.fit_predict(X=X, y=y)
 svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms.get_all_nodes()]
-[l.get_key(2) for l in svms.get_all_nodes()]  # No key 2 collisions, no aggregation
+[l.get_key() for l in svms.walk_nodes()]
+[l.get_key(2) for l in svms.walk_nodes()]  # No key 2 collisions, no aggregation
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
@@ -78,8 +82,8 @@ anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
-[l.get_key() for l in anovas_svm.get_all_nodes()]
-[l.get_key(2) for l in anovas_svm.get_all_nodes()]  # No key 2 collisions, no aggregation
+[l.get_key() for l in anovas_svm.walk_nodes()]
+[l.get_key(2) for l in anovas_svm.walk_nodes()]  # No key 2 collisions, no aggregation
 
 
 # Parallelize SVM with several parameters.
@@ -94,16 +98,16 @@ from epac import ParGrid
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms.get_all_nodes()]
-[l.get_key(2) for l in svms.get_all_nodes()]  # intermediary key collisions: trig aggregation
+[l.get_key() for l in svms.walk_nodes()]
+[l.get_key(2) for l in svms.walk_nodes()]  # intermediary key collisions: trig aggregation
 
 
 
 svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms.get_all_nodes()]
-[l.get_key(2) for l in svms.get_all_nodes()]  # intermediary key collisions: trig aggregation
+[l.get_key() for l in svms.walk_nodes()]
+[l.get_key(2) for l in svms.walk_nodes()]  # intermediary key collisions: trig aggregation
 
 
 # Cross-validation
@@ -173,25 +177,28 @@ for k in wf.results:
 
 from epac import ParPerm, ParCV, WF
 from epac import SummaryStat, PvalPermutations
+from epac import StoreFs
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
 perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
                     n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
 
-[l.get_key() for l in perms_cv_lda.get_leaves()]
-[l.get_key(2) for l in perms_cv_lda.get_leaves()]
+[l.get_key() for l in perms_cv_lda.walk_leaves()]
+[l.get_key(2) for l in perms_cv_lda.walk_leaves()]
 
 # Save tree
 import tempfile
-perms_cv_lda.save(store=tempfile.mktemp())
+store = StoreFs(tempfile.mktemp())
+self = perms_cv_lda
+perms_cv_lda.save(store=store)
 # Fit & Predict
 perms_cv_lda.fit_predict(X=X, y=y)
 # Save results
 perms_cv_lda.save(attr="results")
 key = perms_cv_lda.get_key()
 # Reload tree, all you need to know is the key
-tree = WF.load(key)
+tree = WF.load(store=store, key=key)
 # Reduces results
 tree.reduce()
 

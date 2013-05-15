@@ -13,7 +13,7 @@ from epac.workflow.estimators import ParCVGridSearchRefit
 from epac.workflow.base import conf, debug
 from epac.workflow.base import xy_split, xy_merge
 from epac.utils import dict_diff, range_log2
-from epac.stores import get_store
+from epac.stores import StoreFs, StoreMem
 
 #from epac.workflow import WF, Seq, ParCV, ParPerm, ParMethods, ParGrid
 #from epac.workflow import ParCVGridSearchRefit
@@ -41,6 +41,7 @@ __all__ = ['WF',
            'xy_split',
            'xy_merge',
            'dict_diff',
-           'get_store',
+           'StoreFs',
+           'StoreMem',
            'range_log2'
            ]

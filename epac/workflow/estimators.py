@@ -88,7 +88,7 @@ class WFNodeEstimator(WFNode):
                               y_train_score_dict)
             y_train_score_dict = {conf.PREFIX_TRAIN + conf.PREFIX_SCORE +
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
-            self.add_results(self.get_key(2), y_train_score_dict)
+            self.store_results(self.get_key(2), y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **Xy)
         else:
@@ -134,7 +134,7 @@ class WFNodeEstimator(WFNode):
             y_test_score_dict = _dict_prefix_keys(
                 conf.PREFIX_TEST + conf.PREFIX_SCORE, y_test_score_dict)
             results.update(y_test_score_dict)
-            self.add_results(self.get_key(2), results)
+            self.store_results(self.get_key(2), results)
         return y_pred_arr
 
 
@@ -177,9 +177,9 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         """Return children during the top-down execution."""
         return []
 
-#    def get_children_bottum_up(self):
-#        """Return children during the bottum-up execution."""
-#        return [self.children[0]]
+    def get_children_bottum_up(self):
+        """Return children during the bottum-up execution."""
+        return [self.children[1]]
 
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
@@ -200,14 +200,15 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         # Add children
         from epac.workflow.splitters import ParMethods
         to_refit = ParMethods(*methods)
-        self.children = list()  # forget about the CV-grid search sub-tree        
+        self.children = self.children[:1]
         self.add_child(to_refit)
         to_refit.fit(recursion=True, **Xy)
+        # Delete (eventual) about previous refit
         return self
 
     def predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
-        refited = self.children[0]
+        refited = self.children[1]
         return refited.predict(recursion=True, **Xy)
 
     def fit_predict(self, recursion=True, **Xy):
