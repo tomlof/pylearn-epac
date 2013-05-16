@@ -9,8 +9,8 @@ Define "Seq": the primitive to build sequential execution of tasks.
 ## tr: train
 ## te: test
 
-from epac.workflow.base import WFNode
-from epac.workflow.estimators import WFNodeEstimator
+from epac.workflow.base import BaseNode
+from epac.workflow.estimators import Estimator
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -26,11 +26,11 @@ def Seq(*nodes):
     ----------
     task [, task]*
     """
-    # SEQ(WFNode [, WFNode]*)
+    # SEQ(BaseNode [, BaseNode]*)
     #args = _group_args(*args)
     root = None
     for node in nodes:
-        curr = node if isinstance(node, WFNode) else WFNodeEstimator(node)
+        curr = node if isinstance(node, BaseNode) else Estimator(node)
         if not root:
             root = curr
         else:

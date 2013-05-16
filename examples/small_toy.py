@@ -10,22 +10,60 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=100, n_features=500,
+X, y = datasets.make_classification(n_samples=10, n_features=50,
                                     n_informative=5)
 
 
+#from sklearn import datasets
+from sklearn.svm import SVC
+from sklearn.feature_selection import SelectKBest
+X, y = datasets.make_classification(n_samples=100, n_features=500,
+                                    n_informative=5)
+n_perms = 3
+n_folds = 2
+n_folds_nested = 2
+random_state = 0
+k_values = [2, 3]
+C_values = [1, 10]
+# ===================
+# = With EPAC
+# ===================
+from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
+from epac import SummaryStat, PvalPermutations
+## CV + Grid search of a pipeline with a nested grid search
+pipeline = ParCVGridSearchRefit(*[
+              Seq(SelectKBest(k=k),
+                  ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+              for k in k_values],
+              n_folds=n_folds_nested, random_state=random_state)
+wf = ParPerm(
+         ParCV(pipeline,
+               n_folds=n_folds,
+               reducer=SummaryStat(filter_out_others=False)),
+         n_perms=n_perms, permute="y",
+         reducer=PvalPermutations(filter_out_others=False),
+         random_state=random_state)
 
-from epac import ParGrid, Seq, ParCVGridSearchRefit
-# CV + Grid search of a simple classifier
-wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
-           n_folds=5)
-self = wf
-Xy = dict(X=X, y=y)
-from epac import  xy_split
 wf.fit_predict(X=X, y=y)
+from epac import conf, debug
+conf.DEBUG = True
+R1 = wf.reduce()
+self = debug.current
+R1 = wf.reduce()
+self.children[0].bottum_up(store_results=False)
+self.children[1].bottum_up(store_results=False)
+n0 = self.children[0].children[0].children[1].children[0].children[0]
+n0.load_result()
+k0 = n0.get_key()
+store.dict[k0+"/result"]
 
-self = wf
-wf.reduce()
+n1 = self.children[1].children[0].children[1].children[0].children[0]
+n1.load_result()
+k1 = n1.get_key()
+
+store = self.get_store()
+store.dict[k1+"/result"]
+
 
 # Build sequential Pipeline
 # -------------------------

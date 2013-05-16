@@ -30,7 +30,7 @@ It is a user-defined object that should implements 4 methods:
 import re
 import numpy as np
 import copy
-from epac.workflow.base import WFNode, conf, xy_split
+from epac.workflow.base import BaseNode, conf, xy_split
 from epac.utils import _as_dict, _dict_prefix_keys
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _list_diff
@@ -40,13 +40,13 @@ from epac.utils import _sub_dict, _list_diff
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-class WFNodeEstimator(WFNode):
+class Estimator(BaseNode):
     """Node that wrap estimators"""
 
     def __init__(self, estimator):
         self.estimator = estimator
         self.signature2_args_str = None
-        super(WFNodeEstimator, self).__init__()
+        super(Estimator, self).__init__()
         self.args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
         self.args_predict = _func_get_args_names(self.estimator.predict) \
@@ -88,7 +88,7 @@ class WFNodeEstimator(WFNode):
                               y_train_score_dict)
             y_train_score_dict = {conf.PREFIX_TRAIN + conf.PREFIX_SCORE +
                 str(k): y_train_score_dict[k] for k in y_train_score_dict}
-            self.store_results(self.get_key(2), y_train_score_dict)
+            self.save_result(y_train_score_dict)
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **Xy)
         else:
@@ -134,11 +134,11 @@ class WFNodeEstimator(WFNode):
             y_test_score_dict = _dict_prefix_keys(
                 conf.PREFIX_TEST + conf.PREFIX_SCORE, y_test_score_dict)
             results.update(y_test_score_dict)
-            self.store_results(self.get_key(2), results)
+            self.save_result(results)
         return y_pred_arr
 
 
-class ParCVGridSearchRefit(WFNodeEstimator):
+class ParCVGridSearchRefit(Estimator):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
@@ -192,9 +192,10 @@ class ParCVGridSearchRefit(WFNodeEstimator):
         #  Pump-up results
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
-        for key2 in cv_grid_search.results:
+        cv_grid_search_results = cv_grid_search.load_result()
+        for key2 in cv_grid_search_results:
             pipeline = self.cv_grid_search(key2=key2,
-                                           result=cv_grid_search.results[key2],
+                                           result=cv_grid_search_results[key2],
                                            cv_node=cv_grid_search)
             methods.append(pipeline)
         # Add children
@@ -254,7 +255,7 @@ class ParCVGridSearchRefit(WFNodeEstimator):
             new_estimator = copy.deepcopy(node.estimator)
             new_estimator.__dict__.update(estimator_args)
             #print "=>", new_estimator
-            new_estimator_node = WFNodeEstimator(new_estimator)
+            new_estimator_node = Estimator(new_estimator)
             new_estimator_node.signature_args = estimator_args
             # Parameters should no appear in intermediary key
             new_estimator_node.signature2_args_str = "*"

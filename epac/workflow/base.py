@@ -13,7 +13,7 @@ from abc import abstractmethod
 #from epac.stores import get_store
 from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
-
+from epac.stores import StoreMem
 
 ## ================================= ##
 ## == Key manipulation utils      == ##
@@ -145,7 +145,7 @@ class debug:
 ## == Workflow Node base abstract class == ##
 ## ======================================= ##
 
-class WFNode(object):
+class BaseNode(object):
     """WorkFlow Node base abstract class"""
 
     def __init__(self):
@@ -332,26 +332,16 @@ class WFNode(object):
         """Return the state of the object"""
 
     def get_store(self):
+        """Return the first store found on the path to tree root. If no store
+        has been defined create one on the tree root and return it."""
         curr = self
         while True:
             if curr.store:
                 return curr.store
+            if not curr.parent:
+                curr.store = StoreMem()
+                return curr.store
             curr = curr.parent
-            if not curr:
-                raise ValueError("Reached tree root and found no store")
-
-#    def add_results(self, key2=None, val_dict=None):
-#        """ Collect result output
-#
-#        Parameters
-#        ----------
-#        key2 : (string) the intermediary key
-#        val_dict : dictionary of the intermediary value produced by the leaf
-#        nodes.
-#        """
-#        if not key2 in self.results:
-#            self.results[key2] = dict()
-#        self.results[key2].update(val_dict)
 
     def stats(self, group_by="key", sort_by="count"):
         """Statistics on the workflow
@@ -459,17 +449,17 @@ class WFNode(object):
     # --------------------------------------------- #
 
     def bottum_up(self, store_results=True):
-        if conf.DEBUG:
-            debug.current = self
         # Terminaison (leaf) node return results
         if not self.get_children_bottum_up():
-            return self.results
+            return self.load_result()
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up(store_results=False) for
             child in self.get_children_bottum_up()]
+        if conf.DEBUG:
+            debug.current = self
         if len(children_results) == 1:
             if store_results:
-                self.add_results(self.get_key(2), children_results[0])
+                self.save_result(key2=self.get_key(2), res=children_results[0])
             return children_results[0]
         # 2) Test collision between intermediary keys
         keys_all = list()
@@ -482,7 +472,7 @@ class WFNode(object):
             merge = dict()
             [merge.update(item) for item in children_results]
             if store_results:
-                [self.add_results(key2, merge[key2]) for key2 in merge]
+                [self.save_result(key2=key2, res=merge[key2]) for key2 in merge]
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -501,7 +491,7 @@ class WFNode(object):
             results = {key2: self.reducer.reduce(self, key2, results[key2]) for
                 key2 in results}
         if store_results:
-            [self.add_results(key2, results[key2]) for key2 in results]
+            [self.save_result(key2=key2, res=results[key2]) for key2 in results]
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
@@ -540,6 +530,40 @@ class WFNode(object):
     # -------------------------------- #
     # -- I/O persistance operations -- #
     # -------------------------------- #
+    def save_result(self, res, key2=None):
+        if not key2:
+            key2 = self.get_key(2)
+        key1 = key_push(self.get_key(), "result")
+        store = self.get_store()
+        prev = store.load(key1)
+        # results are indexed by secondary keys
+        if not prev:
+            store.save(key1, obj={key2: res})
+        else:
+            if key2 in prev:
+                prev[key2].update(res)
+            else:
+                prev[key2] = res
+            if not isinstance(store, StoreMem):
+                store.save(key1, obj=prev)
+
+    def load_result(self):
+        key1 = key_push(self.get_key(), "result")
+        store = self.get_store()
+        return store.load(key1)
+
+#    def add_results(self, key2=None, val_dict=None):
+#        """ Collect result output
+#
+#        Parameters
+#        ----------
+#        key2 : (string) the intermediary key
+#        val_dict : dictionary of the intermediary value produced by the leaf
+#        nodes.
+#        """
+#        if not key2 in self.results:
+#            self.results[key2] = dict()
+#        self.results[key2].update(val_dict)
 
     def save(self, store=None, attr=None, recursion=True):
         """I/O (persistance) operation: save the node on the store. By default
@@ -635,4 +659,4 @@ class WFNode(object):
             curr = parent
         return node
 
-WF = WFNode
+WF = BaseNode

@@ -15,8 +15,8 @@ import collections
 import numpy as np
 import copy
 
-from epac.workflow.base import WFNode
-from epac.workflow.estimators import WFNodeEstimator
+from epac.workflow.base import BaseNode
+from epac.workflow.estimators import Estimator
 from epac.utils import _list_indices, dict_diff, _sub_dict
 
 ## ======================================================================== ##
@@ -30,16 +30,16 @@ from epac.utils import _list_indices, dict_diff, _sub_dict
 # -- Splitter                   -- #
 # -------------------------------- #
 
-class WFNodeSplitter(WFNode):
+class BaseNodeSplitter(BaseNode):
     """Splitters are are non leaf node (degree >= 1) with children.
     They split the downstream data-flow to their children.
     They agregate upstream data-flow from their children.
     """
     def __init__(self):
-        super(WFNodeSplitter, self).__init__()
+        super(BaseNodeSplitter, self).__init__()
 
 
-class ParCV(WFNodeSplitter):
+class ParCV(BaseNodeSplitter):
     """Cross-validation parallelization.
 
     Parameters
@@ -70,17 +70,31 @@ class ParCV(WFNodeSplitter):
         self.random_state = random_state
         self.cv_type = cv_type
         self.reducer = reducer
-        slicer = WFNodeRowSlicer(signature_name="CV", nb=0, apply_on=None)
-        slicer.parent = self
-        subtree = node if isinstance(node, WFNode) else WFNodeEstimator(node)
-        slicer.add_child(subtree)
-        self.children = SlicerVirtualList(size=n_folds, slicer=slicer)
+        self._slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
+        self._slicer.parent = self
+        subtree = node if isinstance(node, BaseNode) else Estimator(node)
+        self._slicer.add_child(subtree)
+        self.children = SlicerVirtualList(size=n_folds, parent=self)
 
-#        self.add_children([WFNodeRowSlicer(signature_name="CV", nb=nb,
+    def move_to_child(self, nb):
+        print "move_to_child", nb
+        self._slicer.set_nb(nb)
+        if hasattr(self, "_sclices"):
+            cpt = 0
+            for train, test in self._sclices:
+                print cpt, train, test
+                if cpt == nb:
+                    break
+                cpt += 1
+            self._slicer.set_sclices({ParCV.SUFFIX_TRAIN: train,
+                                             ParCV.SUFFIX_TEST: test})
+        return self._slicer
+
+#        self.add_children([RowSlicer(signature_name="CV", nb=nb,
 #                               apply_on=None) for nb in xrange(n_folds)])
 #        for split in self.children:
 #            node_cp = copy.deepcopy(node)
-#            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+#            node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
 #            split.add_child(node_cp)
 
     def fit(self, recursion=True, **Xy):
@@ -100,29 +114,30 @@ class ParCV(WFNodeSplitter):
             if not self.n_folds:
                 raise ValueError('"n_folds" should be set')
             from sklearn.cross_validation import StratifiedKFold
-            cv = StratifiedKFold(y=Xy["y"], n_folds=self.n_folds)
+            self._sclices = StratifiedKFold(y=Xy["y"], n_folds=self.n_folds)
         elif self.cv_type == "random":
             if not self.n_folds:
                 raise ValueError('"n_folds" should be set')
             from sklearn.cross_validation import KFold
-            cv = KFold(n=Xy["y"].shape[0], n_folds=self.n_folds,
+            self._sclices = KFold(n=Xy["y"].shape[0], n_folds=self.n_folds,
                            random_state=self.random_state)
         elif self.cv_type == "loo":
             from sklearn.cross_validation import LeaveOneOut
-            cv = LeaveOneOut(n=Xy["y"].shape[0])
+            self._sclices = LeaveOneOut(n=Xy["y"].shape[0])
         #if cv:
-        nb = 0
-        for train, test in cv:
-            self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
-                                 ParCV.SUFFIX_TEST: test})
-            nb += 1
+#        nb = 0
+#        for train, test in self._sclices:
+#            self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
+#                                 ParCV.SUFFIX_TEST: test})
+#            nb += 1
         return Xy
 
     def get_state(self):
         return dict(n_folds=self.n_folds)
 
 
-class ParPerm(WFNodeSplitter):
+
+class ParPerm(BaseNodeSplitter):
     """Permutation parallelization.
 
     Parameters
@@ -153,11 +168,11 @@ class ParPerm(WFNodeSplitter):
         self.permute = permute  # the name of the bloc to be permuted
         self.random_state = random_state
         self.reducer = reducer
-        self.add_children([WFNodeRowSlicer(signature_name="Perm", nb=nb,
+        self.add_children([RowSlicer(signature_name="Perm", nb=nb,
                               apply_on=permute) for nb in xrange(n_perms)])
         for perm in self.children:
             node_cp = copy.deepcopy(node)
-            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
             perm.add_child(node_cp)
 
     def get_state(self):
@@ -186,14 +201,14 @@ class ParPerm(WFNodeSplitter):
         return Xy
 
 
-class ParMethods(WFNodeSplitter):
+class ParMethods(BaseNodeSplitter):
     """Parallelization is based on several runs of different methods
     """
     def __init__(self, *nodes):
         super(ParMethods, self).__init__()
         for node in nodes:
             node_cp = copy.deepcopy(node)
-            node_cp = node_cp if isinstance(node_cp, WFNode) else WFNodeEstimator(node_cp)
+            node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
             self.add_child(node_cp)
         children = self.children
         children_key = [c.get_key() for c in children]
@@ -229,7 +244,7 @@ class ParGrid(ParMethods):
     def __init__(self, *nodes):
         super(ParGrid, self).__init__(*nodes)
         # Set signature2_args_str to"*" to create collision between secondary
-        # keys see WFNodeRowSlicer.get_signature()
+        # keys see RowSlicer.get_signature()
         for c in self.children:
             c.signature2_args_str = "*"
 
@@ -239,9 +254,9 @@ class ParGrid(ParMethods):
 # -------------------------------- #
 
 class SlicerVirtualList(collections.Sequence):
-    def __init__(self, size, slicer):
+    def __init__(self, size, parent):
         self.size = size
-        self.slicer = slicer
+        self.parent = parent
 
     def __len__(self):
         return self.size
@@ -249,8 +264,7 @@ class SlicerVirtualList(collections.Sequence):
     def __getitem__(self, i):
         if i >= self.size:
             raise IndexError("%s index out of range" % self.__class__.__name__)
-        self.slicer.set_nb(i)
-        return self.slicer
+        return self.parent.move_to_child(i)
 
     def __iter__(self):
         """ Iterate over leaves"""
@@ -258,11 +272,11 @@ class SlicerVirtualList(collections.Sequence):
             yield self.__getitem__(i)
 
 
-class WFNodeSlicer(WFNode):
+class Slicer(BaseNode):
     """ Slicers are Splitters' children, they re-sclice the downstream blocs.
     """
     def __init__(self, signature_name, nb):
-        super(WFNodeSlicer, self).__init__()
+        super(Slicer, self).__init__()
         self.signature_name = signature_name
         self.signature_args = dict(nb=nb)
 
@@ -285,7 +299,8 @@ class WFNodeSlicer(WFNode):
         """overried get_signature_args to return a copy"""
         return copy.copy(self.signature_args)
 
-class WFNodeRowSlicer(WFNodeSlicer):
+
+class RowSlicer(Slicer):
     """Row-wise reslicing of the downstream blocs.
 
     Parameters
@@ -298,7 +313,7 @@ class WFNodeRowSlicer(WFNodeSlicer):
     """
 
     def __init__(self, signature_name, nb, apply_on):
-        super(WFNodeRowSlicer, self).__init__(signature_name, nb)
+        super(RowSlicer, self).__init__(signature_name, nb)
         self.slices = None
         self.n = 0  # the dimension of that array in ds should respect
         self.apply_on = apply_on

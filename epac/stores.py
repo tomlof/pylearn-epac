@@ -20,7 +20,7 @@ class Store(object):
     """Abstract Store"""
 
     @abstractmethod
-    def save(self, key, obj):
+    def save(self, key, obj, merge=False):
         """Store abstract method"""
 
     @abstractmethod
@@ -34,12 +34,21 @@ class StoreMem(Store):
     def __init__(self):
         self.dict = dict()
 
+    def save(self, key, obj, merge=False):
+        if not merge or not (key in self.dict):
+            self.dict[key] = obj
+        else:
+            v = self.dict[key]
+            if isinstance(v, dict):
+                v.update(obj)
+            elif isinstance(v, list):
+                v.append(obj)
+
     def load(self, key):
-        return self.dict[key]
-
-    def save(self, key, obj):
-        self.dict[key] = obj
-
+        try:
+            return self.dict[key]
+        except KeyError:
+            return None
 
 class StoreFs(Store):
     """ Store based of file system"""
@@ -52,7 +61,7 @@ class StoreFs(Store):
 #        prot, path = key_split(key)
 #        return path
 
-    def save(self, key, obj, protocol="txt"):
+    def save(self, key, obj, protocol="txt", merge=False):
         """ Save object
 
         Parameters
