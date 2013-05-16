@@ -14,12 +14,7 @@ X, y = datasets.make_classification(n_samples=10, n_features=50,
                                     n_informative=5)
 
 
-#from sklearn import datasets
-from sklearn.svm import SVC
-from sklearn.feature_selection import SelectKBest
-X, y = datasets.make_classification(n_samples=100, n_features=500,
-                                    n_informative=5)
-n_perms = 3
+n_perms = 2
 n_folds = 2
 n_folds_nested = 2
 random_state = 0
@@ -45,10 +40,13 @@ wf = ParPerm(
          random_state=random_state)
 
 wf.fit_predict(X=X, y=y)
+
 from epac import conf, debug
 conf.DEBUG = True
 R1 = wf.reduce()
 self = debug.current
+store = self.get_store()
+
 R1 = wf.reduce()
 self.children[0].bottum_up(store_results=False)
 self.children[1].bottum_up(store_results=False)
@@ -60,9 +58,10 @@ store.dict[k0+"/result"]
 n1 = self.children[1].children[0].children[1].children[0].children[0]
 n1.load_result()
 k1 = n1.get_key()
-
-store = self.get_store()
 store.dict[k1+"/result"]
+
+store.dict=dict()
+self.fit_predict(X=X, y=y)
 
 
 # Build sequential Pipeline

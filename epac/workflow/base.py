@@ -534,6 +534,7 @@ class BaseNode(object):
         if not key2:
             key2 = self.get_key(2)
         key1 = key_push(self.get_key(), "result")
+        print "save_result", key1#, key2
         store = self.get_store()
         prev = store.load(key1)
         # results are indexed by secondary keys
