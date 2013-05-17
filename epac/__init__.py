@@ -12,6 +12,7 @@ from epac.workflow.splitters import ParCV, ParPerm, ParMethods, ParGrid
 from epac.workflow.estimators import ParCVGridSearchRefit
 from epac.workflow.base import conf, debug
 from epac.workflow.base import xy_split, xy_merge
+from epac.results import Results
 from epac.utils import dict_diff, range_log2
 from epac.stores import StoreFs, StoreMem
 
@@ -35,6 +36,7 @@ __all__ = ['WF',
            'ParCVGridSearchRefit',
            'SummaryStat',
            'PvalPermutations',
+           'Results',
            'sklearn_plugins',
            'conf',
            'debug',

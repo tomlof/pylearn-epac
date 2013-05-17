@@ -71,12 +71,12 @@ class TestWorkFlow(unittest.TestCase):
         R2 = dict()
         for key in keys:
             R2[key] = dict()
-            R2[key]['pred_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['true_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['train_score_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['test_score_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['mean_test_score_y'] = [None] * n_perms
-            R2[key]['mean_train_score_y'] = [None] * n_perms
+            R2[key]['pred_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['true_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['score_tr'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['score_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['mean_score_te'] = [None] * n_perms
+            R2[key]['mean_score_tr'] = [None] * n_perms
         perm_nb = 0
         perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=rnd)
         for idx in perms:
@@ -91,19 +91,19 @@ class TestWorkFlow(unittest.TestCase):
                 for key in keys:
                     clf = clfs[key]
                     clf.fit(X_train, y_p_train)
-                    R2[key]['pred_y'][perm_nb][fold_nb] = clf.predict(X_test)
-                    R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
-                    R2[key]['train_score_y'][perm_nb][fold_nb] =\
+                    R2[key]['pred_te'][perm_nb][fold_nb] = clf.predict(X_test)
+                    R2[key]['true_te'][perm_nb][fold_nb] = y_p_test
+                    R2[key]['score_tr'][perm_nb][fold_nb] =\
                         clf.score(X_train, y_p_train)
-                    R2[key]['test_score_y'][perm_nb][fold_nb] =\
+                    R2[key]['score_te'][perm_nb][fold_nb] =\
                         clf.score(X_test, y_p_test)
                 fold_nb += 1
             for key in keys:
                 # Average over folds
-                R2[key]['mean_test_score_y'][perm_nb] = \
-                    np.mean(np.asarray(R2[key]['test_score_y'][perm_nb]), axis=0)
-                R2[key]['mean_train_score_y'][perm_nb] = \
-                    np.mean(np.asarray(R2[key]['train_score_y'][perm_nb]), axis=0)
+                R2[key]['mean_score_te'][perm_nb] = \
+                    np.mean(np.asarray(R2[key]['score_te'][perm_nb]), axis=0)
+                R2[key]['mean_score_tr'][perm_nb] = \
+                    np.mean(np.asarray(R2[key]['score_tr'][perm_nb]), axis=0)
             perm_nb += 1
         # ===================
         # = Comparison
@@ -175,12 +175,12 @@ class TestParCVGridSearchRefit(unittest.TestCase):
         R2 = dict()
         for key in keys:
             R2[key] = dict()
-            R2[key]['pred_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['true_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['train_score_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['test_score_y'] = [[None] * n_folds for i in xrange(n_perms)]
-            R2[key]['mean_test_score_y'] = [None] * n_perms
-            R2[key]['mean_train_score_y'] = [None] * n_perms
+            R2[key]['pred_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['true_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['score_tr'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['score_te'] = [[None] * n_folds for i in xrange(n_perms)]
+            R2[key]['mean_score_te'] = [None] * n_perms
+            R2[key]['mean_score_tr'] = [None] * n_perms
 
         perm_nb = 0
         perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=random_state)
@@ -201,20 +201,20 @@ class TestParCVGridSearchRefit(unittest.TestCase):
                     cv_nested = StratifiedKFold(y=y_p_train, n_folds=n_folds_nested)
                     gscv = grid_search.GridSearchCV(clf, parameters, cv=cv_nested)
                     gscv.fit(X_train, y_p_train)
-                    R2[key]['pred_y'][perm_nb][fold_nb] = gscv.predict(X_test)
-                    R2[key]['true_y'][perm_nb][fold_nb] = y_p_test
-                    R2[key]['train_score_y'][perm_nb][fold_nb] =\
+                    R2[key]['pred_te'][perm_nb][fold_nb] = gscv.predict(X_test)
+                    R2[key]['true_te'][perm_nb][fold_nb] = y_p_test
+                    R2[key]['score_tr'][perm_nb][fold_nb] =\
                         gscv.score(X_train, y_p_train)
-                    R2[key]['test_score_y'][perm_nb][fold_nb] =\
+                    R2[key]['score_te'][perm_nb][fold_nb] =\
                         gscv.score(X_test, y_p_test)
                     fold_nb += 1
             for key in keys:
                 # Average over folds
-                R2[key]['mean_test_score_y'][perm_nb] = \
-                    np.mean(np.asarray(R2[key]['test_score_y'][perm_nb]), axis=0)
-                R2[key]['mean_train_score_y'][perm_nb] = \
-                    np.mean(np.asarray(R2[key]['train_score_y'][perm_nb]), axis=0)
-                    #np.mean(R2[key]['train_score_y'][perm_nb])
+                R2[key]['mean_score_te'][perm_nb] = \
+                    np.mean(np.asarray(R2[key]['score_te'][perm_nb]), axis=0)
+                R2[key]['mean_score_tr'][perm_nb] = \
+                    np.mean(np.asarray(R2[key]['score_tr'][perm_nb]), axis=0)
+                    #np.mean(R2[key]['score_tr'][perm_nb])
             perm_nb += 1
 
         # ===================

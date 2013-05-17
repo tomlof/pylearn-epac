@@ -6,7 +6,8 @@ Base Workflow node plus keys manipulation utilities.
 """
 
 
-import re, sys
+import re
+import sys
 import copy
 import numpy as np
 from abc import abstractmethod
@@ -14,6 +15,7 @@ from abc import abstractmethod
 from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
 from epac.stores import StoreMem
+from epac.results import Results
 
 ## ================================= ##
 ## == Key manipulation utils      == ##
@@ -451,7 +453,7 @@ class BaseNode(object):
     def bottum_up(self, store_results=True):
         # Terminaison (leaf) node return results
         if not self.get_children_bottum_up():
-            return self.load_result()
+            return self.load_state(name="results")
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up(store_results=False) for
             child in self.get_children_bottum_up()]
@@ -459,7 +461,7 @@ class BaseNode(object):
             debug.current = self
         if len(children_results) == 1:
             if store_results:
-                self.save_result(key2=self.get_key(2), res=children_results[0])
+                self.save_state(state=children_results[0], name="results")
             return children_results[0]
         # 2) Test collision between intermediary keys
         keys_all = list()
@@ -469,10 +471,10 @@ class BaseNode(object):
             keys_set.update(r.keys())
         # 3) No collision: merge results in a lager dict an return
         if len(keys_set) == len(keys_all):
-            merge = dict()
+            merge = Results()
             [merge.update(item) for item in children_results]
             if store_results:
-                [self.save_result(key2=key2, res=merge[key2]) for key2 in merge]
+                self.save_state(state=merge, name="results")
             return merge
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
@@ -491,7 +493,7 @@ class BaseNode(object):
             results = {key2: self.reducer.reduce(self, key2, results[key2]) for
                 key2 in results}
         if store_results:
-            [self.save_result(key2=key2, res=results[key2]) for key2 in results]
+            self.save_state(state=results, name="results")
         return results
 
     def _stack_results_over_argvalues(self, arg_names, children_results,
@@ -530,41 +532,13 @@ class BaseNode(object):
     # -------------------------------- #
     # -- I/O persistance operations -- #
     # -------------------------------- #
-    def save_result(self, res, key2=None):
-        if not key2:
-            key2 = self.get_key(2)
-        key1 = key_push(self.get_key(), "result")
-        print "save_result", key1#, key2
-        store = self.get_store()
-        prev = store.load(key1)
-        # results are indexed by secondary keys
-        if not prev:
-            store.save(key1, obj={key2: res})
-        else:
-            if key2 in prev:
-                prev[key2].update(res)
-            else:
-                prev[key2] = res
-            if not isinstance(store, StoreMem):
-                store.save(key1, obj=prev)
 
-    def load_result(self):
-        key1 = key_push(self.get_key(), "result")
+    def save_state(self, state, name="default"):
         store = self.get_store()
-        return store.load(key1)
+        store.save(key_push(self.get_key(), name), state)
 
-#    def add_results(self, key2=None, val_dict=None):
-#        """ Collect result output
-#
-#        Parameters
-#        ----------
-#        key2 : (string) the intermediary key
-#        val_dict : dictionary of the intermediary value produced by the leaf
-#        nodes.
-#        """
-#        if not key2 in self.results:
-#            self.results[key2] = dict()
-#        self.results[key2].update(val_dict)
+    def load_state(self, name="default"):
+        return self.get_store().load(key_push(self.get_key(), name))
 
     def save(self, store=None, attr=None, recursion=True):
         """I/O (persistance) operation: save the node on the store. By default

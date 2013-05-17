@@ -34,6 +34,8 @@ from epac.workflow.base import BaseNode, conf, xy_split
 from epac.utils import _as_dict, _dict_prefix_keys
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _list_diff
+from epac.results import Results
+from epac.stores import StoreMem
 
 
 ## ================================= ##
@@ -47,11 +49,11 @@ class Estimator(BaseNode):
         self.estimator = estimator
         self.signature2_args_str = None
         super(Estimator, self).__init__()
-        self.args_fit = _func_get_args_names(self.estimator.fit) \
+        self._args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
-        self.args_predict = _func_get_args_names(self.estimator.predict) \
+        self._args_predict = _func_get_args_names(self.estimator.predict) \
             if hasattr(self.estimator, "predict") else None
-        self.args_transform = _func_get_args_names(self.estimator.transform) \
+        self._args_transform = _func_get_args_names(self.estimator.transform) \
             if hasattr(self.estimator, "transform") else None
 
     def get_signature(self, nb=1):
@@ -78,17 +80,12 @@ class Estimator(BaseNode):
         if recursion:
             return self.top_down(func_name="fit", recursion=recursion, **Xy)
         # Regular fit
-        Xy_dict = _sub_dict(Xy, self.args_fit)
+        Xy_dict = _sub_dict(Xy, self._args_fit)
         self.estimator.fit(**Xy_dict)
         if not self.children:  # if not children compute scores
-            train_score = self.estimator.score(**Xy_dict)
-            y_pred_names = _list_diff(self.args_fit, self.args_predict)
-            y_train_score_dict = _as_dict(train_score, keys=y_pred_names)
-            _dict_prefix_keys(conf.PREFIX_TRAIN + conf.PREFIX_SCORE,
-                              y_train_score_dict)
-            y_train_score_dict = {conf.PREFIX_TRAIN + conf.PREFIX_SCORE +
-                str(k): y_train_score_dict[k] for k in y_train_score_dict}
-            self.save_result(y_train_score_dict)
+            score = self.estimator.score(**Xy_dict)
+            res = Results(key2=self.get_key(2), suffix=Results.TRAIN, score=score)
+            self.save_state(res, name="results")
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **Xy)
         else:
@@ -102,8 +99,8 @@ class Estimator(BaseNode):
         # Regular transform:
         # catch args_transform in ds, transform, store output in a dict
         trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy,
-                                             self.args_transform)),
-                       keys=self.args_transform)
+                                             self._args_transform)),
+                       keys=self._args_transform)
         # update ds with transformed values
         Xy.update(trn_dict)
         return Xy
@@ -116,26 +113,24 @@ class Estimator(BaseNode):
         if self.children:  # if children call transform
             return self.transform(recursion=False, **Xy)
         # leaf node: do the prediction
-        X_dict = _sub_dict(Xy, self.args_predict)
-        y_pred_arr = self.estimator.predict(**X_dict)
-        y_pred_names = _list_diff(self.args_fit, self.args_predict)
-        y_pred_dict = _as_dict(y_pred_arr, keys=y_pred_names)
-        results = _dict_prefix_keys(conf.PREFIX_PRED, y_pred_dict)
-        # If true values are provided in ds then store them and compute scores
-        if set(y_pred_names).issubset(set(Xy.keys())):
-            y_true_dict = _sub_dict(Xy, y_pred_names)
-            # compute scores
-            X_dict.update(y_true_dict)
-            test_score = self.estimator.score(**X_dict)
-            y_test_score_dict = _as_dict(test_score, keys=y_pred_names)
-            # prefix results keys by test_score_
-            y_true_dict = _dict_prefix_keys(conf.PREFIX_TRUE, y_true_dict)
-            results.update(y_true_dict)
-            y_test_score_dict = _dict_prefix_keys(
-                conf.PREFIX_TEST + conf.PREFIX_SCORE, y_test_score_dict)
-            results.update(y_test_score_dict)
-            self.save_result(results)
-        return y_pred_arr
+        X_dict = _sub_dict(Xy, self._args_predict)
+        pred = self.estimator.predict(**X_dict)
+        # load previous train results and store test results
+        res = self.load_state("results")
+        key2 = self.get_key(2)
+        res.add(key2=key2, suffix=res.TEST, pred=pred)
+        # If true data (args in fit but not in predict) is provided then
+        # add it to results plus compute score
+        arg_only_in_fit = set(self._args_fit).difference(set(self._args_predict))
+        if arg_only_in_fit.issubset(set(Xy.keys())):
+            if len(arg_only_in_fit) != 1:
+                raise ValueError("Do not know how to deal with more than one "
+                    "result")
+            res.add(key2, suffix=res.TEST,
+                    true=Xy[arg_only_in_fit.pop()],
+                    score=self.estimator.score(**Xy))
+        self.save_state(state=res, name="results")
+        return pred
 
 
 class ParCVGridSearchRefit(Estimator):
@@ -161,7 +156,7 @@ class ParCVGridSearchRefit(Estimator):
     def __init__(self, *tasks, **kwargs):
         super(ParCVGridSearchRefit, self).__init__(estimator=None)
         key3 = kwargs.pop("key3") if "key3" in kwargs \
-            else "test.+" + conf.PREFIX_SCORE
+            else Results.SCORE+".+"+Results.TEST
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import ParCV, ParGrid
         grid = ParGrid(*tasks)
@@ -179,11 +174,12 @@ class ParCVGridSearchRefit(Estimator):
 
     def get_children_bottum_up(self):
         """Return children during the bottum-up execution."""
-        return [self.children[1]]
+        return []
 
     def fit(self, recursion=True, **Xy):
         # Fit/predict CV grid search
         cv_grid_search = self.children[0]
+        cv_grid_search.store = StoreMem()  # local store erased at each fit
         from epac.workflow.splitters import ParCV
         if not isinstance(cv_grid_search, ParCV):
             raise ValueError('Child of %s is not a "ParCV."'
@@ -192,7 +188,7 @@ class ParCVGridSearchRefit(Estimator):
         #  Pump-up results
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
-        cv_grid_search_results = cv_grid_search.load_result()
+        cv_grid_search_results = cv_grid_search.load_state(name="results")
         for key2 in cv_grid_search_results:
             pipeline = self.cv_grid_search(key2=key2,
                                            result=cv_grid_search_results[key2],
@@ -201,16 +197,21 @@ class ParCVGridSearchRefit(Estimator):
         # Add children
         from epac.workflow.splitters import ParMethods
         to_refit = ParMethods(*methods)
+        to_refit.store = StoreMem()    # local store erased at each fit
         self.children = self.children[:1]
         self.add_child(to_refit)
         to_refit.fit(recursion=True, **Xy)
+        #to_refit.bottum_up(store_results=False)
         # Delete (eventual) about previous refit
         return self
 
     def predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
         refited = self.children[1]
-        return refited.predict(recursion=True, **Xy)
+        pred = refited.predict(recursion=True, **Xy)
+        res = refited.bottum_up(store_results=False)
+        self.save_state(res, name="results")
+        return pred
 
     def fit_predict(self, recursion=True, **Xy):
         Xy_train, Xy_test = xy_split(Xy)

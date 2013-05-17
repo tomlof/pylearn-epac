@@ -77,25 +77,16 @@ class ParCV(BaseNodeSplitter):
         self.children = SlicerVirtualList(size=n_folds, parent=self)
 
     def move_to_child(self, nb):
-        print "move_to_child", nb
         self._slicer.set_nb(nb)
         if hasattr(self, "_sclices"):
             cpt = 0
             for train, test in self._sclices:
-                print cpt, train, test
                 if cpt == nb:
                     break
                 cpt += 1
             self._slicer.set_sclices({ParCV.SUFFIX_TRAIN: train,
                                              ParCV.SUFFIX_TEST: test})
         return self._slicer
-
-#        self.add_children([RowSlicer(signature_name="CV", nb=nb,
-#                               apply_on=None) for nb in xrange(n_folds)])
-#        for split in self.children:
-#            node_cp = copy.deepcopy(node)
-#            node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
-#            split.add_child(node_cp)
 
     def fit(self, recursion=True, **Xy):
         """Call transform with sample_set="train" """
@@ -124,12 +115,6 @@ class ParCV(BaseNodeSplitter):
         elif self.cv_type == "loo":
             from sklearn.cross_validation import LeaveOneOut
             self._sclices = LeaveOneOut(n=Xy["y"].shape[0])
-        #if cv:
-#        nb = 0
-#        for train, test in self._sclices:
-#            self.children[nb].set_sclices({ParCV.SUFFIX_TRAIN: train,
-#                                 ParCV.SUFFIX_TEST: test})
-#            nb += 1
         return Xy
 
     def get_state(self):
