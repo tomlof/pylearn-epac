@@ -14,6 +14,19 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
                                     n_informative=2)
 
 
+from epac import ParPerm, ParCV, WF
+from epac import SummaryStat, PvalPermutations
+from epac import StoreFs
+#from stores import
+# _obj_to_dict, _dict_to_obj
+
+perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
+                    n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
+
+[l.get_key() for l in perms_cv_lda.walk_leaves()]
+[l.get_key(2) for l in perms_cv_lda.walk_leaves()]
+
+
 # Build sequential Pipeline
 # -------------------------
 # 2  SelectKBest

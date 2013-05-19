@@ -146,12 +146,12 @@ class ParCVGridSearchRefit(Estimator):
 
     key3: str
         a regular expression that match the score name to be optimized.
-        Default is "test.+%s"
+        Default is "%s.+%s"
 
     arg_max: boolean
         True/False take parameters that maximize/minimize the score. Default
         is True.
-    """ % conf.PREFIX_SCORE
+    """ % (Results.SCORE, Results.TEST)
 
     def __init__(self, *tasks, **kwargs):
         super(ParCVGridSearchRefit, self).__init__(estimator=None)

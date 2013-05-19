@@ -127,13 +127,6 @@ class conf:
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
     STORE_NODE_PREFIX = "node"
-    PREFIX_PRED = "pred_"
-    PREFIX_TRUE = "true_"
-    PREFIX_TEST = "test_"
-    PREFIX_TRAIN = "train_"
-    PREFIX_SCORE = "score_"
-    KEY_PROT_MEM = "mem"  # key storage protocol: living object
-    KEY_PROT_FS = "fs"  # key storage protocol: file system
     KEY_PATH_SEP = "/"
     KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
     SUFFIX_JOB = "job"

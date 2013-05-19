@@ -69,24 +69,23 @@ class ParCV(BaseNodeSplitter):
         self.n_folds = n_folds
         self.random_state = random_state
         self.cv_type = cv_type
-        self.reducer = reducer
-        self._slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
-        self._slicer.parent = self
+        slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
+        self.children = SlicerVirtualList(size=n_folds, parent=self, slicer=slicer)
+        self.add_child(slicer)
         subtree = node if isinstance(node, BaseNode) else Estimator(node)
-        self._slicer.add_child(subtree)
-        self.children = SlicerVirtualList(size=n_folds, parent=self)
-
-    def move_to_child(self, nb):
-        self._slicer.set_nb(nb)
+        slicer.add_child(subtree)
+        
+    def move_to_child(self, nb, slicer):
+        slicer.set_nb(nb)
         if hasattr(self, "_sclices"):
             cpt = 0
             for train, test in self._sclices:
                 if cpt == nb:
                     break
                 cpt += 1
-            self._slicer.set_sclices({ParCV.SUFFIX_TRAIN: train,
+            slicer.set_sclices({ParCV.SUFFIX_TRAIN: train,
                                              ParCV.SUFFIX_TEST: test})
-        return self._slicer
+        return slicer
 
     def fit(self, recursion=True, **Xy):
         """Call transform with sample_set="train" """
@@ -152,13 +151,22 @@ class ParPerm(BaseNodeSplitter):
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
         self.random_state = random_state
-        self.reducer = reducer
-        self.add_children([RowSlicer(signature_name="Perm", nb=nb,
-                              apply_on=permute) for nb in xrange(n_perms)])
-        for perm in self.children:
-            node_cp = copy.deepcopy(node)
-            node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
-            perm.add_child(node_cp)
+        slicer = RowSlicer(signature_name="Perm", nb=0, apply_on=permute)
+        self.children = SlicerVirtualList(size=n_perms, parent=self, slicer=slicer)
+        self.add_child(slicer)
+        subtree = node if isinstance(node, BaseNode) else Estimator(node)
+        slicer.add_child(subtree)
+
+    def move_to_child(self, nb, slicer):
+        slicer.set_nb(nb)
+        if hasattr(self, "_sclices"):
+            cpt = 0
+            for perm in self._sclices:
+                if cpt == nb:
+                    break
+                cpt += 1
+            slicer.set_sclices(perm)
+        return slicer
 
     def get_state(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
@@ -177,12 +185,8 @@ class ParPerm(BaseNodeSplitter):
         if not "y" in Xy:
             raise ValueError('"y" should be provided')
         from epac.sklearn_plugins import Permutation
-        perms = Permutation(n=Xy["y"].shape[0], n_perms=self.n_perms,
+        self._sclices = Permutation(n=Xy["y"].shape[0], n_perms=self.n_perms,
                                 random_state=self.random_state)
-        nb = 0
-        for perm in perms:
-            self.children[nb].set_sclices(perm)
-            nb += 1
         return Xy
 
 
@@ -239,9 +243,10 @@ class ParGrid(ParMethods):
 # -------------------------------- #
 
 class SlicerVirtualList(collections.Sequence):
-    def __init__(self, size, parent):
+    def __init__(self, size, parent, slicer):
         self.size = size
         self.parent = parent
+        self.sclicer = slicer
 
     def __len__(self):
         return self.size
@@ -249,12 +254,16 @@ class SlicerVirtualList(collections.Sequence):
     def __getitem__(self, i):
         if i >= self.size:
             raise IndexError("%s index out of range" % self.__class__.__name__)
-        return self.parent.move_to_child(i)
+        return self.parent.move_to_child(i, self.slicer)
 
     def __iter__(self):
         """ Iterate over leaves"""
         for i in xrange(self.size):
             yield self.__getitem__(i)
+
+    def append(self, slicer):
+        """ Iterate over leaves"""
+        self.slicer = slicer
 
 
 class Slicer(BaseNode):

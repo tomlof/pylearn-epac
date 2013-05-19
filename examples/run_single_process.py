@@ -45,14 +45,14 @@ def do_all(options):
                   Seq(SelectKBest(k=k),
                       ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
-                  n_folds=options.n_folds_nested, y=y)
+                  n_folds=options.n_folds_nested)
 
     #print pipeline.stats(group_by="class")
     wf = ParPerm(
              ParCV(pipeline,
                    n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
-             n_perms=options.n_perms, permute="y", y=y,
+             n_perms=options.n_perms, permute="y",
              reducer=PvalPermutations(filter_out_others=True))
     print "Time ellapsed, tree construction:", time.time() - time_start
 
@@ -71,9 +71,9 @@ def do_all(options):
 if __name__ == "__main__":
     # Set default values to parameters
     n_samples = 100
-    n_features = int(1E03)
+    n_features = int(1E04)
     n_informative = 5
-    n_perms = 10
+    n_perms = 100
     n_folds = 10
     n_folds_nested = 5
     k_max = "auto"
