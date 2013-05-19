@@ -182,7 +182,7 @@ class BaseNode(object):
                     yield yielded
 
     def walk_nodes(self):
-        """Leaves iterator"""
+        """Node iterator"""
         yield self
         if self.children:
             for child in self.children:
@@ -551,6 +551,20 @@ class BaseNode(object):
             Indicates if node should be recursively saved down to
             the leaves . Default (True).
         """
+        stores = dict()        
+        for node in self._walk_true_nodes():
+            if node.store:
+                stores[node.get_key()] = node.store
+                node.store = None
+        
+        store.save(key="exec_tree", obj=self, protocol="bin")
+        store.save(key="stores", obj=stores, protocol="bin")
+        for key1 in stores:
+            node = self.get_node(key1)
+            node.store = stores[key1]
+        # Reload
+        tree = store.load(key="exec_tree")
+        store2 = store.load(key="stores")
         if conf.DEBUG:
             #global _N
             debug.current = self
@@ -581,6 +595,16 @@ class BaseNode(object):
             [child.save(store=store, attr=attr, recursion=recursion) for child
                 in self.children]
 
+    def _walk_true_nodes(self):
+        yield self
+        if self.children:
+            if isinstance(self.children, list):
+                children = self.children
+            else:
+                children = [self.children[0]]
+            for child in children:
+                for yielded in child.walk_nodes():
+                    yield yielded
     @classmethod
     def load(cls, store, key, recursion=True):
         """I/O (persistance) load a node indexed by key from the store.

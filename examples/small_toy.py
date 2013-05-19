@@ -13,19 +13,41 @@ from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
                                     n_informative=2)
 
-
-from epac import ParPerm, ParCV, WF
-from epac import SummaryStat, PvalPermutations
 from epac import StoreFs
-#from stores import
-# _obj_to_dict, _dict_to_obj
+from epac import ParCV
+from epac import SummaryStat
+self = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
+self.fit_predict(X=X, y=y)
+store = StoreFs("/tmp/toto")
 
-perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
-                    n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
+sefl._
+n_folds = 10
+n_perms = 100
+n_folds_nested = 5
+k_values = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+C_values = [1, 10, 100]
 
-[l.get_key() for l in perms_cv_lda.walk_leaves()]
-[l.get_key(2) for l in perms_cv_lda.walk_leaves()]
+## 2) Build Workflow
+    ## =================
+from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
+from epac import SummaryStat, PvalPermutations
+## CV + Grid search of a pipeline with a nested grid search
+pipeline = ParCVGridSearchRefit(*[
+              Seq(SelectKBest(k=k),
+                  ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+              for k in k_values],
+              n_folds=n_folds_nested)
 
+#print pipeline.stats(group_by="class")
+self = ParPerm(
+         ParCV(pipeline,
+               n_folds=n_folds,
+               reducer=SummaryStat(filter_out_others=True)),
+         n_perms=n_perms, permute="y",
+         reducer=PvalPermutations(filter_out_others=True))
+
+from epac import StoreFs
+store = StoreFs("/tmp/toto")
 
 # Build sequential Pipeline
 # -------------------------

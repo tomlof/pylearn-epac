@@ -22,6 +22,19 @@ class Results(dict):
         return k1 + self.SEP + k2
 
     def add(self, key2, suffix, score=None, pred=[], true=[]):
+        """
+        Parameters
+        ----------
+        key2 str
+            Secondary key
+        
+        suffix str
+            Results.TRAIN or Results.TEST
+
+        score Any type
+            the score
+
+        """
         tr = dict()
         if score:
             tr[self._c(self.SCORE, suffix)] = score

@@ -108,26 +108,30 @@ class StoreFs(Store):
         from epac.workflow.base import conf
         path = os.path.join(self.dirpath, key)
         #prefix = os.path.join(path, conf.STORE_FS_NODE_PREFIX)
+        if os.path.isfile(path + conf.STORE_FS_PICKLE_SUFFIX):
+            return self.load_pickle(path + conf.STORE_FS_PICKLE_SUFFIX)
+        if os.path.isfile(path + conf.STORE_FS_JSON_SUFFIX):
+            return self.load_pickle(path + conf.STORE_FS_JSON_SUFFIX)
         if os.path.isdir(path):
             path = path + os.path.sep
         # Get all files
-        file_paths = [f for f in glob.glob(path + '*')  if os.path.isfile(f)]
-        loaded = dict()
-        for file_path in file_paths:
-            _, ext = os.path.splitext(file_path)
-            if ext == conf.STORE_FS_JSON_SUFFIX:
-                name = file_path.replace(path, "").\
-                    replace(conf.STORE_FS_JSON_SUFFIX, "")
-                obj = self.load_json(file_path)
-                loaded[name] = obj
-            elif ext == conf.STORE_FS_PICKLE_SUFFIX:
-                name = file_path.replace(path, "").\
-                    replace(conf.STORE_FS_PICKLE_SUFFIX, "")
-                loaded[name] = self.load_pickle(file_path)
-            else:
-                raise IOError('File %s has an unkown extension: %s' %
-                    (file_path, ext))
-        return loaded
+            file_paths = [f for f in glob.glob(path + '*')  if os.path.isfile(f)]
+            loaded = dict()
+            for file_path in file_paths:
+                _, ext = os.path.splitext(file_path)
+                if ext == conf.STORE_FS_JSON_SUFFIX:
+                    name = file_path.replace(path, "").\
+                        replace(conf.STORE_FS_JSON_SUFFIX, "")
+                    obj = self.load_json(file_path)
+                    loaded[name] = obj
+                elif ext == conf.STORE_FS_PICKLE_SUFFIX:
+                    name = file_path.replace(path, "").\
+                        replace(conf.STORE_FS_PICKLE_SUFFIX, "")
+                    loaded[name] = self.load_pickle(file_path)
+                else:
+                    raise IOError('File %s has an unkown extension: %s' %
+                        (file_path, ext))
+            return loaded
 
     def save_pickle(self, file_path, obj):
         output = open(file_path, 'wb')
