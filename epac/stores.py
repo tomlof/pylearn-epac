@@ -8,7 +8,7 @@ Stores for EPAC
 """
 
 import os
-import glob
+import shutil
 import pickle
 import json
 import inspect
@@ -53,13 +53,17 @@ class StoreMem(Store):
 class StoreFs(Store):
     """ Store based of file system"""
 
-    def __init__(self, dirpath):
+    def __init__(self, dirpath, clear=False):
+        """
+        dirpath: str
+            Root directory within file system
+        
+        clear: boolean
+            If True clear (delete) everything under the root directory.
+        """
         self.dirpath = dirpath
-
-#    def key2path(self, key):
-#        from epac.workflow.base import key_split
-#        prot, path = key_split(key)
-#        return path
+        if clear:
+            shutil.rmtree(dirpath)
 
     def save(self, key, obj, protocol="txt", merge=False):
         """ Save object
@@ -90,20 +94,21 @@ class StoreFs(Store):
             file_path = path + conf.STORE_FS_PICKLE_SUFFIX
             self.save_pickle(file_path, obj)
 
-    def load(self, key):
+    def load(self, key=""):
         """Load everything that is prefixed with key.
 
         Parmaters
         ---------
         key: str
-            prefix to find files.
+            if key point to a file (without the extension), return the file
+            if key point to a directory, return a dictionary where
+            values are objects corresponding to all files found in all
+            sub-directories. Values are indexed with their keys.
+            if key is an empty string, 
 
-        Return
-        ------
-            A dictonnary of all loaded objects, where keys are the differences
-            between file names prefixed with the "key" parameters. If the "key"
-            parameters match exactly a file, the retruned dict will contain a
-            single object with an empty key.
+        See Also
+        --------
+        BaseNode.save()
         """
         from epac.workflow.base import conf
         path = os.path.join(self.dirpath, key)
@@ -113,25 +118,35 @@ class StoreFs(Store):
         if os.path.isfile(path + conf.STORE_FS_JSON_SUFFIX):
             return self.load_pickle(path + conf.STORE_FS_JSON_SUFFIX)
         if os.path.isdir(path):
-            path = path + os.path.sep
-        # Get all files
-            file_paths = [f for f in glob.glob(path + '*')  if os.path.isfile(f)]
+            filepaths = []
+            for base, dirs, files in os.walk(self.dirpath):
+                #print base, dirs, files
+                for filepath in [os.path.join(base, basename) for basename in files]:
+                    filepaths.append(filepath)
             loaded = dict()
-            for file_path in file_paths:
-                _, ext = os.path.splitext(file_path)
+            dirpath = os.path.join(self.dirpath, "")
+            for filepath in filepaths:
+                _, ext = os.path.splitext(filepath)
                 if ext == conf.STORE_FS_JSON_SUFFIX:
-                    name = file_path.replace(path, "").\
-                        replace(conf.STORE_FS_JSON_SUFFIX, "")
-                    obj = self.load_json(file_path)
-                    loaded[name] = obj
+                    key1 = filepath.replace(dirpath,"").replace(conf.STORE_FS_JSON_SUFFIX, "")
+                    obj = self.load_json(filepath)
+                    loaded[key1] = obj
                 elif ext == conf.STORE_FS_PICKLE_SUFFIX:
-                    name = file_path.replace(path, "").\
-                        replace(conf.STORE_FS_PICKLE_SUFFIX, "")
-                    loaded[name] = self.load_pickle(file_path)
+                    key1 = filepath.replace(dirpath,"").replace(conf.STORE_FS_PICKLE_SUFFIX, "")
+                    loaded[key1] = self.load_pickle(filepath)
                 else:
                     raise IOError('File %s has an unkown extension: %s' %
-                        (file_path, ext))
+                        (filepath, ext))
+            if key == "":  # No key provided assume a whole tree to load
+                tree = loaded.pop(conf.STORE_EXECUTION_TREE_PREFIX)
+                for path in loaded:
+                    basename = os.path.basename(path)
+                    key1 = os.path.dirname(path)
+                    node = tree.get_node(key1)
+                    setattr(node, basename, loaded[path])
+                loaded = tree
             return loaded
+
 
     def save_pickle(self, file_path, obj):
         output = open(file_path, 'wb')
@@ -162,28 +177,6 @@ class StoreFs(Store):
         obj_dict = json.load(inputf)
         inputf.close()
         return dict_to_obj(obj_dict)
-
-
-#def get_store(key):
-#    """ factory function returning the Store object of the class
-#    associated with the key parameter"""
-#    from epac.workflow.base import  key_split, conf
-#    splits = key_split(key)
-#    if len(splits) != 2 and \
-#        not(splits[0] in (conf.KEY_PROT_FS, conf.KEY_PROT_MEM)):
-#        raise ValueError('No valid storage has been associated with key: "%s"'
-#            % key)
-#    prot, path = splits
-#    if prot == conf.KEY_PROT_FS:
-#        return StoreFs()
-##    FIXME
-##    elif prot == conf.KEY_PROT_MEM:
-##        return StoreLo(storage_root=_Node.roots[path])
-#    else:
-#        raise ValueError("Invalid value for key: should be:" +\
-#        "lo for no persistence and storage on living objects or" +\
-#        "fs and a directory path for file system based storage")
-
 
 ## ============================== ##
 ## == Conversion Object / dict == ##

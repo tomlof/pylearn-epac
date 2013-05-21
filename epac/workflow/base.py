@@ -8,10 +8,8 @@ Base Workflow node plus keys manipulation utilities.
 
 import re
 import sys
-import copy
 import numpy as np
 from abc import abstractmethod
-#from epac.stores import get_store
 from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
 from epac.stores import StoreMem
@@ -21,38 +19,11 @@ from epac.results import Results
 ## == Key manipulation utils      == ##
 ## ================================= ##
 
-def key_split(key):
-    """Split the key in in two parts: [protocol, path]
-
-    Example
-    -------
-    >>> key_split('file:///tmp/toto')
-    ['file', '/tmp/toto']
-    """
-    return key.split(conf.KEY_PROT_PATH_SEP, 1)
-
-
-def key_join(prot="", path=""):
-    """Join protocol and path to create a key
-
-    Example
-    -------
-    >>> key_join("file", "/tmp/toto")
-    'file:///tmp/toto'
-    """
-    return prot + conf.KEY_PROT_PATH_SEP + path
-
-
-def key_pop(key):
-    return key.rsplit(conf.KEY_PATH_SEP, 1)[0]
-
-
 def key_push(key, basename):
     if key and basename:
         return key + conf.KEY_PATH_SEP + basename
     else:
         return key or basename
-
 
 ## ============================================== ##
 ## == down-stream data-flow manipulation utils == ##
@@ -127,6 +98,8 @@ class conf:
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
     STORE_NODE_PREFIX = "node"
+    STORE_EXECUTION_TREE_PREFIX = "execution_tree"
+    STORE_STORE_PREFIX = "store"
     KEY_PATH_SEP = "/"
     KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
     SUFFIX_JOB = "job"
@@ -550,50 +523,56 @@ class BaseNode(object):
         recursion: bool
             Indicates if node should be recursively saved down to
             the leaves . Default (True).
+            
+        See Also
+        --------
+        Store.load()
         """
-        stores = dict()        
+        # Save execution tree without the stores
+        stores = dict()
         for node in self._walk_true_nodes():
             if node.store:
                 stores[node.get_key()] = node.store
                 node.store = None
-        
-        store.save(key="exec_tree", obj=self, protocol="bin")
-        store.save(key="stores", obj=stores, protocol="bin")
+        store.save(key=conf.STORE_EXECUTION_TREE_PREFIX,
+                   obj=self, protocol="bin")
         for key1 in stores:
             node = self.get_node(key1)
             node.store = stores[key1]
-        # Reload
-        tree = store.load(key="exec_tree")
-        store2 = store.load(key="stores")
-        if conf.DEBUG:
-            #global _N
-            debug.current = self
-        if not store:
-            store = self.get_store()
-#        if not self.store and not self.parent:
-#            raise ValueError("No store has been defined")
-        key = self.get_key()
-        if not attr:  # save the entire node
-            # Prevent recursion saving of children/parent in a single dump:
-            # replace reference to chidren/parent by basename strings
-            clone = copy.copy(self)
-            clone.children = [child.get_signature() for child in self.children]
-            if self.parent:
-                clone.parent = ".."
-            if hasattr(self, "estimator"):  # Always pickle estimator
-                clone.estimator = None
-                store.save(key=key_push(key, "estimator"), obj=self.estimator,
-                           protocol="bin")
-            store.save(key=key_push(key, conf.STORE_NODE_PREFIX), obj=clone)
-        else:
-            o = self.__dict__[attr]
-            # avoid saving attributes of len 0
-            if not hasattr(o, "__len__") or (len(o) > 0):
-                store.save(key=key_push(key, attr), obj=o)
-        if recursion and self.children:
-            # Call children save down to leaves
-            [child.save(store=store, attr=attr, recursion=recursion) for child
-                in self.children]
+        # Save the stores
+        for key1 in stores:
+            print key1, stores[key1]
+            store.save(key=key_push(key1, conf.STORE_STORE_PREFIX),
+                       obj=stores[key1], protocol="bin")
+#        if conf.DEBUG:
+#            #global _N
+#            debug.current = self
+#        if not store:
+#            store = self.get_store()
+##        if not self.store and not self.parent:
+##            raise ValueError("No store has been defined")
+#        key = self.get_key()
+#        if not attr:  # save the entire node
+#            # Prevent recursion saving of children/parent in a single dump:
+#            # replace reference to chidren/parent by basename strings
+#            clone = copy.copy(self)
+#            clone.children = [child.get_signature() for child in self.children]
+#            if self.parent:
+#                clone.parent = ".."
+#            if hasattr(self, "estimator"):  # Always pickle estimator
+#                clone.estimator = None
+#                store.save(key=key_push(key, "estimator"), obj=self.estimator,
+#                           protocol="bin")
+#            store.save(key=key_push(key, conf.STORE_NODE_PREFIX), obj=clone)
+#        else:
+#            o = self.__dict__[attr]
+#            # avoid saving attributes of len 0
+#            if not hasattr(o, "__len__") or (len(o) > 0):
+#                store.save(key=key_push(key, attr), obj=o)
+#        if recursion and self.children:
+#            # Call children save down to leaves
+#            [child.save(store=store, attr=attr, recursion=recursion) for child
+#                in self.children]
 
     def _walk_true_nodes(self):
         yield self
@@ -605,50 +584,50 @@ class BaseNode(object):
             for child in children:
                 for yielded in child.walk_nodes():
                     yield yielded
-    @classmethod
-    def load(cls, store, key, recursion=True):
-        """I/O (persistance) load a node indexed by key from the store.
-
-        Parameters
-        ----------
-        store: Store()
-
-        key: string
-            Load the node indexed by its key from the store. If missing then
-            assume file system store and the key will point on the root of the
-            store.
-
-        recursion: boolean
-            Indicates if sub-nodes (down to the leaves) and parent nodes
-            (path up to the root) should be recursively loaded. Default (True).
-        """
-#        if key is None:  # assume fs store, and point on the root of the store
-#            key = key_join(prot=conf.KEY_PROT_FS, path=store)
-        #store = self.get_store()
-        print store, key
-        loaded = store.load(key)
-        node = loaded.pop(conf.STORE_NODE_PREFIX)
-        node.__dict__.update(loaded)
-        # Recursively load sub-tree
-        if recursion and node.children:
-            children = node.children
-            node.children = list()
-            for child in children:
-                child_key = key_push(key, child)
-                node.add_child(WF.load(store=store, key=child_key,
-                                       recursion=recursion))
-        # Recursively load nodes'path up to the root
-        curr = node
-        curr_key = key
-        while recursion and curr.parent == '..':
-            #print node.get_key()
-            curr_key = key_pop(curr_key)
-            parent = WF.load(store=store, key=curr_key, recursion=False)
-            parent.children = list()
-            parent.add_child(curr)
-            #curr.parent = parent
-            #parent.add_child(cu
-            curr = parent
-        return node
+#    @classmethod
+#    def load(cls, store, key, recursion=True):
+#        """I/O (persistance) load a node indexed by key from the store.
+#
+#        Parameters
+#        ----------
+#        store: Store()
+#
+#        key: string
+#            Load the node indexed by its key from the store. If missing then
+#            assume file system store and the key will point on the root of the
+#            store.
+#
+#        recursion: boolean
+#            Indicates if sub-nodes (down to the leaves) and parent nodes
+#            (path up to the root) should be recursively loaded. Default (True).
+#        """
+##        if key is None:  # assume fs store, and point on the root of the store
+##            key = key_join(prot=conf.KEY_PROT_FS, path=store)
+#        #store = self.get_store()
+#        print store, key
+#        loaded = store.load(key)
+#        node = loaded.pop(conf.STORE_NODE_PREFIX)
+#        node.__dict__.update(loaded)
+#        # Recursively load sub-tree
+#        if recursion and node.children:
+#            children = node.children
+#            node.children = list()
+#            for child in children:
+#                child_key = key_push(key, child)
+#                node.add_child(WF.load(store=store, key=child_key,
+#                                       recursion=recursion))
+#        # Recursively load nodes'path up to the root
+#        curr = node
+#        curr_key = key
+#        while recursion and curr.parent == '..':
+#            #print node.get_key()
+#            curr_key = key_pop(curr_key)
+#            parent = WF.load(store=store, key=curr_key, recursion=False)
+#            parent.children = list()
+#            parent.add_child(curr)
+#            #curr.parent = parent
+#            #parent.add_child(cu
+#            curr = parent
+#        return node
 
 WF = BaseNode

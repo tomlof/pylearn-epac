@@ -30,13 +30,12 @@ It is a user-defined object that should implements 4 methods:
 import re
 import numpy as np
 import copy
-from epac.workflow.base import BaseNode, conf, xy_split
-from epac.utils import _as_dict, _dict_prefix_keys
+from epac.workflow.base import BaseNode, xy_split
 from epac.utils import _func_get_args_names
-from epac.utils import _sub_dict, _list_diff
+from epac.utils import _sub_dict, _as_dict
 from epac.results import Results
 from epac.stores import StoreMem
-
+from epac.workflow.base import conf, debug
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
@@ -188,6 +187,9 @@ class ParCVGridSearchRefit(Estimator):
         #  Pump-up results
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
+        if conf.DEBUG:
+            debug.current = self
+            debug.Xy = Xy
         cv_grid_search_results = cv_grid_search.load_state(name="results")
         for key2 in cv_grid_search_results:
             pipeline = self.cv_grid_search(key2=key2,

@@ -13,19 +13,11 @@ from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
                                     n_informative=2)
 
-from epac import StoreFs
-from epac import ParCV
-from epac import SummaryStat
-self = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
-self.fit_predict(X=X, y=y)
-store = StoreFs("/tmp/toto")
-
-sefl._
-n_folds = 10
-n_perms = 100
+n_folds = 2
+n_perms = 2
 n_folds_nested = 5
-k_values = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-C_values = [1, 10, 100]
+k_values = [1, 2]# 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+C_values = [1, 10]
 
 ## 2) Build Workflow
     ## =================
@@ -45,9 +37,27 @@ self = ParPerm(
                reducer=SummaryStat(filter_out_others=True)),
          n_perms=n_perms, permute="y",
          reducer=PvalPermutations(filter_out_others=True))
+#self.fit_predict(X=X, y=y)
+
+from epac import StoreMem
+from epac import debug, conf
+conf.DEBUG = True
+conf.TRACE_TOPDOWN = True
+self.fit_predict(X=X, y=y)
+root = self
+self = debug.current
+Xy = debug.Xy
+
+self = debug.current[0]
+self.children[1].reduce()
+self.children[1].fit_predict(**Xy)
 
 from epac import StoreFs
-store = StoreFs("/tmp/toto")
+store = StoreFs("/tmp/toto", clear=True)
+self.save(store=store)
+self.fit_predict(X=X, y=y)
+tree = store.load()
+tree.reduce()
 
 # Build sequential Pipeline
 # -------------------------

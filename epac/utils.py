@@ -41,7 +41,9 @@ def _list_union_inter_diff(*lists):
 def _list_indices(l, val):
     return [i for i in xrange(len(l)) if l[i] == val]
 
-
+class ListWithMetaInfo(list):
+    pass
+    
 def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
                                    axis_values=[]):
     """Convert a list of dicts to a dictionnary of lists.
@@ -51,8 +53,6 @@ def _list_of_dicts_2_dict_of_lists(list_of_dict, axis_name=None,
    >>> _list_of_dicts_2_dict_of_lists([dict(a=1, b=2), dict(a=10, b=20)])
    {'a': [1, 10], 'b': [2, 20]}
     """
-    class ListWithMetaInfo(list):
-        pass
 
     dict_of_list = dict()
     for d in list_of_dict:
