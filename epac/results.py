@@ -21,7 +21,7 @@ class Results(dict):
     def _c(self, k1, k2):
         return k1 + self.SEP + k2
 
-    def add(self, key2, suffix, score=None, pred=[], true=[]):
+    def add(self, key2, suffix, score=None, pred=None, true=None):
         """
         Parameters
         ----------
@@ -35,14 +35,15 @@ class Results(dict):
             the score
 
         """
-        tr = dict()
-        if score:
-            tr[self._c(self.SCORE, suffix)] = score
-        if len(pred):
-            tr[self._c(self.PRED, suffix)] = pred
-        if len(true):
-            tr[self._c(self.TRUE, suffix)] = true
         if key2 in self:
-            self[key2].update(tr)
+            d = self[key2]
         else:
-            self[key2] = tr
+            d = dict()
+            self[key2] = d
+        if score is not None:
+            d[self._c(self.SCORE, suffix)] = score
+        if pred is not None:
+            d[self._c(self.PRED, suffix)] = pred
+        if true is not None:
+            d[self._c(self.TRUE, suffix)] = true
+        
