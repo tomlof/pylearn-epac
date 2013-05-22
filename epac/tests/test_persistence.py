@@ -18,10 +18,41 @@ from sklearn.feature_selection import SelectKBest
 from epac import WF, Seq, ParMethods, ParCV, ParPerm
 from epac import SummaryStat, PvalPermutations
 from epac import StoreFs
+from epac import ParCVGridSearchRefit, ParGrid
 
 class TestWorkFlow(unittest.TestCase):
 
-    def test_perm_cv_parmethods_seq_persistance(self):
+    def test_peristence_cv_cvgridsearchrefit(self):
+        X, y = datasets.make_classification(n_samples=12, n_features=10,
+                                        n_informative=2)
+        n_folds = 2
+        n_folds_nested = 5
+        k_values = [1, 2]# 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+        C_values = [1, 2]
+        pipeline = ParCVGridSearchRefit(*[
+                      Seq(SelectKBest(k=k),
+                          ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+                      for k in k_values],
+                      n_folds=n_folds_nested)
+
+        wf = ParCV(pipeline,
+                       n_folds=n_folds,
+                       reducer=SummaryStat(filter_out_others=True))
+        # Save WF
+        import tempfile
+        store = StoreFs(dirpath=tempfile.mkdtemp(), clear=True)
+        wf.save(store=store)
+        wf.fit_predict(X=X, y=y)
+        r1 = wf.reduce().values()[0]
+        # Reload
+        wf_loaded = store.load()
+        wf_loaded.fit_predict(X=X, y=y)
+        r2 = wf_loaded.reduce().values()[0]
+        # Compare
+        comp = np.all([np.all(np.asarray(r1[k])==np.asarray(r2[k])) for k in r1])
+        self.assertTrue(comp)
+
+    def toto_perm_cv_parmethods_seq_persistance(self):
         X, y = datasets.make_classification(n_samples=10,
                                         n_features=5, n_informative=2)
         n_perms = 3
@@ -44,7 +75,7 @@ class TestWorkFlow(unittest.TestCase):
         store = StoreFs(tempfile.mktemp())
         wf.save(store=store)
         key = wf.get_key()
-        wf = WF.load(store=store, key)
+        #wf = WF.load(store=store, key)
         ## Fit & Predict
         wf.fit_predict(X=X, y=y)
         ## Save results

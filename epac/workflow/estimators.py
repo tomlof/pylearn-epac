@@ -187,7 +187,7 @@ class ParCVGridSearchRefit(Estimator):
         #  Pump-up results
         methods = list()
         cv_grid_search.bottum_up(store_results=True)
-        if conf.DEBUG:
+        if debug.DEBUG:
             debug.current = self
             debug.Xy = Xy
         cv_grid_search_results = cv_grid_search.load_state(name="results")

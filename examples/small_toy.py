@@ -41,7 +41,7 @@ self = ParPerm(
 
 from epac import StoreMem
 from epac import debug, conf
-conf.DEBUG = True
+debug.DEBUG = True
 conf.TRACE_TOPDOWN = True
 self.fit_predict(X=X, y=y)
 root = self
@@ -244,7 +244,7 @@ multi.predict(X=X)
 # Do both
 multi.fit_predict(X=X, y=y)
 from epac import conf, debug
-conf.DEBUG = True  # set debug to True
+debug.DEBUG = True  # set debug to True
 multi.fit_predict(X=X, y=y)  # re-run
 ds_kwargs = dict(X=X, y=y)  # build the down-stream data flow
 # get all nodes from root to the current node (stored in debug.current)
@@ -255,7 +255,7 @@ print self
 ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
 print ds_kwargs
 
-#conf.DEBUG = True
+#debug.DEBUG = True
 #wf.fit_predict(X=X, y=y)  # re-run
 #self = debug.current  # get last node before error
 #ds_kwargs = debug.ds_kwargs  # get data

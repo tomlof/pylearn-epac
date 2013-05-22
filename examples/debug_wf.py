@@ -42,11 +42,14 @@ wf = ParCV(pipeline,
                reducer=SummaryStat(filter_out_others=True))
 
 from epac import StoreFs
-store = StoreFs("/tmp/toto", clear=True)
+
+store = StoreFs(dirpath=tempfile.mkdtemp(), clear=True)
 wf.save(store=store)
 wf.fit_predict(X=X, y=y)
-wf.reduce()
+r1 = wf.reduce().values()[0]
 
 wf_loaded = store.load()
 wf_loaded.fit_predict(X=X, y=y)
-wf_loaded.reduce()
+r2 = wf_loaded.reduce().values()[0]
+
+np.all([np.all(np.asarray(r1[k])==np.asarray(r2[k])) for k in r1])

@@ -366,7 +366,7 @@ class BaseNode(object):
         """
         if conf.TRACE_TOPDOWN:
             print self.get_key(), func_name
-        if conf.DEBUG:
+        if debug.DEBUG:
             debug.current = self
             debug.Xy = Xy
         func = getattr(self, func_name)
@@ -423,7 +423,7 @@ class BaseNode(object):
         # 1) Build sub-aggregates over children
         children_results = [child.bottum_up(store_results=False) for
             child in self.get_children_bottum_up()]
-        if conf.DEBUG:
+        if debug.DEBUG:
             debug.current = self
         if len(children_results) == 1:
             if store_results:
@@ -544,7 +544,7 @@ class BaseNode(object):
             print key1, stores[key1]
             store.save(key=key_push(key1, conf.STORE_STORE_PREFIX),
                        obj=stores[key1], protocol="bin")
-#        if conf.DEBUG:
+#        if debug.DEBUG:
 #            #global _N
 #            debug.current = self
 #        if not store:
