@@ -48,7 +48,7 @@ root = self
 self = debug.current
 Xy = debug.Xy
 
-self = debug.current[0]
+self = debug.current.children[0]
 self.children[1].reduce()
 self.children[1].fit_predict(**Xy)
 
