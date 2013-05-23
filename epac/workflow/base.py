@@ -14,6 +14,7 @@ from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
 from epac.stores import StoreMem
 from epac.results import Results
+from epac.configuration import conf, debug
 
 ## ================================= ##
 ## == Key manipulation utils      == ##
@@ -86,27 +87,6 @@ def xy_merge(Xy1, Xy2):
     Xy2 = {"__2__%" + str(k): Xy2[k] for k in Xy2}
     Xy1.update(Xy2)
     return Xy1
-
-
-## ================================= ##
-## == Configuration class         == ##
-## ================================= ##
-
-class conf:
-    DEBUG = False
-    TRACE_TOPDOWN = False
-    STORE_FS_PICKLE_SUFFIX = ".pkl"
-    STORE_FS_JSON_SUFFIX = ".json"
-    STORE_NODE_PREFIX = "node"
-    STORE_EXECUTION_TREE_PREFIX = "execution_tree"
-    STORE_STORE_PREFIX = "store"
-    KEY_PATH_SEP = "/"
-    KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
-    SUFFIX_JOB = "job"
-
-
-class debug:
-    current = None
 
 
 ## ======================================= ##
@@ -184,37 +164,37 @@ class BaseNode(object):
 
         Example
         -------
-        >>> from epac import ParCV, ParGrid, Seq
+        >>> from epac import CV, Grid, Pipe
         >>> from sklearn.svm import SVC
         >>> from sklearn.lda import LDA
         >>> from sklearn.feature_selection import SelectKBest
         >>> y = [1, 1, 2, 2]
-        >>> wf = ParCV(ParGrid(*[Seq(SelectKBest(k=k), SVC()) \
+        >>> wf = CV(Grid(*[Pipe(SelectKBest(k=k), SVC()) \
         ...     for k in [1, 5]]), n_folds=2, y=y)
         # List all leaves keys
         >>> for n in wf:
         ...     print n.get_key()
         ...
-        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)/SVC
-        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=5)/SVC
-        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=1)/SVC
-        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=5)/SVC
+        CV/CV(nb=0)/Grid/SelectKBest(k=1)/SVC
+        CV/CV(nb=0)/Grid/SelectKBest(k=5)/SVC
+        CV/CV(nb=1)/Grid/SelectKBest(k=1)/SVC
+        CV/CV(nb=1)/Grid/SelectKBest(k=5)/SVC
         # Get a single node using excat key match
-        >>> wf.get_node(key="ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)").get_key()
-        'ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)'
+        >>> wf.get_node(key="CV/CV(nb=0)/Grid/SelectKBest(k=1)").get_key()
+        'CV/CV(nb=0)/Grid/SelectKBest(k=1)'
         # Get several nodes using wild cards
-        >>> for n in wf.get_node(regexp="ParCV/*"):
+        >>> for n in wf.get_node(regexp="CV/*"):
         ...         print n.get_key()
         ...
-        ParCV/CV(nb=0)
-        ParCV/CV(nb=1)
-        >>> for n in wf.get_node(regexp="*ParCV/CV(*)/*/*/SVC"):
+        CV/CV(nb=0)
+        CV/CV(nb=1)
+        >>> for n in wf.get_node(regexp="*CV/CV(*)/*/*/SVC"):
         ...     print n.get_key()
         ...
-        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=1)/SVC
-        ParCV/CV(nb=0)/ParGrid/SelectKBest(k=5)/SVC
-        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=1)/SVC
-        ParCV/CV(nb=1)/ParGrid/SelectKBest(k=5)/SVC
+        CV/CV(nb=0)/Grid/SelectKBest(k=1)/SVC
+        CV/CV(nb=0)/Grid/SelectKBest(k=5)/SVC
+        CV/CV(nb=1)/Grid/SelectKBest(k=1)/SVC
+        CV/CV(nb=1)/Grid/SelectKBest(k=5)/SVC
         """
         if key:
             if key == self.get_key():
@@ -445,7 +425,7 @@ class BaseNode(object):
         # 4) Collision occurs
         # Aggregate (stack) all children results with identical
         # intermediary key, by stacking them according to
-        # argumnents. Ex.: stack for a CV stack folds, for a ParGrid
+        # argumnents. Ex.: stack for a CV stack folds, for a Grid
         children_args = [child.get_signature_args() for child in self.children]
         _, arg_names, diff_arg_names = _list_union_inter_diff(*[d.keys()
                                                 for d in children_args])
@@ -456,7 +436,7 @@ class BaseNode(object):
                                           children_args)
         # Reduce results if there is a reducer
         if self.reducer:
-            results = {key2: self.reducer.reduce(self, key2, results[key2]) for
+            results = {key2: self.reducer.reduce(results[key2]) for
                 key2 in results}
         if store_results:
             self.save_state(state=results, name="results")

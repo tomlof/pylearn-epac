@@ -77,11 +77,11 @@ np.savez(datasets_file, X=X, y=y)
 ##############################################################################
 ## EPAC WORKFLOW
 # -------------------------------------
-#             ParPerm                Perm (Splitter)
+#             Permutations                Perm (Splitter)
 #         /     |       \
 #        0      1       2            Samples (Slicer)
 #        |
-#       ParCV                        CV (Splitter)
+#       CV                        CV (Splitter)
 #  /       |       \
 # 0        1       2                 Folds (Slicer)
 # |        |       |
@@ -89,17 +89,17 @@ np.savez(datasets_file, X=X, y=y)
 # |
 # 2                                  SelectKBest (Estimator)
 # |
-# ParGrid
+# Grid
 # |                     \
 # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
 
 
-from epac import ParPerm, ParCV, WF, Seq, ParGrid
+from epac import Permutations, CV, WF, Seq, Grid
 
 pipeline = Seq(SelectKBest(k=2),
-               ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+               Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
 
-wf = ParPerm(ParCV(pipeline, n_folds=3),
+wf = Permutations(CV(pipeline, n_folds=3),
              n_perms=10, permute="y", y=y)
 
 # The Epac tree will be saved in with "key_file"

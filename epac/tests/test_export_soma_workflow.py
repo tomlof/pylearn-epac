@@ -114,30 +114,30 @@ class EpacWorkflowTest(unittest.TestCase):
         #######################################################################
         ## EPAC WORKFLOW
         # -------------------------------------
-        #             ParPerm                Perm (Splitter)
+        #             Permutations                Perm (Splitter)
         #         /     |       \
         #        0      1       2            Samples (Slicer)
         #        |
-        #       ParCV                        CV (Splitter)
+        #       CV                        CV (Splitter)
         #  /       |       \
         # 0        1       2                 Folds (Slicer)
         # |        |       |
-        # Seq     Seq     Seq                Sequence
+        # Pipeline     Pipeline     Pipeline                Sequence
         # |
         # 2                                  SelectKBest (Estimator)
         # |
-        # ParGrid
+        # Grid
         # |                     \
         # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
 
-        from epac import ParPerm, ParCV, Seq, ParGrid
+        from epac import Permutations, CV, Pipeline, Grid
 
         self.wf = None
 
-        pipeline = Seq(SelectKBest(k=2),
-                       ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+        pipeline = Pipeline(SelectKBest(k=2),
+                       Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
 
-        self.wf = ParPerm(ParCV(pipeline, n_folds=3),
+        self.wf = Permutations(CV(pipeline, n_folds=3),
                           n_perms=10, permute="y", y=self.y)
 
         self.wf.save(store=self.key_file)
@@ -198,7 +198,7 @@ class EpacWorkflowTest(unittest.TestCase):
         from soma.workflow.client import Helper
         from epac.export_multi_processes import export2somaworkflow
 
-        nodes = self.wf.get_node(regexp="*/ParPerm/*")
+        nodes = self.wf.get_node(regexp="*/Permutations/*")
 
         (wf_id, controller) = export2somaworkflow(
             in_datasets_file=self.datasets_file,
@@ -238,8 +238,8 @@ class EpacWorkflowTest(unittest.TestCase):
 
  
     def start2cmp(self):
-
-        from epac.workflow.base import conf
+        
+        from epac.configuration import conf
         from epac import WF
 
         os.chdir(self.my_working_directory)

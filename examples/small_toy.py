@@ -13,59 +13,22 @@ from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
                                     n_informative=2)
 
-n_folds = 2
-n_perms = 2
-n_folds_nested = 5
-k_values = [1, 2]# 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-C_values = [1, 10]
+# Model selection using CV: CV + Grid
+# -----------------------------------------
+from epac import CVGridSearchRefit
+# CV + Grid search of a simple classifier
+wf = CVGridSearchRefit(*[SVC(C=C) for C in [1, 10]])
+wf.fit_predict(X=X, y=y)
+wf.reduce()
 
-## 2) Build Workflow
-    ## =================
-from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
-from epac import SummaryStat, PvalPermutations
-## CV + Grid search of a pipeline with a nested grid search
-pipeline = ParCVGridSearchRefit(*[
-              Seq(SelectKBest(k=k),
-                  ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
-              for k in k_values],
-              n_folds=n_folds_nested)
-
-#print pipeline.stats(group_by="class")
-self = ParPerm(
-         ParCV(pipeline,
-               n_folds=n_folds,
-               reducer=SummaryStat(filter_out_others=True)),
-         n_perms=n_perms, permute="y",
-         reducer=PvalPermutations(filter_out_others=True))
-#self.fit_predict(X=X, y=y)
-
-from epac import StoreMem
-from epac import debug, conf
-debug.DEBUG = True
-conf.TRACE_TOPDOWN = True
-self.fit_predict(X=X, y=y)
-root = self
-self = debug.current
-Xy = debug.Xy
-
-self = debug.current.children[0]
-self.children[1].reduce()
-self.children[1].fit_predict(**Xy)
-
-from epac import StoreFs
-store = StoreFs("/tmp/toto", clear=True)
-self.save(store=store)
-self.fit_predict(X=X, y=y)
-tree = store.load()
-tree.reduce()
 
 # Build sequential Pipeline
 # -------------------------
 # 2  SelectKBest
 # |
 # SVM Classifier
-from epac import Seq
-pipe = Seq(SelectKBest(k=2), SVC(kernel="linear"))
+from epac import Pipe
+pipe = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
 pipe.fit(X=X, y=y)
 pipe.predict(X=X)
 pipe.fit_predict(X=X, y=y)  # Do both
@@ -86,18 +49,18 @@ pipe.fit_predict(X=X, y=y)  # Do both
 
 # Multi-classifiers
 # -----------------
-# ParMethods    ParMethods  (Splitter)
+# Methods    Methods  (Splitter)
 #  /   \
 # LDA  SVM      Classifiers (Estimator)
-from epac import ParMethods
-multi = ParMethods(LDA(),  SVC(kernel="linear"))
+from epac import Methods
+multi = Methods(LDA(),  SVC(kernel="linear"))
 multi.fit_predict(X=X, y=y)
 
 
-#        ParMethods          ParMethods (Splitter)
+#        Methods          Methods (Splitter)
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
-svms = ParMethods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+svms = Methods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms.walk_nodes()]
@@ -105,13 +68,13 @@ svms.reduce()
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggretation.
-# ParMethods   ParMethods (Splitter)
+# Methods   Methods (Splitter)
 #  /   |   \
 # 1    5   10  SelectKBest (Estimator)
 # |    |    |
 # SVM SVM SVM  Classifiers (Estimator)
-anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear")) for k in
-    [1, 5, 10]])
+anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC()) for k in
+    [1, 2]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
 [l.get_key() for l in anovas_svm.walk_nodes()]
@@ -120,22 +83,21 @@ anovas_svm.reduce()
 
 # Parallelize SVM with several parameters.
 # Collisions between upstream keys, trig aggretation.
-#                   ParGrid                ParGrid (Splitter)
+#                   Grid                Grid (Splitter)
 #                  /     \
 # SVM(linear, C=1)  .... SVM(rbf, C=10) Classifiers (Estimator)
-# ParGrid and PArMethods differ onlys the way they process the upstream
-# flow. With ParGrid Children differs only by theire arguments, and thus
+# Grid and PArMethods differ onlys the way they process the upstream
+# flow. With Grid Children differs only by theire arguments, and thus
 # are aggregated toggether
-from epac import ParGrid
-svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+from epac import Grid
+svms = Grid(*[SVC(C=C) for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms.walk_nodes()]
 [l.get_key(2) for l in svms.walk_nodes()]  # intermediary key collisions: trig aggregation
 
-
-
-svms = ParGrid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+# Two parameters
+svms = Grid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
 [l.get_key() for l in svms.walk_nodes()]
@@ -145,14 +107,14 @@ svms.reduce()
 # Cross-validation
 # ----------------
 # CV of LDA
-#    ParCV                (Splitter)
+#    CV                (Splitter)
 #  /   |   \
 # 0    1    2  Folds      (Slicer)
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
-from epac import ParCV
+from epac import CV
 from epac import SummaryStat
-cv_lda = ParCV(LDA(), n_folds=3, reducer=SummaryStat())
+cv_lda = CV(LDA())
 cv_lda.fit_predict(X=X, y=y)
 cv_lda.reduce()
 
@@ -168,18 +130,18 @@ cv_lda.transform(X=X, y=y, sample_set="train")
 cv_lda.transform(X=X, y=y, sample_set="test")
 
 
-# Model selection using CV: ParCV + ParGrid
+# Model selection using CV: CV + Grid
 # -----------------------------------------
-from epac import ParGrid, Seq, ParCVGridSearchRefit
+from epac import Grid, Pipe, CVGridSearchRefit
 # CV + Grid search of a simple classifier
-wf = ParCVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
+wf = CVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
            n_folds=5)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 # CV + Grid search of a pipeline with a nested grid search
-wf = ParCVGridSearchRefit(*[Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C)\
+wf = CVGridSearchRefit(*[Pipe(SelectKBest(k=k),
+                      Grid(*[SVC(kernel="linear", C=C)\
                           for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]],
            n_folds=5)
@@ -187,33 +149,33 @@ wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 # results contains:
-# - CV-model selection results "CVGridSearchRefit/ParCV/*"
-# - Refited results "CVGridSearchRefit/ParMethods/*"
+# - CV-model selection results "CVGridSearchRefit/CV/*"
+# - Refited results "CVGridSearchRefit/Methods/*"
 print wf.results.keys()
 
 for k in wf.results:
     if k.find("CVGridSearchRefit/ParMethod") == 0:
         wf.results[k]
 
-# ParParPermutations + Cross-validation
+# Permutations + Cross-validation
 # -------------------------------------
-#           ParPerm                  Perm (Splitter)
+#           Permutations                  Perm (Splitter)
 #         /     |       \
 #        0      1       2            Samples (Slicer)
 #       |
-#     ParCV                          CV (Splitter)
+#     CV                          CV (Splitter)
 #  /   |   \
 # 0    1    2                        Folds (Slicer)
 # |    |    |
 # LDA LDA LDA                        Classifier (Estimator)
 
-from epac import ParPerm, ParCV, WF
+from epac import Permutations, CV
 from epac import SummaryStat, PvalPermutations
 from epac import StoreFs
 #from stores import
 # _obj_to_dict, _dict_to_obj
 
-perms_cv_lda = ParPerm(ParCV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
+perms_cv_lda = Permutations(CV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
                     n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
 
 [l.get_key() for l in perms_cv_lda.walk_leaves()]
@@ -237,8 +199,8 @@ tree.reduce()
 
 ## DEBUGGING
 ## =========
-from epac import ParMethods
-multi = ParMethods(LDA(),  SVC(kernel="linear"))
+from epac import Methods
+multi = Methods(LDA(),  SVC(kernel="linear"))
 multi.fit(X=X, y=y)
 multi.predict(X=X)
 # Do both

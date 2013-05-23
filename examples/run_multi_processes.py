@@ -58,7 +58,7 @@ def do_all(options):
 
     ## 3) Build Workflow
     ## =================
-    from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
+    from epac import Permutations, CV, CVGridSearchRefit, Seq, Grid
     from epac import SummaryStat, PvalPermutations
     if options.k_max != "auto":
         k_values = range_log2(np.minimum(int(options.k_max),
@@ -68,17 +68,17 @@ def do_all(options):
     C_values = [1, 10]
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
-    pipeline = ParCVGridSearchRefit(*[
+    pipeline = CVGridSearchRefit(*[
                   Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+                      Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
                   n_folds=options.n_folds_nested, y=y,
                   random_state=random_state)
 
     #pipeline = Seq(SelectKBest(k=5), SVC(kernel="linear", C=1))
     #print pipeline.stats(group_by="class")
-    wf = ParPerm(
-             ParCV(pipeline,
+    wf = Permutations(
+             CV(pipeline,
                    n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
              n_perms=options.n_perms, permute="y", y=y,

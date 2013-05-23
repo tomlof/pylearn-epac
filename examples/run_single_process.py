@@ -37,19 +37,19 @@ def do_all(options):
 
     ## 2) Build Workflow
     ## =================
-    from epac import ParPerm, ParCV, ParCVGridSearchRefit, Seq, ParGrid
+    from epac import Permutations, CV, CVGridSearchRefit, Seq, Grid
     from epac import SummaryStat, PvalPermutations
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
-    pipeline = ParCVGridSearchRefit(*[
+    pipeline = CVGridSearchRefit(*[
                   Seq(SelectKBest(k=k),
-                      ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+                      Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
                   n_folds=options.n_folds_nested)
 
     #print pipeline.stats(group_by="class")
-    wf = ParPerm(
-             ParCV(pipeline,
+    wf = Permutations(
+             CV(pipeline,
                    n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
              n_perms=options.n_perms, permute="y",

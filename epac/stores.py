@@ -85,7 +85,7 @@ class StoreFs(Store):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         # JSON
-        from epac.workflow.base import conf
+        from epac.configuration import conf
         if protocol is "txt":
             file_path = path + conf.STORE_FS_JSON_SUFFIX
             json_failed = self.save_json(file_path, obj)
@@ -104,13 +104,13 @@ class StoreFs(Store):
             if key point to a directory, return a dictionary where
             values are objects corresponding to all files found in all
             sub-directories. Values are indexed with their keys.
-            if key is an empty string, 
+            if key is an empty string, assume dirpath is a tree root.
 
         See Also
         --------
         BaseNode.save()
         """
-        from epac.workflow.base import conf
+        from epac.configuration import conf
         path = os.path.join(self.dirpath, key)
         #prefix = os.path.join(path, conf.STORE_FS_NODE_PREFIX)
         if os.path.isfile(path + conf.STORE_FS_PICKLE_SUFFIX):

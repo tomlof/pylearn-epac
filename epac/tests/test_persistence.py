@@ -15,10 +15,10 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import WF, Seq, ParMethods, ParCV, ParPerm
+from epac import Pipe, Methods, CV, Permutations
 from epac import SummaryStat, PvalPermutations
 from epac import StoreFs
-from epac import ParCVGridSearchRefit, ParGrid
+from epac import CVGridSearchRefit, Grid
 
 class TestWorkFlow(unittest.TestCase):
 
@@ -29,13 +29,13 @@ class TestWorkFlow(unittest.TestCase):
         n_folds_nested = 5
         k_values = [1, 2]# 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
         C_values = [1, 2]
-        pipeline = ParCVGridSearchRefit(*[
-                      Seq(SelectKBest(k=k),
-                          ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+        pipeline = CVGridSearchRefit(*[
+                      Pipe(SelectKBest(k=k),
+                          Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                       for k in k_values],
                       n_folds=n_folds_nested)
 
-        wf = ParCV(pipeline,
+        wf = CV(pipeline,
                        n_folds=n_folds,
                        reducer=SummaryStat(filter_out_others=True))
         # Save WF
@@ -52,7 +52,7 @@ class TestWorkFlow(unittest.TestCase):
         comp = np.all([np.all(np.asarray(r1[k])==np.asarray(r2[k])) for k in r1])
         self.assertTrue(comp)
 
-    def toto_perm_cv_parmethods_seq_persistance(self):
+    def toto_perm_cv_parmethods_pipeline_persistance(self):
         X, y = datasets.make_classification(n_samples=10,
                                         n_features=5, n_informative=2)
         n_perms = 3
@@ -62,10 +62,10 @@ class TestWorkFlow(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        anovas_svm = ParMethods(*[Seq(SelectKBest(k=k), SVC(kernel="linear"))
+        anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC(kernel="linear"))
             for k in k_values])
-        wf = ParPerm(
-            ParCV(anovas_svm, n_folds=n_folds,
+        wf = Permutations(
+            CV(anovas_svm, n_folds=n_folds,
                   reducer=SummaryStat(filter_out_others=False)),
             n_perms=n_perms, permute="y", random_state=rnd,
             reducer=PvalPermutations(filter_out_others=False))
@@ -81,7 +81,7 @@ class TestWorkFlow(unittest.TestCase):
         ## Save results
         wf.save(attr="results")
         ### Reload tree, all you need to know is the key
-        wf = WF.load(store=store, key=key)
+##        wf = WF.load(store=store, key=key)
         ### Reduces results
         R1 = wf.reduce()
         rm = os.path.dirname(os.path.dirname(R1.keys()[0])) + "/"
@@ -92,7 +92,7 @@ class TestWorkFlow(unittest.TestCase):
         # ===================
         from sklearn.cross_validation import StratifiedKFold
         from epac.sklearn_plugins import Permutation
-        from sklearn.pipeline import Pipeline
+        from sklearn.pipeline import Pipe
         keys = R1.keys()
         import re
 
@@ -100,7 +100,7 @@ class TestWorkFlow(unittest.TestCase):
             find_k = re.compile(u'k=([0-9])')
             return int(find_k.findall(key)[0])
         # ANOVA SVM-C
-        clfs = {key: Pipeline([('anova', SelectKBest(k=key_to_k(key))),
+        clfs = {key: Pipe([('anova', SelectKBest(k=key_to_k(key))),
                                ('svm', SVC(kernel="linear"))]) for key in keys}
         R2 = dict()
         for key in keys:

@@ -18,7 +18,9 @@ class Results(dict):
         if kwargs:
             self.add(**kwargs)
 
-    def _c(self, k1, k2):
+    @classmethod
+    def concat_key3(self, k1, k2):
+        """Concatenate keys 3"""
         return k1 + self.SEP + k2
 
     def add(self, key2, suffix, score=None, pred=None, true=None):
@@ -41,9 +43,9 @@ class Results(dict):
             d = dict()
             self[key2] = d
         if score is not None:
-            d[self._c(self.SCORE, suffix)] = score
+            d[Results.concat_key3(self.SCORE, suffix)] = score
         if pred is not None:
-            d[self._c(self.PRED, suffix)] = pred
+            d[Results.concat_key3(self.PRED, suffix)] = pred
         if true is not None:
-            d[self._c(self.TRUE, suffix)] = true
+            d[Results.concat_key3(self.TRUE, suffix)] = true
         

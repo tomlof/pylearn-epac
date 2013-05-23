@@ -1,5 +1,5 @@
 """
-Define "Seq": the primitive to build sequential execution of tasks.
+Define "Pipeline": the primitive to build sequential execution of tasks.
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
@@ -14,20 +14,18 @@ from epac.workflow.estimators import Estimator
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
-## == Sequential nodes
+## == Pipelineuential nodes
 ## ==
 ## ======================================================================== ##
 
-def Seq(*nodes):
+def Pipe(*nodes):
     """
-    Sequential execution of Nodes.
+    Pipelineuential execution of Nodes.
 
     Parameters
     ----------
     task [, task]*
     """
-    # SEQ(BaseNode [, BaseNode]*)
-    #args = _group_args(*args)
     root = None
     for node in nodes:
         curr = node if isinstance(node, BaseNode) else Estimator(node)

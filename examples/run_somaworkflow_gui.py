@@ -58,18 +58,18 @@ def do_all(options):
 
     ## 3) Build Workflow
     ## =================
-    from epac import ParPerm, ParCV, Seq
-    from epac import SummaryStat, PvalPermutations, ParGrid
+    from epac import Permutations, CV, Seq
+    from epac import SummaryStat, PvalPermutations, Grid
     
     time_start = time.time()
     ##############################################################################
     ## EPAC WORKFLOW
     # -------------------------------------
-    #             ParPerm                Perm (Splitter)
+    #             Permutations                Perm (Splitter)
     #         /     |       \
     #        0      1       2            Samples (Slicer)
     #        |
-    #       ParCV                        CV (Splitter)
+    #       CV                        CV (Splitter)
     #  /       |       \
     # 0        1       2                 Folds (Slicer)
     # |        |       |
@@ -77,13 +77,13 @@ def do_all(options):
     # |
     # 2                                  SelectKBest (Estimator)
     # |
-    # ParGrid
+    # Grid
     # |                     \
     # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
     pipeline = Seq(SelectKBest(k=2),
-                   ParGrid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-    wf = ParPerm(
-             ParCV(pipeline, n_folds=options.n_folds,
+                   Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
+    wf = Permutations(
+             CV(pipeline, n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
              n_perms=options.n_perms, permute="y", y=y,
              reducer=PvalPermutations(filter_out_others=True))

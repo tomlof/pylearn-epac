@@ -1,7 +1,7 @@
 """
 Spliters divide the work to do into several parallel sub-tasks.
-They are of two types data spliters (ParCV, ParPerm) or tasks
-splitter (ParMethods, ParGrid).
+They are of two types data spliters (CV, Permutations) or tasks
+splitter (Methods, Grid).
 
 
 @author: edouard.duchesnay@cea.fr
@@ -18,6 +18,7 @@ import copy
 from epac.workflow.base import BaseNode
 from epac.workflow.estimators import Estimator
 from epac.utils import _list_indices, dict_diff, _sub_dict
+from epac.reducers import SummaryStat
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -39,17 +40,17 @@ class BaseNodeSplitter(BaseNode):
         super(BaseNodeSplitter, self).__init__()
 
 
-class ParCV(BaseNodeSplitter):
+class CV(BaseNodeSplitter):
     """Cross-validation parallelization.
 
     Parameters
     ----------
     node: Node | Estimator
         Estimator: should implement fit/predict/score function
-        Node: Seq | Par*
+        Node: Pipe | Par*
 
     n_folds: int
-        Number of folds.
+        Number of folds. (Default 5)
 
     cv_type: string
         Values: "stratified", "random", "loo". Default "stratified".
@@ -59,16 +60,18 @@ class ParCV(BaseNodeSplitter):
 
     reducer: Reducer
         A Reducer should inmplement the reduce(node, key2, val) method.
+        Default SummaryStat() with default arguments.
     """
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, node, n_folds=None, random_state=None, reducer=None,
-                 cv_type="stratified", **kwargs):
-        super(ParCV, self).__init__()
+    def __init__(self, node, n_folds=5, random_state=None, 
+                 cv_type="stratified", reducer=SummaryStat(), **kwargs):
+        super(CV, self).__init__()
         self.n_folds = n_folds
         self.random_state = random_state
         self.cv_type = cv_type
+        self.reducer = reducer
         slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
         self.children = SlicerVirtualList(size=n_folds, parent=self, slicer=slicer)
         self.add_child(slicer)
@@ -83,8 +86,8 @@ class ParCV(BaseNodeSplitter):
                 if cpt == nb:
                     break
                 cpt += 1
-            slicer.set_sclices({ParCV.SUFFIX_TRAIN: train,
-                                             ParCV.SUFFIX_TEST: test})
+            slicer.set_sclices({CV.SUFFIX_TRAIN: train,
+                                             CV.SUFFIX_TEST: test})
         return slicer
 
     def fit(self, recursion=True, **Xy):
@@ -120,15 +123,14 @@ class ParCV(BaseNodeSplitter):
         return dict(n_folds=self.n_folds)
 
 
-
-class ParPerm(BaseNodeSplitter):
+class Permutations(BaseNodeSplitter):
     """Permutation parallelization.
 
     Parameters
     ----------
     node: Node | Estimator
         Estimator: should implement fit/predict/score function
-        Node: Seq | Par*
+        Node: Pipe | Par*
 
     n_perms: int
         Number permutations.
@@ -147,7 +149,7 @@ class ParPerm(BaseNodeSplitter):
     """
     def __init__(self, node, n_perms, permute="y", random_state=None,
                  reducer=None, **kwargs):
-        super(ParPerm, self).__init__()
+        super(Permutations, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
         self.random_state = random_state
@@ -190,11 +192,11 @@ class ParPerm(BaseNodeSplitter):
         return Xy
 
 
-class ParMethods(BaseNodeSplitter):
+class Methods(BaseNodeSplitter):
     """Parallelization is based on several runs of different methods
     """
     def __init__(self, *nodes):
-        super(ParMethods, self).__init__()
+        super(Methods, self).__init__()
         for node in nodes:
             node_cp = copy.deepcopy(node)
             node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
@@ -226,12 +228,12 @@ class ParMethods(BaseNodeSplitter):
                     "differentiated according to their arguments")
 
 
-class ParGrid(ParMethods):
-    """Similar to ParMethods except the way that the upstream data-flow is
+class Grid(Methods):
+    """Similar to Methods except the way that the upstream data-flow is
     processed.
     """
     def __init__(self, *nodes):
-        super(ParGrid, self).__init__(*nodes)
+        super(Grid, self).__init__(*nodes)
         # Set signature2_args_str to"*" to create collision between secondary
         # keys see RowSlicer.get_signature()
         for c in self.children:

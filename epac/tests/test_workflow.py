@@ -14,13 +14,13 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import ParCVGridSearchRefit, ParGrid, Seq, ParCV, ParPerm
+from epac import CVGridSearchRefit, Grid, Pipe, CV, Permutations
 from epac import SummaryStat, PvalPermutations
 
 
-class TestParCVGridSearchRefit(unittest.TestCase):
+class TestCVGridSearchRefit(unittest.TestCase):
 
-    def test_perm_cv_pargrid(self):
+    def test_perm_cv_grid(self):
         X, y = datasets.make_classification(n_samples=100, n_features=500,
                                             n_informative=5)
         n_perms = 3
@@ -33,13 +33,13 @@ class TestParCVGridSearchRefit(unittest.TestCase):
         # = With EPAC
         # ===================
         ## CV + Grid search of a pipeline with a nested grid search
-        pipeline = ParCVGridSearchRefit(*[
-                      Seq(SelectKBest(k=k),
-                          ParGrid(*[SVC(kernel="linear", C=C) for C in C_values]))
+        pipeline = CVGridSearchRefit(*[
+                      Pipe(SelectKBest(k=k),
+                          Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                       for k in k_values],
                       n_folds=n_folds_nested, random_state=random_state)
-        wf = ParPerm(
-                 ParCV(pipeline,
+        wf = Permutations(
+                 CV(pipeline,
                        n_folds=n_folds,
                        reducer=SummaryStat(filter_out_others=False)),
                  n_perms=n_perms, permute="y",
@@ -57,11 +57,11 @@ class TestParCVGridSearchRefit(unittest.TestCase):
         # ===================
         from sklearn.cross_validation import StratifiedKFold
         from epac.sklearn_plugins import Permutation
-        from sklearn.pipeline import Pipeline
+        from sklearn.pipeline import Pipe
         from sklearn import grid_search
 
         clfs = {keys[0]: \
-            Pipeline([('anova', SelectKBest(k=3)), ('svm', SVC(kernel="linear"))])}
+            Pipe([('anova', SelectKBest(k=3)), ('svm', SVC(kernel="linear"))])}
         parameters = {'anova__k': k_values, 'svm__C': C_values}
 
         R2 = dict()

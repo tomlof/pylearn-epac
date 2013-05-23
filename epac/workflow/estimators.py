@@ -35,7 +35,7 @@ from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _as_dict
 from epac.results import Results
 from epac.stores import StoreMem
-from epac.workflow.base import conf, debug
+from epac.configuration import debug
 
 ## ================================= ##
 ## == Wrapper node for estimators == ##
@@ -132,7 +132,7 @@ class Estimator(BaseNode):
         return pred
 
 
-class ParCVGridSearchRefit(Estimator):
+class CVGridSearchRefit(Estimator):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
@@ -141,25 +141,25 @@ class ParCVGridSearchRefit(Estimator):
     Parameters
     ----------
 
-    See ParCV parameters
+    See CV parameters, plus other parameters:
 
     key3: str
         a regular expression that match the score name to be optimized.
-        Default is "%s.+%s"
+        Default is "score.+te"
 
     arg_max: boolean
         True/False take parameters that maximize/minimize the score. Default
         is True.
-    """ % (Results.SCORE, Results.TEST)
+    """
 
     def __init__(self, *tasks, **kwargs):
-        super(ParCVGridSearchRefit, self).__init__(estimator=None)
+        super(CVGridSearchRefit, self).__init__(estimator=None)
         key3 = kwargs.pop("key3") if "key3" in kwargs \
-            else Results.SCORE+".+"+Results.TEST
+            else Results.SCORE + ".+" + Results.TEST
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
-        from epac.workflow.splitters import ParCV, ParGrid
-        grid = ParGrid(*tasks)
-        cv = ParCV(node=grid, **kwargs)
+        from epac.workflow.splitters import CV, Grid
+        grid = Grid(*tasks)
+        cv = CV(node=grid, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max
         self.add_child(cv)  # first child is the CV
@@ -179,9 +179,9 @@ class ParCVGridSearchRefit(Estimator):
         # Fit/predict CV grid search
         cv_grid_search = self.children[0]
         cv_grid_search.store = StoreMem()  # local store erased at each fit
-        from epac.workflow.splitters import ParCV
-        if not isinstance(cv_grid_search, ParCV):
-            raise ValueError('Child of %s is not a "ParCV."'
+        from epac.workflow.splitters import CV
+        if not isinstance(cv_grid_search, CV):
+            raise ValueError('Child of %s is not a "CV."'
             % self.__class__.__name__)
         cv_grid_search.fit_predict(recursion=True, **Xy)
         #  Pump-up results
@@ -197,8 +197,8 @@ class ParCVGridSearchRefit(Estimator):
                                            cv_node=cv_grid_search)
             methods.append(pipeline)
         # Add children
-        from epac.workflow.splitters import ParMethods
-        to_refit = ParMethods(*methods)
+        from epac.workflow.splitters import Methods
+        to_refit = Methods(*methods)
         to_refit.store = StoreMem()    # local store erased at each fit
         self.children = self.children[:1]
         self.add_child(to_refit)
@@ -264,6 +264,6 @@ class ParCVGridSearchRefit(Estimator):
             new_estimator_node.signature2_args_str = "*"
             estimators.append(new_estimator_node)
         # Build the sequential pipeline
-        from epac.workflow.pipeline import Seq
-        pipeline = Seq(*estimators)
+        from epac.workflow.pipeline import Pipe
+        pipeline = Pipe(*estimators)
         return pipeline

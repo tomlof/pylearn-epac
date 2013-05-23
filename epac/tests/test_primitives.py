@@ -13,33 +13,33 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-from sklearn.pipeline import Pipeline
-from epac import Seq, ParCV, ParMethods, ParPerm
+from sklearn.pipeline import Pipe
+from epac import CV, Methods, Permutations
 from epac.sklearn_plugins import Permutation
 
 
-class TestSeq(unittest.TestCase):
+class TestPipeline(unittest.TestCase):
 
-    def test_seq(self):
+    def test_pipeline(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
                                             n_informative=2)
         # ===================
         # = With EPAC
         # ===================
-        wf = Seq(SelectKBest(k=2), SVC(kernel="linear"))
+        wf = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
         wf.fit(X=X, y=y)
         r1 = wf.predict(X=X)
         # ===================
         # = Without EPAC
         # ===================
-        pipe = Pipeline([('anova', SelectKBest(k=2)),
+        pipe = Pipe([('anova', SelectKBest(k=2)),
                          ('svm', SVC(kernel="linear"))])
         pipe.fit(X, y)
         r2 = pipe.predict(X)
-        self.assertTrue(np.all(r1 == r2), u'Diff Seq')
+        self.assertTrue(np.all(r1 == r2), u'Diff Pipe')
 
 
-class TestParCV(unittest.TestCase):
+class TestCV(unittest.TestCase):
 
     def test_cv(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
@@ -48,7 +48,7 @@ class TestParCV(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        wf = ParCV(SVC(kernel="linear"), n_folds=n_folds)
+        wf = CV(SVC(kernel="linear"), n_folds=n_folds)
         wf.fit_predict(X=X, y=y)
         R1 = wf.reduce()
         # ===================
@@ -65,10 +65,10 @@ class TestParCV(unittest.TestCase):
             clf.fit(X_train, y_train)
             R2.append(clf.predict(X_test))
         comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff ParCV')
+        self.assertTrue(comp, u'Diff CV')
 
 
-class TestParPerm(unittest.TestCase):
+class TestPermutations(unittest.TestCase):
 
     def test_perm(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
@@ -78,7 +78,7 @@ class TestParPerm(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        wf = ParPerm(SVC(kernel="linear"), n_perms=n_perms, permute="y", random_state=rnd)
+        wf = Permutations(SVC(kernel="linear"), n_perms=n_perms, permute="y", random_state=rnd)
         wf.fit_predict(X=X, y=y)
         R1 = wf.reduce()
         # ===================
@@ -92,20 +92,44 @@ class TestParPerm(unittest.TestCase):
             clf.fit(X, y_p)
             R2.append(clf.predict(X))
         comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff ParCV')
+        self.assertTrue(comp, u'Diff CV')
 
-class TestParMethods(unittest.TestCase):
+    def test_perm_cv(self):
+            X, y = datasets.make_classification(n_samples=20, n_features=5,
+                                                n_informative=2)
+            n_perms = 2
+            n_folds = 2
+            rnd = 0
+            # ===================
+            # = With EPAC
+            # ===================
+            wf = Permutations(CV(SVC(kernel="linear"), n_folds=n_folds), n_perms=n_perms, permute="y", random_state=rnd)
+            wf.fit_predict(X=X, y=y)
+            R1 = wf.reduce()
+            # ===================
+            # = Without EPAC
+            # ===================
+            clf = SVC(kernel="linear")
+            R2 = list()
+            for perm in Permutation(n=y.shape[0], n_perms=n_perms,
+                                                   random_state=rnd):
+                y_p = y[perm, :]
+                clf.fit(X, y_p)
+                R2.append(clf.predict(X))
+            comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
+            self.assertTrue(comp, u'Diff CV')
+class TestMethods(unittest.TestCase):
     
     def test_constructor_avoid_collision_level1(self):
         # Test that level 1 collisions are avoided
-        pm = ParMethods(*[SVC(kernel="linear", C=C) for C in [1, 10]])
+        pm = Methods(*[SVC(kernel="linear", C=C) for C in [1, 10]])
         leaves_key = [l.get_key() for l in pm.walk_leaves()]
         self.assertTrue(len(leaves_key) == len(set(leaves_key)),
                         u'Collision could not be avoided')
 
     def test_constructor_avoid_collision_level2(self):
         # Test that level 2 collisions are avoided
-        pm = ParMethods(*[Seq(SelectKBest(k=2), SVC(kernel="linear", C=C))\
+        pm = Methods(*[Pipe(SelectKBest(k=2), SVC(kernel="linear", C=C))\
                           for C in [1, 10]])
         leaves_key = [l.get_key() for l in pm.walk_leaves()]
         self.assertTrue(len(leaves_key) == len(set(leaves_key)),
@@ -113,8 +137,8 @@ class TestParMethods(unittest.TestCase):
 
     def test_constructor_cannot_avoid_collision_level2(self):
         # This should raise an exception since collision cannot be avoided
-        self.assertRaises(ValueError, ParMethods,
-                         *[Seq(SelectKBest(k=2), SVC(kernel="linear", C=C))\
+        self.assertRaises(ValueError, Methods,
+                         *[Pipe(SelectKBest(k=2), SVC(kernel="linear", C=C))\
                           for C in [1, 1]])
 
     def test_twomethods(self):
@@ -123,7 +147,7 @@ class TestParMethods(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        wf = ParMethods(LDA(), SVC(kernel="linear"))
+        wf = Methods(LDA(), SVC(kernel="linear"))
         wf.fit(X=X, y=y)
         r1 = wf.predict(X=X)
         #r1 ===================
@@ -135,7 +159,7 @@ class TestParMethods(unittest.TestCase):
         svm.fit(X, y)
         r2 = [lda.predict(X), svm.predict(X)]
         comp = np.all(np.asarray(r1) == np.asarray(r2))
-        self.assertTrue(comp, u'Diff ParMethods')
+        self.assertTrue(comp, u'Diff Methods')
 
 if __name__ == '__main__':
     unittest.main()
