@@ -32,3 +32,24 @@ result = {'score_tr': [1, .8], 'score_te': [.9, .7]}
 print SummaryStat(keep=True).reduce(result)
 print SummaryStat(keep=False).reduce(result)
 
+import pickle
+file_path = "/tmp/toto.pkl"
+output = open(file_path, 'wb')
+pickle.dump(results, output)
+output.close()
+
+import pickle
+file_path = "/tmp/toto.pkl"
+inputf = open(file_path, 'rb')
+results = pickle.load(inputf)
+inputf.close()
+from epac import SummaryStat
+reducer=SummaryStat()
+
+key2 = 'CVGridSearchRefit/CV/CV(*)/Grid/SVC(*)'
+result = results[key2]
+reducer.reduce(result)
+
+results = {key2: self.reducer.reduce(results[key2]) for
+                key2 in results}
+                

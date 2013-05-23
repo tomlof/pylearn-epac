@@ -13,8 +13,9 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
-from sklearn.pipeline import Pipe
-from epac import CV, Methods, Permutations
+import sklearn.pipeline
+from epac import Pipe, Methods, CV, Permutations
+from epac import SummaryStat
 from epac.sklearn_plugins import Permutation
 
 
@@ -32,7 +33,7 @@ class TestPipeline(unittest.TestCase):
         # ===================
         # = Without EPAC
         # ===================
-        pipe = Pipe([('anova', SelectKBest(k=2)),
+        pipe = sklearn.pipeline.Pipeline([('anova', SelectKBest(k=2)),
                          ('svm', SVC(kernel="linear"))])
         pipe.fit(X, y)
         r2 = pipe.predict(X)
@@ -48,7 +49,8 @@ class TestCV(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        wf = CV(SVC(kernel="linear"), n_folds=n_folds)
+        wf = CV(SVC(kernel="linear"), n_folds=n_folds,
+                reducer=SummaryStat(keep=True))
         wf.fit_predict(X=X, y=y)
         R1 = wf.reduce()
         # ===================
@@ -78,7 +80,8 @@ class TestPermutations(unittest.TestCase):
         # ===================
         # = With EPAC
         # ===================
-        wf = Permutations(SVC(kernel="linear"), n_perms=n_perms, permute="y", random_state=rnd)
+        wf = Permutations(SVC(kernel="linear"), n_perms=n_perms, permute="y",
+                          random_state=rnd)
         wf.fit_predict(X=X, y=y)
         R1 = wf.reduce()
         # ===================
@@ -103,7 +106,9 @@ class TestPermutations(unittest.TestCase):
             # ===================
             # = With EPAC
             # ===================
-            wf = Permutations(CV(SVC(kernel="linear"), n_folds=n_folds), n_perms=n_perms, permute="y", random_state=rnd)
+            wf = Permutations(CV(SVC(kernel="linear"), n_folds=n_folds,
+                                 reducer=SummaryStat(keep=True)),
+                                n_perms=n_perms, permute="y", random_state=rnd)
             wf.fit_predict(X=X, y=y)
             R1 = wf.reduce()
             # ===================
@@ -118,6 +123,17 @@ class TestPermutations(unittest.TestCase):
                 R2.append(clf.predict(X))
             comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
             self.assertTrue(comp, u'Diff CV')
+
+class TestCVGridSearchRefit(unittest.TestCase):
+
+    def test_cvgridsearchrefit(self):
+        X, y = datasets.make_classification(n_samples=12, n_features=10, n_informative=2)
+        from epac import CVGridSearchRefit
+        # CV + Grid search of a simple classifier
+        wf = CVGridSearchRefit(*[SVC(C=C) for C in [1, 10]], n_folds=2)
+        wf.fit_predict(X=X, y=y)
+        wf.reduce()
+
 class TestMethods(unittest.TestCase):
     
     def test_constructor_avoid_collision_level1(self):
