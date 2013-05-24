@@ -33,7 +33,7 @@ import copy
 from epac.workflow.base import BaseNode, xy_split
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _as_dict
-from epac.results import Results
+from epac.results import Results, Result
 from epac.stores import StoreMem
 from epac.configuration import debug
 
@@ -71,7 +71,7 @@ class Estimator(BaseNode):
             args_str = "(" + args_str + ")"
             return self.estimator.__class__.__name__ + args_str
 
-    def get_state(self):
+    def get_parameters(self):
         return self.estimator.__dict__
 
     def fit(self, recursion=True, **Xy):
@@ -83,7 +83,7 @@ class Estimator(BaseNode):
         self.estimator.fit(**Xy_dict)
         if not self.children:  # if not children compute scores
             score = self.estimator.score(**Xy_dict)
-            res = Results(key2=self.get_key(2), suffix=Results.TRAIN, score=score)
+            res = Results(key2=self.get_key(2), suffix=Result.TRAIN, score=score)
             self.save_state(res, name="results")
         if self.children:  # transform downstream data-flow (ds) for children
             return self.transform(recursion=False, **Xy)
@@ -117,7 +117,7 @@ class Estimator(BaseNode):
         # load previous train results and store test results
         res = self.load_state("results")
         key2 = self.get_key(2)
-        res.add(key2=key2, suffix=res.TEST, pred=pred)
+        res.add(key2=key2, suffix=Result.TEST, pred=pred)
         # If true data (args in fit but not in predict) is provided then
         # add it to results plus compute score
         arg_only_in_fit = set(self._args_fit).difference(set(self._args_predict))
@@ -125,7 +125,7 @@ class Estimator(BaseNode):
             if len(arg_only_in_fit) != 1:
                 raise ValueError("Do not know how to deal with more than one "
                     "result")
-            res.add(key2, suffix=res.TEST,
+            res.add(key2, suffix=Result.TEST,
                     true=Xy[arg_only_in_fit.pop()],
                     score=self.estimator.score(**Xy))
         self.save_state(state=res, name="results")
@@ -155,7 +155,7 @@ class CVGridSearchRefit(Estimator):
     def __init__(self, *tasks, **kwargs):
         super(CVGridSearchRefit, self).__init__(estimator=None)
         key3 = kwargs.pop("key3") if "key3" in kwargs \
-            else Results.SCORE + ".+" + Results.TEST
+            else Result.SCORE + ".+" + Result.TEST
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import CV, Grid
         grid = Grid(*tasks)

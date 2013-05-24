@@ -119,7 +119,7 @@ class CV(BaseNodeSplitter):
             self._sclices = LeaveOneOut(n=Xy["y"].shape[0])
         return Xy
 
-    def get_state(self):
+    def get_parameters(self):
         return dict(n_folds=self.n_folds)
 
 
@@ -170,7 +170,7 @@ class Permutations(BaseNodeSplitter):
             slicer.set_sclices(perm)
         return slicer
 
-    def get_state(self):
+    def get_parameters(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
 
     def fit(self, recursion=True, **Xy):
@@ -201,32 +201,30 @@ class Methods(BaseNodeSplitter):
             node_cp = copy.deepcopy(node)
             node_cp = node_cp if isinstance(node_cp, BaseNode) else Estimator(node_cp)
             self.add_child(node_cp)
-        children = self.children
-        children_key = [c.get_key() for c in children]
-        # while collision, recursively explore children to avoid collision
-        # adding arguments to signature
-        while len(children_key) != len(set(children_key)) and children:
-            children_state = [c.get_state() for c in children]
-            for key in set(children_key):
-                collision_indices = _list_indices(children_key, key)
+        curr_nodes = self.children
+        leaves_key = [l.get_key() for l in self.walk_leaves()]
+        curr_nodes_key = [c.get_key() for c in curr_nodes]
+        while len(leaves_key) != len(set(leaves_key)) and curr_nodes:
+            curr_nodes_state = [c.get_parameters() for c in curr_nodes]
+            curr_nodes_next = list()
+            for key in set(curr_nodes_key):
+                collision_indices = _list_indices(curr_nodes_key, key)
                 if len(collision_indices) == 1:  # no collision for this cls
                     continue
-                diff_arg_keys = dict_diff(*[children_state[i] for i
+                diff_arg_keys = dict_diff(*[curr_nodes_state[i] for i
                                             in collision_indices]).keys()
                 if diff_arg_keys:
-                    for child_idx in collision_indices:
-                        children[child_idx].signature_args = \
-                            _sub_dict(children_state[child_idx], diff_arg_keys)
-                children_next = list()
-                for c in children:
-                    children_next += c.children
-                children = children_next
-                children_key = [c.get_key() for c in children]
+                    for curr_node_idx in collision_indices:
+                        curr_nodes[curr_node_idx].signature_args = \
+                            _sub_dict(curr_nodes_state[curr_node_idx], diff_arg_keys)
+                        curr_nodes_next += curr_nodes[curr_node_idx].children
+            curr_nodes = curr_nodes_next
+            curr_nodes_key = [c.get_key() for c in curr_nodes]
+            leaves_key = [l.get_key() for l in self.walk_leaves()]
         leaves_key = [l.get_key() for l in self.walk_leaves()]
         if len(leaves_key) != len(set(leaves_key)):
             raise ValueError("Some methods are identical, they could not be "
                     "differentiated according to their arguments")
-
 
 class Grid(Methods):
     """Similar to Methods except the way that the upstream data-flow is
@@ -279,7 +277,7 @@ class Slicer(BaseNode):
     def set_nb(self, nb):
         self.signature_args["nb"] = nb
 
-    def get_state(self):
+    def get_parameters(self):
         return dict(slices=self.slices)
 
     def get_signature(self, nb=1):

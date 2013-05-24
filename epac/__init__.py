@@ -11,7 +11,7 @@ from epac.workflow.splitters import CV, Permutations, Methods, Grid
 from epac.workflow.estimators import CVGridSearchRefit
 from epac.workflow.base import xy_split, xy_merge
 from epac.configuration import conf, debug
-from epac.results import Results
+from epac.results import Results, Result
 from epac.utils import dict_diff, range_log2
 from epac.stores import StoreFs, StoreMem
 
@@ -34,6 +34,7 @@ __all__ = ['Pipe',
            'CVGridSearchRefit',
            'SummaryStat',
            'PvalPermutations',
+           'Result',
            'Results',
            'sklearn_plugins',
            'conf',

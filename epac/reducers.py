@@ -9,8 +9,9 @@ Reducers for EPAC
 import numpy as np
 import re
 from abc import abstractmethod
-from epac.configuration import conf
-from epac.results import Results
+#from epac.configuration import conf
+from epac.results import Results, Result
+
 ## ======================================================================== ##
 ## == Reducers                                                           == ##
 ## ======================================================================== ##
@@ -43,7 +44,7 @@ class SummaryStat(Reducer):
     reduce the sub-result(s) using the statistics stat.
     
     select_regexp: srt
-      A string to select items (defaults %s)
+      A string to select items (defaults "score")
 
     keep: boolean
       Should other items be kept (False) into summarized results.
@@ -56,8 +57,8 @@ class SummaryStat(Reducer):
     {'score_te': [0.9, 0.7], 'mean_score_te': 0.80000000000000004, 'mean_score_tr': 0.90000000000000002, 'score_tr': [1, 0.8]}
     >>> print SummaryStat(keep=False).reduce(result)
     {'mean_score_te': 0.80000000000000004, 'mean_score_tr': 0.90000000000000002}
-    """ % Results.SCORE
-    def __init__(self, select_regexp=Results.SCORE, stat="mean",
+    """
+    def __init__(self, select_regexp=Result.SCORE, stat="mean",
                  keep=False):
         self.select_regexp = select_regexp
         self.stat = stat
@@ -72,7 +73,7 @@ class SummaryStat(Reducer):
         out = Results()
         for key3 in select_key3s:
             if self.stat == "mean":
-                out[Results.concat_key3(self.stat, str(key3))] = \
+                out[Result.concat_key3(self.stat, str(key3))] = \
                     np.mean(np.array(result[key3]), axis=0)
         if self.keep:
             out.update(result)
@@ -82,7 +83,7 @@ class SummaryStat(Reducer):
 class PvalPermutations(Reducer):
     """Reducer that select sub-result(s) according to select_regexp, and
     reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, select_regexp='mean.*' + Results.SCORE,
+    def __init__(self, select_regexp='mean.*' + Result.SCORE,
                  keep=False):
         self.select_regexp = select_regexp
         self.keep = keep

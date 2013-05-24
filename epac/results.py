@@ -7,21 +7,17 @@ Created on Fri May 17 16:37:54 2013
 
 
 class Results(dict):
-    TRAIN = "tr"
-    TEST = "te"
-    SCORE = "score"
-    PRED = "pred"
-    TRUE = "true"
-    SEP = "_"
+    """Results is a dictionnary indexed by intermediry keys (key2). It contains
+    Result.
+
+    See also
+    --------
+    Result
+    """
 
     def __init__(self, **kwargs):
         if kwargs:
             self.add(**kwargs)
-
-    @classmethod
-    def concat_key3(self, k1, k2):
-        """Concatenate keys 3"""
-        return k1 + self.SEP + k2
 
     def add(self, key2, suffix, score=None, pred=None, true=None):
         """
@@ -38,14 +34,34 @@ class Results(dict):
 
         """
         if key2 in self:
-            d = self[key2]
+            res = self[key2]
         else:
-            d = dict()
-            self[key2] = d
+            res = Result()
+            self[key2] = res
         if score is not None:
-            d[Results.concat_key3(self.SCORE, suffix)] = score
+            res[Result.concat_key3(Result.SCORE, suffix)] = score
         if pred is not None:
-            d[Results.concat_key3(self.PRED, suffix)] = pred
+            res[Result.concat_key3(Result.PRED, suffix)] = pred
         if true is not None:
-            d[Results.concat_key3(self.TRUE, suffix)] = true
-        
+            res[Result.concat_key3(Result.TRUE, suffix)] = true
+
+
+class Result(dict):
+    """Result is a dictionnary indexed by tertiary keys (key3).
+
+    See also
+    --------
+    Result
+    """
+
+    TRAIN = "tr"
+    TEST = "te"
+    SCORE = "score"
+    PRED = "pred"
+    TRUE = "true"
+    SEP = "_"
+
+    @classmethod
+    def concat_key3(self, k1, k2):
+        """Concatenate keys 3"""
+        return k1 + self.SEP + k2

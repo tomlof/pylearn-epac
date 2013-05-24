@@ -276,7 +276,7 @@ class BaseNode(object):
         return self.signature_args
 
     @abstractmethod
-    def get_state(self):
+    def get_parameters(self):
         """Return the state of the object"""
 
     def get_store(self):
