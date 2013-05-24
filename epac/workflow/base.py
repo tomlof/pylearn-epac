@@ -10,11 +10,13 @@ import re
 import sys
 import numpy as np
 from abc import abstractmethod
+import ast
 from epac.utils import _list_union_inter_diff, _list_indices
 from epac.utils import _list_of_dicts_2_dict_of_lists
 from epac.stores import StoreMem
 from epac.results import Results
 from epac.configuration import conf, debug
+
 
 ## ================================= ##
 ## == Key manipulation utils      == ##
@@ -25,6 +27,50 @@ def key_push(key, basename):
         return key + conf.KEY_PATH_SEP + basename
     else:
         return key or basename
+
+
+_match_args_re = re.compile(u'([^(]+)\(([^)]+)\)')
+
+
+def key_split(key, eval_args=False):
+    """ Split the key into signatures.
+
+    Parameters
+    ----------
+
+    key: str
+
+    eval_args: boolean
+      If true "un-string" the parameters, and return (name, argument) tuples:
+      [(item_name1, [[argname, value], ...]), ...]
+    Examples
+    --------
+    >>> key_split(key='Methods/SelectKBest(k=1)/SVC(kernel=linear,C=1)')
+    ['Methods', 'SelectKBest(k=1)', 'SVC(kernel=linear,C=1)']
+    >>> key_split(key='Methods/SelectKBest(k=1)/SVC(kernel=linear,C=1)', eval_args=True)
+    [('Methods',), ('SelectKBest', [['k', 1]]), ('SVC', [['kernel', 'linear'], ['C', 1]])]
+    """
+    signatures = [signature for signature in key.split(conf.KEY_PATH_SEP)]
+    if eval_args:
+        return [signature_eval(signature) for signature in signatures]
+    else:
+        return signatures
+
+
+def signature_eval(signature):
+    m = _match_args_re.findall(signature)
+    if m:
+        name = m[0][0]
+        argstr = m[0][1]
+        args = [argstr.split("=") for argstr in argstr.split(",")]
+        for arg in args:
+            try:
+                arg[1] = ast.literal_eval(arg[1])
+            except ValueError:
+                pass
+        return(name, args)
+    else:
+        return(signature, )
 
 ## ============================================== ##
 ## == down-stream data-flow manipulation utils == ##
