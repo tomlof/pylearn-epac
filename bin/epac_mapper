@@ -12,8 +12,8 @@ Created on Wed Apr 24 11:18:19 2013
 import sys
 import optparse
 import numpy as np
-from epac import  WF
-
+from epac import conf, StoreFs, StoreMem, key_pop
+#from epac import 
 
 def load_datasets(datasets_filepath):
     Xy = np.load(datasets_filepath)
@@ -22,23 +22,22 @@ def load_datasets(datasets_filepath):
 
 if __name__ == "__main__":
     # parse command line options
-
     parser = optparse.OptionParser()
-
     parser.add_option('-d', '--datasets',
                       help='File path to ".npz" datasets called X.')
     parser.add_option('-f', '--format',
                       help='datasets format default numpy archive ".npz"')
     parser.add_option('-k', '--keys',
-                      help='Key(s) of node(s) to be processed. \
-You can put multiple keys using a separating sign ";".')
+                      help='Key(s) of node(s) to be processed. ' + \
+                      'You can put multiple keys using a separating sign ";".')
     parser.add_option('-s', '--keysfile',
-                      help='Key(s) of node(s) to be processed. \
-Those keys are saved in a file. Each line \
-represents a key node')
+                      help='Key(s) of node(s) to be processed. ' + \
+                      'Those keys are saved in a file. Each line ' + \
+                      'represents a key node')
     parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
-
+    #argv = ['/home/ed203246/git/pylearn-epac/bin/epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./0.job']
+    #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
 
     # Set default values to parameters
@@ -93,16 +92,34 @@ represents a key node')
     # datasets_filepath ="/tmp/tmpO8D3dG_datasets.npz"
     # keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
     Xy = load_datasets(datasets_filepath)
-
-    for key in listkey:
-        node = WF.load(key)
-        cpXy = Xy
-        # print "Sequentially run from root to current node"
-        for parent_node in node.get_path_from_root()[:-1]:
-            func = getattr(parent_node, function)
+    tree_root_relative_path = "./epac_tree"
+    store_fs = StoreFs(tree_root_relative_path)
+    tree = store_fs.load(key=conf.STORE_EXECUTION_TREE_PREFIX)
+    # Execute once what is commum acccross all keys
+    # FIX ME, This should not always work
+    common_key, _ = key_pop(os.path.commonprefix(listkey))
+    common_parent = tree.get_node(common_key)
+    # Root to commun node, overwrite Xy since they won't be use anymore
+    for node_root2common in common_parent.get_path_from_root():
+        print node_root2common
+        #print parent_node
+        func = getattr(node_root2common, function)
+        Xy = func(recursion=False, **Xy)
+    cpXy = Xy
+    # Execute what is specific to each keys
+    for curr_key in listkey:
+        curr_node = tree.get_node(curr_key)
+        for node_common2curr in curr_node.get_path_from_node(common_parent):
+            if node_common2curr is  common_parent: # skip commom ancestor
+                continue
+            if node_common2curr is  curr_node: # do not process current node
+                break
+            print node_common2curr            
+            func = getattr(node_common2curr, function)
             cpXy = func(recursion=False, **cpXy)
         # print "Recursively run from root to current node"
-        func = getattr(node, function)
+        curr_node.store = StoreMem()
+        func = getattr(curr_node, function)
         cpXy = func(recursion=True, **cpXy)
         # print "Save results"
-        node.save(attr="results")
+        node.save(store=store_fs, attr="results", recursion=False)

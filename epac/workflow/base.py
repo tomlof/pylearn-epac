@@ -29,6 +29,43 @@ def key_push(key, basename):
         return key or basename
 
 
+#def key_basename(key):
+#    """Returns the final component of a pathname"""
+#    i = key.rfind(conf.KEY_PATH_SEP) + 1
+#    return key[i:]
+#def key_dirname(key):
+#    """Returns the directory component of a key"""
+#    i = key.rfind('/') + 1
+#    head = key[:i]
+#    if head and head != '/' * len(head):
+#        head = head.rstrip('/')
+#    return head
+
+def key_pop(key, index=-1):
+    """Split the key into head / tail. 
+
+    index: int
+        index=-1 (default) tail = last item
+        index=0  head = first item
+    Example
+    -------
+    >>> key = 'CV/CV(nb=0)/SelectKBest/LDA'
+    >>> print key_pop(key, index=-1)
+    ('CV/CV(nb=0)/SelectKBest', 'LDA')
+    >>> print key_pop(key, index=0)
+    ('CV', 'CV(nb=0)/SelectKBest/LDA')
+    """
+    if index == 0:
+        i = key.find(conf.KEY_PATH_SEP)
+        head = key[:i]
+        tail = key[(i + 1):]
+    else:
+        i = key.rfind(conf.KEY_PATH_SEP) + 1
+        tail = key[i:]
+        head = key[:(i - 1)]
+    return head, tail
+
+
 _match_args_re = re.compile(u'([^(]+)\(([^)]+)\)')
 
 
@@ -171,14 +208,13 @@ class BaseNode(object):
         for child in children:
             self.add_child(child)
 
-    def walk_leaves(self):
+    def get_root(self):
         """Leaves iterator"""
-        if not self.children:
-            yield self
-        else:
-            for child in self.children:
-                for yielded in child.walk_leaves():
-                    yield yielded
+        curr = self
+        while True:
+            if not curr.parent:
+                return curr
+            curr = curr.parent
 
     def walk_nodes(self):
         """Node iterator"""
@@ -186,6 +222,15 @@ class BaseNode(object):
         if self.children:
             for child in self.children:
                 for yielded in child.walk_nodes():
+                    yield yielded
+
+    def walk_leaves(self):
+        """Leaves iterator"""
+        if not self.children:
+            yield self
+        else:
+            for child in self.children:
+                for yielded in child.walk_leaves():
                     yield yielded
 
     def get_leftmost_leaf(self):
@@ -266,10 +311,62 @@ class BaseNode(object):
             raise ValueError("Provide at least a key for exact match"
             "or a regexp for wild card matches")
 
+#    def get_path_from_root(self):
+#        if self.parent is None:
+#            return [self]
+#        return self.parent.get_path_from_root() + [self]
+
     def get_path_from_root(self):
-        if self.parent is None:
-            return [self]
-        return self.parent.get_path_from_root() + [self]
+        """Get path iterator from root.
+
+        See also
+        --------
+        get_path_from_node(node)
+        """
+        return self.get_path_from_node(node=self.get_root())
+
+    def get_path_from_node(self, node):
+        """
+        Get path iterator from node to self.
+
+        Example
+        -------
+        >>> from epac import Permutations, CV, Pipe, Methods
+        >>> from sklearn.lda import LDA
+        >>> from sklearn.svm import SVC
+        >>> from sklearn.feature_selection import SelectKBest
+        >>> root = Permutations(CV(Pipe(SelectKBest(k=2), Methods(LDA(), SVC()))))
+        >>> leaf = root.get_leftmost_leaf()
+        >>> print leaf
+        Permutations/Perm(nb=0)/CV/CV(nb=0)/SelectKBest/Methods/LDA
+        >>> node = root.children[2].children[0]
+        >>> print node
+        Permutations/Perm(nb=2)/CV
+        >>> print [n.get_signature() for n in leaf.get_path_from_node(node=node)]
+        ['CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
+        >>> print [n.get_signature() for n in leaf.get_path_from_root()]
+        ['Permutations', 'Perm(nb=2)', 'CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
+        """
+        key = self.get_key()
+        parent_key = node.get_key()
+        path_key = key.replace(parent_key, "").lstrip(conf.KEY_PATH_SEP)
+        key_parts = key_split(path_key)
+        #idx = len(key_parts) - 1
+        curr = self
+        # Check if node can be found in parents
+        while curr and curr.get_key() != parent_key:
+            curr = curr.parent
+        if not curr or curr is not node:
+            raise ValueError('Parent node could not be found in tree')
+        # Go down from node to self
+        yield curr
+        while key_parts:
+            signature = key_parts.pop(0)
+            for child in curr.children:
+                if child.get_signature() == signature:
+                    break
+            curr = child
+            yield curr
 
     def get_path_from_node(self, node):
         if self is node:
@@ -549,7 +646,7 @@ class BaseNode(object):
         recursion: bool
             Indicates if node should be recursively saved down to
             the leaves . Default (True).
-            
+
         See Also
         --------
         Store.load()

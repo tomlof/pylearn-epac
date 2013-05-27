@@ -125,7 +125,8 @@ class TestPermutations(unittest.TestCase):
                                     random_state=rnd):
                 y_p = y[perm]
                 fold_nb = 0
-                for idx_train, idx_test in StratifiedKFold(y=y_p, n_folds=n_folds):
+                for idx_train, idx_test in StratifiedKFold(y=y_p,
+                                                           n_folds=n_folds):
                     X_train = X[idx_train, :]
                     X_test = X[idx_test, :]
                     y_p_train = y_p[idx_train, :]

@@ -9,7 +9,7 @@ Created on Wed Jan 23 13:58:21 2013
 from epac.workflow.pipeline import Pipe
 from epac.workflow.splitters import CV, Permutations, Methods, Grid
 from epac.workflow.estimators import CVGridSearchRefit
-from epac.workflow.base import xy_split, xy_merge
+from epac.workflow.base import xy_split, xy_merge, key_pop
 from epac.configuration import conf, debug
 from epac.results import Results, Result
 from epac.utils import dict_diff, range_log2
@@ -40,6 +40,7 @@ __all__ = ['Pipe',
            'conf',
            'debug',
            'xy_split',
+           'key_pop',
            'xy_merge',
            'dict_diff',
            'StoreFs',

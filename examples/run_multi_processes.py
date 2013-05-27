@@ -26,7 +26,8 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import range_log2, WF
+from epac import range_log2
+from epac import StoreFs
 from epac.export_multi_processes import  run_multi_processes
 
 def do_all(options):
@@ -69,26 +70,26 @@ def do_all(options):
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
     pipeline = CVGridSearchRefit(*[
-                  Seq(SelectKBest(k=k),
+                  Pipe(SelectKBest(k=k),
                       Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
-                  n_folds=options.n_folds_nested, y=y,
-                  random_state=random_state)
+                  n_folds=options.n_folds_nested, random_state=random_state)
 
     #pipeline = Seq(SelectKBest(k=5), SVC(kernel="linear", C=1))
     #print pipeline.stats(group_by="class")
     wf = Permutations(
              CV(pipeline,
                    n_folds=options.n_folds,
-                   reducer=SummaryStat(filter_out_others=True)),
-             n_perms=options.n_perms, permute="y", y=y,
-             reducer=PvalPermutations(filter_out_others=True),
+                   reducer=SummaryStat(keep=False)),
+             n_perms=options.n_perms, permute="y",
+             reducer=PvalPermutations(keep=False),
              random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
     time_save = time.time()
     ## 4) Save on disk
     ## ===============
-    wf.save(store=tree_root_relative_path)
+    store = StoreFs(dirpath=tree_root_relative_path)
+    wf.save(store=store)
     print "Time ellapsed, saving on disk:",  time.time() - time_save
     ## 5) Run
     ## ======
@@ -102,13 +103,12 @@ def do_all(options):
     in_is_wait=True
     )
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
-    wf_key = wf.get_key()
+#    wf_key = wf.get_key()
 
     time_reduce = time.time()
     ## 6) Load Epac tree & Reduce
     ## ==========================
-    wf = WF.load(wf_key)
-
+    wf = store.load()
     print wf.reduce()
     print "Time ellapsed, reduce:",   time.time() - time_reduce
 

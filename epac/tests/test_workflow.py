@@ -57,11 +57,11 @@ class TestCVGridSearchRefit(unittest.TestCase):
         # ===================
         from sklearn.cross_validation import StratifiedKFold
         from epac.sklearn_plugins import Permutation
-        from sklearn.pipeline import Pipe
+        from sklearn.pipeline import Pipeline
         from sklearn import grid_search
 
         clfs = {keys[0]: \
-            Pipe([('anova', SelectKBest(k=3)), ('svm', SVC(kernel="linear"))])}
+            Pipeline([('anova', SelectKBest(k=3)), ('svm', SVC(kernel="linear"))])}
         parameters = {'anova__k': k_values, 'svm__C': C_values}
 
         R2 = dict()

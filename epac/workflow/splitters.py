@@ -147,7 +147,7 @@ class Permutations(BaseNodeSplitter):
     reducer: Reducer
         A Reducer should inmplement the reduce(key2, val) method.
     """
-    def __init__(self, node, n_perms, permute="y", random_state=None,
+    def __init__(self, node, n_perms=100, permute="y", random_state=None,
                  reducer=None, **kwargs):
         super(Permutations, self).__init__()
         self.n_perms = n_perms
@@ -226,6 +226,7 @@ class Methods(BaseNodeSplitter):
         if len(leaves_key) != len(set(leaves_key)):
             raise ValueError("Some methods are identical, they could not be "
                     "differentiated according to their arguments")
+
 
 class Grid(Methods):
     """Similar to Methods except the way that the upstream data-flow is
