@@ -41,9 +41,9 @@ class TestCVGridSearchRefit(unittest.TestCase):
         wf = Permutations(
                  CV(pipeline,
                        n_folds=n_folds,
-                       reducer=SummaryStat(filter_out_others=False)),
+                       reducer=SummaryStat(keep=True)),
                  n_perms=n_perms, permute="y",
-                 reducer=PvalPermutations(filter_out_others=False),
+                 reducer=PvalPermutations(keep=True),
                  random_state=random_state)
 
         wf.fit_predict(X=X, y=y)

@@ -213,11 +213,12 @@ class Methods(BaseNodeSplitter):
                     continue
                 diff_arg_keys = dict_diff(*[curr_nodes_state[i] for i
                                             in collision_indices]).keys()
-                if diff_arg_keys:
-                    for curr_node_idx in collision_indices:
+                for curr_node_idx in collision_indices:
+                    if diff_arg_keys:
                         curr_nodes[curr_node_idx].signature_args = \
-                            _sub_dict(curr_nodes_state[curr_node_idx], diff_arg_keys)
-                        curr_nodes_next += curr_nodes[curr_node_idx].children
+                            _sub_dict(curr_nodes_state[curr_node_idx],
+                                      diff_arg_keys)
+                    curr_nodes_next += curr_nodes[curr_node_idx].children
             curr_nodes = curr_nodes_next
             curr_nodes_key = [c.get_key() for c in curr_nodes]
             leaves_key = [l.get_key() for l in self.walk_leaves()]

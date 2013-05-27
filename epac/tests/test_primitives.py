@@ -51,8 +51,7 @@ class TestCV(unittest.TestCase):
         # ===================
         wf = CV(SVC(kernel="linear"), n_folds=n_folds,
                 reducer=SummaryStat(keep=True))
-        wf.fit_predict(X=X, y=y)
-        R1 = wf.reduce()
+        R1 = wf.fit_predict(X=X, y=y)
         # ===================
         # = Without EPAC
         # ===================
@@ -66,8 +65,11 @@ class TestCV(unittest.TestCase):
             y_train = y[idx_train, :]
             clf.fit(X_train, y_train)
             R2.append(clf.predict(X_test))
+        comp = np.all(np.asarray(R1) == np.asarray(R2))
+        self.assertTrue(comp, u'Diff CV in top-down')
+        R1 = wf.reduce()
         comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff CV')
+        self.assertTrue(comp, u'Diff CV in bottum-up')
 
 
 class TestPermutations(unittest.TestCase):
@@ -82,8 +84,7 @@ class TestPermutations(unittest.TestCase):
         # ===================
         wf = Permutations(SVC(kernel="linear"), n_perms=n_perms, permute="y",
                           random_state=rnd)
-        wf.fit_predict(X=X, y=y)
-        R1 = wf.reduce()
+        R1 = wf.fit_predict(X=X, y=y)
         # ===================
         # = Without EPAC
         # ===================
@@ -94,13 +95,16 @@ class TestPermutations(unittest.TestCase):
             y_p = y[perm, :]
             clf.fit(X, y_p)
             R2.append(clf.predict(X))
+        comp = np.all(np.asarray(R1) == np.asarray(R2))
+        self.assertTrue(comp, u'Diff Perm in top-down')
+        R1 = wf.reduce()
         comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff CV')
+        self.assertTrue(comp, u'Diff Perm in bottum-up')
 
     def test_perm_cv(self):
             X, y = datasets.make_classification(n_samples=20, n_features=5,
                                                 n_informative=2)
-            n_perms = 2
+            n_perms = 3
             n_folds = 2
             rnd = 0
             # ===================
@@ -109,20 +113,33 @@ class TestPermutations(unittest.TestCase):
             wf = Permutations(CV(SVC(kernel="linear"), n_folds=n_folds,
                                  reducer=SummaryStat(keep=True)),
                                 n_perms=n_perms, permute="y", random_state=rnd)
-            wf.fit_predict(X=X, y=y)
-            R1 = wf.reduce()
+            R1 = wf.fit_predict(X=X, y=y)
             # ===================
             # = Without EPAC
             # ===================
+            from sklearn.cross_validation import StratifiedKFold
             clf = SVC(kernel="linear")
-            R2 = list()
+            R2 = [[None] * n_folds for i in xrange(n_perms)]
+            perm_nb = 0
             for perm in Permutation(n=y.shape[0], n_perms=n_perms,
-                                                   random_state=rnd):
-                y_p = y[perm, :]
-                clf.fit(X, y_p)
-                R2.append(clf.predict(X))
+                                    random_state=rnd):
+                y_p = y[perm]
+                fold_nb = 0
+                for idx_train, idx_test in StratifiedKFold(y=y_p, n_folds=n_folds):
+                    X_train = X[idx_train, :]
+                    X_test = X[idx_test, :]
+                    y_p_train = y_p[idx_train, :]
+                    clf.fit(X_train, y_p_train)
+                    R2[perm_nb][fold_nb] = clf.predict(X_test)
+                    fold_nb += 1
+                perm_nb += 1
+            # Compare top-down
+            comp = np.all(np.asarray(R1) == np.asarray(R2))
+            self.assertTrue(comp, u'Diff Perm / CV in top-down')
+            R1 = wf.reduce()
+            # Compare top-down
             comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-            self.assertTrue(comp, u'Diff CV')
+            self.assertTrue(comp, u'Diff Perm / CV in bottum-up')
 
 class TestCVGridSearchRefit(unittest.TestCase):
 

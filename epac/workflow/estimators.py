@@ -159,7 +159,7 @@ class CVGridSearchRefit(Estimator):
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import CV, Grid
         grid = Grid(*tasks)
-        cv = CV(node=grid, **kwargs)
+        cv = CV(node=grid, reducer=None, **kwargs)
         self.key3 = key3
         self.arg_max = arg_max
         self.add_child(cv)  # first child is the CV
