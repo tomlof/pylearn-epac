@@ -1,6 +1,6 @@
 """
 Spliters divide the work to do into several parallel sub-tasks.
-They are of two types data spliters (CV, Permutations) or tasks
+They are of two types data spliters (CV, Perms) or tasks
 splitter (Methods, Grid).
 
 
@@ -18,7 +18,7 @@ import copy
 from epac.workflow.base import BaseNode
 from epac.workflow.estimators import Estimator
 from epac.utils import _list_indices, dict_diff, _sub_dict
-from epac.reducers import SummaryStat
+from epac.reducers import SummaryStat, PvalPerms
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -123,7 +123,7 @@ class CV(BaseNodeSplitter):
         return dict(n_folds=self.n_folds)
 
 
-class Permutations(BaseNodeSplitter):
+class Perms(BaseNodeSplitter):
     """Permutation parallelization.
 
     Parameters
@@ -148,11 +148,12 @@ class Permutations(BaseNodeSplitter):
         A Reducer should inmplement the reduce(key2, val) method.
     """
     def __init__(self, node, n_perms=100, permute="y", random_state=None,
-                 reducer=None, **kwargs):
-        super(Permutations, self).__init__()
+                 reducer=PvalPerms(), **kwargs):
+        super(Perms, self).__init__()
         self.n_perms = n_perms
         self.permute = permute  # the name of the bloc to be permuted
         self.random_state = random_state
+        self.reducer = reducer
         slicer = RowSlicer(signature_name="Perm", nb=0, apply_on=permute)
         self.children = SlicerVirtualList(size=n_perms, parent=self, slicer=slicer)
         self.add_child(slicer)
@@ -186,8 +187,8 @@ class Permutations(BaseNodeSplitter):
         # Set the slicing
         if not "y" in Xy:
             raise ValueError('"y" should be provided')
-        from epac.sklearn_plugins import Permutation
-        self._sclices = Permutation(n=Xy["y"].shape[0], n_perms=self.n_perms,
+        from epac.sklearn_plugins import Permutations
+        self._sclices = Permutations(n=Xy["y"].shape[0], n_perms=self.n_perms,
                                 random_state=self.random_state)
         return Xy
 

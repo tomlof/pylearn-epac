@@ -15,7 +15,6 @@ import inspect
 import numpy as np
 from abc import abstractmethod
 
-
 class Store(object):
     """Abstract Store"""
 
@@ -63,7 +62,9 @@ class StoreFs(Store):
         """
         self.dirpath = dirpath
         if clear:
-            shutil.rmtree(dirpath)
+            shutil.rmtree(self.dirpath)
+        if not os.path.isdir(self.dirpath):
+            os.mkdir(self.dirpath)
 
     def save(self, key, obj, protocol="txt", merge=False):
         """ Save object
@@ -111,6 +112,7 @@ class StoreFs(Store):
         BaseNode.save()
         """
         from epac.configuration import conf
+        from epac.workflow.base import key_pop
         path = os.path.join(self.dirpath, key)
         #prefix = os.path.join(path, conf.STORE_FS_NODE_PREFIX)
         if os.path.isfile(path + conf.STORE_FS_PICKLE_SUFFIX):
@@ -121,29 +123,42 @@ class StoreFs(Store):
             filepaths = []
             for base, dirs, files in os.walk(self.dirpath):
                 #print base, dirs, files
-                for filepath in [os.path.join(base, basename) for basename in files]:
+                for filepath in [os.path.join(base, basename) for \
+                    basename in files]:
                     filepaths.append(filepath)
             loaded = dict()
             dirpath = os.path.join(self.dirpath, "")
             for filepath in filepaths:
                 _, ext = os.path.splitext(filepath)
                 if ext == conf.STORE_FS_JSON_SUFFIX:
-                    key1 = filepath.replace(dirpath,"").replace(conf.STORE_FS_JSON_SUFFIX, "")
+                    key1 = filepath.replace(dirpath, "").\
+                        replace(conf.STORE_FS_JSON_SUFFIX, "")
                     obj = self.load_json(filepath)
                     loaded[key1] = obj
                 elif ext == conf.STORE_FS_PICKLE_SUFFIX:
-                    key1 = filepath.replace(dirpath,"").replace(conf.STORE_FS_PICKLE_SUFFIX, "")
+                    key1 = filepath.replace(dirpath, "").\
+                        replace(conf.STORE_FS_PICKLE_SUFFIX, "")
                     loaded[key1] = self.load_pickle(filepath)
                 else:
                     raise IOError('File %s has an unkown extension: %s' %
                         (filepath, ext))
             if key == "":  # No key provided assume a whole tree to load
                 tree = loaded.pop(conf.STORE_EXECUTION_TREE_PREFIX)
-                for path in loaded:
-                    basename = os.path.basename(path)
-                    key1 = os.path.dirname(path)
-                    node = tree.get_node(key1)
-                    setattr(node, basename, loaded[path])
+                for key1 in loaded:
+                    key, attrname = key_pop(key1)
+                    #attrname, ext = os.path.splitext(basename)
+                    if attrname != conf.STORE_STORE_PREFIX:
+                        raise ValueError('Do not know what to do with %s') \
+                            % key1
+                    node = tree.get_node(key)
+                    if not node.store:
+                        node.store = loaded[key1]
+                    else:
+                        keys_local = node.store.dict.keys()
+                        keys_disk = loaded[key1].dict.keys()
+                        if set(keys_local).intersection(set(keys_disk)):
+                            raise KeyError("Merge store with same keys")
+                        node.store.dict.update(loaded[key1].dict)
                 loaded = tree
             return loaded
 

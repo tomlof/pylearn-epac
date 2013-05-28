@@ -2,15 +2,15 @@
 """
 Created on Mon Oct 29 16:20:03 2012
 
-@author: edouard
+@author: edouard.duchesnay@cea.fr
 """
 
-## Class Permutation to be added to sklearn
+## Class Permutations to be added to sklearn
 import numpy as np
 from sklearn.utils import check_random_state
 
 
-class Permutation(object):
+class Permutations(object):
 
     def __init__(self, n, n_perms, first_perm_is_id=True, random_state=None):
         self.random_state = random_state
@@ -26,7 +26,7 @@ class Permutation(object):
         rng = check_random_state(self.random_state)
         if self.first_perm_is_id:
             yield np.arange(self.n)  # id permutation
-            for i in xrange(self.n_perms - 1): # n_perms-1 random permutations
+            for i in xrange(self.n_perms - 1): # n_perms-1 random Permutationss
                 yield rng.permutation(self.n)
         else:
             for i in xrange(self.n_perms):  # n_perms random permutations

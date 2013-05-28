@@ -42,7 +42,7 @@ def key_push(key, basename):
 #    return head
 
 def key_pop(key, index=-1):
-    """Split the key into head / tail. 
+    """Split the key into head / tail.
 
     index: int
         index=-1 (default) tail = last item
@@ -331,21 +331,21 @@ class BaseNode(object):
 
         Example
         -------
-        >>> from epac import Permutations, CV, Pipe, Methods
+        >>> from epac import Perms, CV, Pipe, Methods
         >>> from sklearn.lda import LDA
         >>> from sklearn.svm import SVC
         >>> from sklearn.feature_selection import SelectKBest
-        >>> root = Permutations(CV(Pipe(SelectKBest(k=2), Methods(LDA(), SVC()))))
+        >>> root = Perms(CV(Pipe(SelectKBest(k=2), Methods(LDA(), SVC()))))
         >>> leaf = root.get_leftmost_leaf()
         >>> print leaf
-        Permutations/Perm(nb=0)/CV/CV(nb=0)/SelectKBest/Methods/LDA
+        Perms/Perm(nb=0)/CV/CV(nb=0)/SelectKBest/Methods/LDA
         >>> node = root.children[2].children[0]
         >>> print node
-        Permutations/Perm(nb=2)/CV
+        Perms/Perm(nb=2)/CV
         >>> print [n.get_signature() for n in leaf.get_path_from_node(node=node)]
         ['CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
         >>> print [n.get_signature() for n in leaf.get_path_from_root()]
-        ['Permutations', 'Perm(nb=2)', 'CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
+        ['Perms', 'Perm(nb=2)', 'CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
         """
         key = self.get_key()
         parent_key = node.get_key()
@@ -579,7 +579,7 @@ class BaseNode(object):
                                           children_args)
         # Reduce results if there is a reducer
         if self.reducer:
-            results = {key2: self.reducer.reduce(results[key2]) for
+            results = {key2: self.reducer.reduce(result=results[key2]) for
                 key2 in results}
         if store_results:
             self.save_state(state=results, name="results")
@@ -629,23 +629,13 @@ class BaseNode(object):
     def load_state(self, name="default"):
         return self.get_store().load(key_push(self.get_key(), name))
 
-    def save(self, store=None, attr=None, recursion=True):
-        """I/O (persistance) operation: save the node on the store. By default
-        save the entire node. If attr is provided save only this attribute
-        if non empty.
+    def save_tree(self, store):
+        """I/O (persistance) operation: save the whole tree: ie.: execution
+        tree + stores.
 
         Parameters
         ----------
-        store: str
-            This string allow to retrieve the store (see get_store(key)).
-
-        attr: str
-            Name of the Node's attribute to store, if provided only the
-            attribute is saved, by default (None) the whole node is saved.
-
-        recursion: bool
-            Indicates if node should be recursively saved down to
-            the leaves . Default (True).
+        store: Store
 
         See Also
         --------
@@ -667,6 +657,13 @@ class BaseNode(object):
             print key1, stores[key1]
             store.save(key=key_push(key1, conf.STORE_STORE_PREFIX),
                        obj=stores[key1], protocol="bin")
+
+    def save_node(self, store):
+        """I/O (persistance) operation: save single node states ie.: store"""
+        store.save(key=key_push(self.get_key(), conf.STORE_STORE_PREFIX),
+                       obj=self.store, protocol="bin")
+
+    
 #        if debug.DEBUG:
 #            #global _N
 #            debug.current = self

@@ -58,35 +58,34 @@ def do_all(options):
 
     ## 3) Build Workflow
     ## =================
-    from epac import Permutations, CV, Seq
-    from epac import SummaryStat, PvalPermutations, Grid
+    from epac import Perms, CV, Pipe
+    from epac import SummaryStat, PvalPerms, Grid
     
     time_start = time.time()
     ##############################################################################
     ## EPAC WORKFLOW
-    # -------------------------------------
-    #             Permutations                Perm (Splitter)
+    #              Perms                 Perm (Splitter)
     #         /     |       \
     #        0      1       2            Samples (Slicer)
     #        |
-    #       CV                        CV (Splitter)
+    #          CV                        CV (Splitter)
     #  /       |       \
     # 0        1       2                 Folds (Slicer)
     # |        |       |
-    # Seq     Seq     Seq                Sequence
+    # Pipe     Pipe     Pipe             Pipeline
     # |
     # 2                                  SelectKBest (Estimator)
     # |
     # Grid
     # |                     \
     # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
-    pipeline = Seq(SelectKBest(k=2),
+    pipeline = Pipe(SelectKBest(k=2),
                    Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-    wf = Permutations(
+    wf = Perms(
              CV(pipeline, n_folds=options.n_folds,
                    reducer=SummaryStat(filter_out_others=True)),
              n_perms=options.n_perms, permute="y", y=y,
-             reducer=PvalPermutations(filter_out_others=True))
+             reducer=PvalPerms(filter_out_others=True))
 
     print "Time ellapsed, tree construction:", time.time() - time_start
     time_save = time.time()

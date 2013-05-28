@@ -68,9 +68,7 @@ if __name__ == "__main__":
         relative_filepath = options.keysfile
         relative_filepath = relative_filepath.replace("'", '')
         relative_filepath = relative_filepath.replace('"', '')
-
         key_lines = None
-
         f = open(relative_filepath, 'r')
         key_lines = f.readlines()
         f.close()
@@ -83,6 +81,7 @@ if __name__ == "__main__":
                 listkey.append(key_line)
     else:
         raise ValueError("key(s) is not provided use: --key")
+
     if options.function != None:
         function = repr(options.function)
     # Load datasets
@@ -105,9 +104,11 @@ if __name__ == "__main__":
         #print parent_node
         func = getattr(node_root2common, function)
         Xy = func(recursion=False, **Xy)
-    cpXy = Xy
     # Execute what is specific to each keys
     for curr_key in listkey:
+        cpXy = Xy
+        print curr_key
+        # curr_key = 'Permutations/Perm(nb=3)'
         curr_node = tree.get_node(curr_key)
         for node_common2curr in curr_node.get_path_from_node(common_parent):
             if node_common2curr is  common_parent: # skip commom ancestor
@@ -120,6 +121,7 @@ if __name__ == "__main__":
         # print "Recursively run from root to current node"
         curr_node.store = StoreMem()
         func = getattr(curr_node, function)
-        cpXy = func(recursion=True, **cpXy)
+        func(recursion=True, **cpXy)
         # print "Save results"
-        node.save(store=store_fs, attr="results", recursion=False)
+        curr_node.save_node(store=store_fs)
+        #store_fs.load()

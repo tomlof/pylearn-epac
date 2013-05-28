@@ -14,9 +14,9 @@ from sklearn.svm import SVC
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 import sklearn.pipeline
-from epac import Pipe, Methods, CV, Permutations
+from epac import Pipe, Methods, CV, Perms
 from epac import SummaryStat
-from epac.sklearn_plugins import Permutation
+from epac.sklearn_plugins import Permutations
 
 
 class TestPipeline(unittest.TestCase):
@@ -24,21 +24,23 @@ class TestPipeline(unittest.TestCase):
     def test_pipeline(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
                                             n_informative=2)
-        # ===================
+
         # = With EPAC
-        # ===================
         wf = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
-        wf.fit(X=X, y=y)
-        r1 = wf.predict(X=X)
-        # ===================
-        # = Without EPAC
-        # ===================
+        r_epac = wf.fit_predict(X=X, y=y)
+
+        # = With SKLEARN
         pipe = sklearn.pipeline.Pipeline([('anova', SelectKBest(k=2)),
                          ('svm', SVC(kernel="linear"))])
-        pipe.fit(X, y)
-        r2 = pipe.predict(X)
-        self.assertTrue(np.all(r1 == r2), u'Diff Pipe')
+        r_sklearn = pipe.fit(X, y).predict(X)
 
+        # = Comparison
+        self.assertTrue(np.all(r_epac == r_sklearn),
+                        u'Diff in Pipe: EPAC vs sklearn')
+        # test reduce
+        r_epac_reduce = wf.reduce().values()[0]['pred_te']
+        self.assertTrue(np.all(r_epac_reduce == r_sklearn),
+                        u'Diff in Pipe: EPAC reduce')
 
 class TestCV(unittest.TestCase):
 
@@ -46,101 +48,65 @@ class TestCV(unittest.TestCase):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
                                             n_informative=2)
         n_folds = 2
-        # ===================
+
         # = With EPAC
-        # ===================
         wf = CV(SVC(kernel="linear"), n_folds=n_folds,
                 reducer=SummaryStat(keep=True))
-        R1 = wf.fit_predict(X=X, y=y)
-        # ===================
-        # = Without EPAC
-        # ===================
+        r_epac = wf.fit_predict(X=X, y=y)
+
+        # = With SKLEARN
         from sklearn.cross_validation import StratifiedKFold
         clf = SVC(kernel="linear")
-        R2 = list()
+        r_sklearn = list()
         for idx_train, idx_test in StratifiedKFold(y=y, n_folds=n_folds):
             #idx_train, idx_test  = cv.__iter__().next()
             X_train = X[idx_train, :]
             X_test = X[idx_test, :]
             y_train = y[idx_train, :]
             clf.fit(X_train, y_train)
-            R2.append(clf.predict(X_test))
-        comp = np.all(np.asarray(R1) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff CV in top-down')
-        R1 = wf.reduce()
-        comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff CV in bottum-up')
+            r_sklearn.append(clf.predict(X_test))
+
+        # = Comparison
+        comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
+        self.assertTrue(comp, u'Diff CV: EPAC vs sklearn')
+
+        # test reduce
+        r_epac_reduce = wf.reduce().values()[0]['pred_te']
+        comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
+        self.assertTrue(comp, u'Diff CV: EPAC reduce')
 
 
-class TestPermutations(unittest.TestCase):
+class TestPerms(unittest.TestCase):
 
     def test_perm(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
                                             n_informative=2)
         n_perms = 2
         rnd = 0
-        # ===================
+
         # = With EPAC
-        # ===================
-        wf = Permutations(SVC(kernel="linear"), n_perms=n_perms, permute="y",
-                          random_state=rnd)
-        R1 = wf.fit_predict(X=X, y=y)
-        # ===================
-        # = Without EPAC
-        # ===================
+        wf = Perms(SVC(kernel="linear"), n_perms=n_perms, permute="y",
+                          random_state=rnd, reducer=None)
+        r_epac = wf.fit_predict(X=X, y=y)
+
+        # = With SKLEARN
         clf = SVC(kernel="linear")
-        R2 = list()
-        for perm in Permutation(n=y.shape[0], n_perms=n_perms,
-                                               random_state=rnd):
+        r_sklearn = list()
+        for perm in Permutations(n=y.shape[0], n_perms=n_perms,
+                                 random_state=rnd):
             y_p = y[perm, :]
             clf.fit(X, y_p)
-            R2.append(clf.predict(X))
-        comp = np.all(np.asarray(R1) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff Perm in top-down')
-        R1 = wf.reduce()
-        comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-        self.assertTrue(comp, u'Diff Perm in bottum-up')
+            r_sklearn.append(clf.predict(X))
 
-    def test_perm_cv(self):
-            X, y = datasets.make_classification(n_samples=20, n_features=5,
-                                                n_informative=2)
-            n_perms = 3
-            n_folds = 2
-            rnd = 0
-            # ===================
-            # = With EPAC
-            # ===================
-            wf = Permutations(CV(SVC(kernel="linear"), n_folds=n_folds,
-                                 reducer=SummaryStat(keep=True)),
-                                n_perms=n_perms, permute="y", random_state=rnd)
-            R1 = wf.fit_predict(X=X, y=y)
-            # ===================
-            # = Without EPAC
-            # ===================
-            from sklearn.cross_validation import StratifiedKFold
-            clf = SVC(kernel="linear")
-            R2 = [[None] * n_folds for i in xrange(n_perms)]
-            perm_nb = 0
-            for perm in Permutation(n=y.shape[0], n_perms=n_perms,
-                                    random_state=rnd):
-                y_p = y[perm]
-                fold_nb = 0
-                for idx_train, idx_test in StratifiedKFold(y=y_p,
-                                                           n_folds=n_folds):
-                    X_train = X[idx_train, :]
-                    X_test = X[idx_test, :]
-                    y_p_train = y_p[idx_train, :]
-                    clf.fit(X_train, y_p_train)
-                    R2[perm_nb][fold_nb] = clf.predict(X_test)
-                    fold_nb += 1
-                perm_nb += 1
-            # Compare top-down
-            comp = np.all(np.asarray(R1) == np.asarray(R2))
-            self.assertTrue(comp, u'Diff Perm / CV in top-down')
-            R1 = wf.reduce()
-            # Compare top-down
-            comp = np.all(np.asarray(R1.values()[0]['pred_te']) == np.asarray(R2))
-            self.assertTrue(comp, u'Diff Perm / CV in bottum-up')
+        # = Comparison
+        comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
+        self.assertTrue(comp, u'Diff Perm: EPAC vs sklearn')
+
+        # test reduce
+        r_epac_reduce = wf.reduce().values()[0]['pred_te']
+        comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
+        self.assertTrue(comp, u'Diff Perm: EPAC reduce')
+
 
 class TestCVGridSearchRefit(unittest.TestCase):
 
@@ -153,7 +119,7 @@ class TestCVGridSearchRefit(unittest.TestCase):
         wf.reduce()
 
 class TestMethods(unittest.TestCase):
-    
+
     def test_constructor_avoid_collision_level1(self):
         # Test that level 1 collisions are avoided
         pm = Methods(*[SVC(kernel="linear", C=C) for C in [1, 10]])
@@ -178,22 +144,25 @@ class TestMethods(unittest.TestCase):
     def test_twomethods(self):
         X, y = datasets.make_classification(n_samples=20, n_features=5,
                                             n_informative=2)
-        # ===================
         # = With EPAC
-        # ===================
         wf = Methods(LDA(), SVC(kernel="linear"))
-        wf.fit(X=X, y=y)
-        r1 = wf.predict(X=X)
-        #r1 ===================
-        # = Without EPAC
-        # ===================
+        r_epac = wf.fit_predict(X=X, y=y)
+
+        # = With SKLEARN
         lda = LDA()
         svm = SVC(kernel="linear")
         lda.fit(X, y)
         svm.fit(X, y)
-        r2 = [lda.predict(X), svm.predict(X)]
-        comp = np.all(np.asarray(r1) == np.asarray(r2))
+        r_sklearn = [lda.predict(X), svm.predict(X)]
+
+        # Comparison
+        comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
         self.assertTrue(comp, u'Diff Methods')
+
+        # test reduce
+        r_epac_reduce = wf.reduce().values()[0]['pred_te']
+        comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
+        self.assertTrue(comp, u'Diff Perm / CV: EPAC reduce')
 
 if __name__ == '__main__':
     unittest.main()

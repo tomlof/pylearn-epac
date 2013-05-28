@@ -5,7 +5,7 @@ Created on Tue Mar 19 15:45:21 2013
 @author: edouard.duchesnay@cea.fr
 """
 
-from .resampling import Permutation
+from .resampling import Permutations
 #import sklearn_plugins
 
-__all__ = ['Permutation']
+__all__ = ['Permutations']

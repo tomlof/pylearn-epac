@@ -13,22 +13,13 @@ from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
                                     n_informative=2)
 
-# Model selection using CV: CV + Grid
-# -----------------------------------------
-from epac import CVGridSearchRefit
-# CV + Grid search of a simple classifier
-wf = CVGridSearchRefit(*[SVC(C=C) for C in [1, 10]])
-wf.fit_predict(X=X, y=y)
-wf.reduce()
-
-
 # Build sequential Pipeline
 # -------------------------
-# 2  SelectKBest
+# 2  SelectKBest (Estimator)
 # |
-# SVM Classifier
+# SVM Classifier (Estimator)
 from epac import Pipe
-pipe = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
+pipe = Pipe(SelectKBest(k=2), SVC())
 pipe.fit(X=X, y=y)
 pipe.predict(X=X)
 pipe.fit_predict(X=X, y=y)  # Do both
@@ -49,11 +40,11 @@ pipe.fit_predict(X=X, y=y)  # Do both
 
 # Multi-classifiers
 # -----------------
-# Methods    Methods  (Splitter)
+# Methods       Methods (Splitter)
 #  /   \
 # LDA  SVM      Classifiers (Estimator)
 from epac import Methods
-multi = Methods(LDA(),  SVC(kernel="linear"))
+multi = Methods(LDA(),  SVC())
 multi.fit_predict(X=X, y=y)
 
 
@@ -62,23 +53,16 @@ multi.fit_predict(X=X, y=y)
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 svms = Methods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
 svms.fit_predict(X=X, y=y)
-svms.reduce()
-[l.get_key() for l in svms.walk_nodes()]
-[l.get_key(2) for l in svms.walk_nodes()]  # No key 2 collisions, no aggregation
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
-# No collisions between upstream keys, then no aggretation.
-# Methods   Methods (Splitter)
+#    Methods    Methods (Splitter)
 #  /   |   \
-# 1    5   10  SelectKBest (Estimator)
+# 1    5   10   SelectKBest (Estimator)
 # |    |    |
-# SVM SVM SVM  Classifiers (Estimator)
-anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC()) for k in
-    [1, 2]])
+# SVM SVM SVM   Classifiers (Estimator)
+anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC()) for k in [1, 2]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
-[l.get_key() for l in anovas_svm.walk_nodes()]
-[l.get_key(2) for l in anovas_svm.walk_nodes()]  # No key 2 collisions, no aggregation
 
 
 # Parallelize SVM with several parameters.
@@ -90,19 +74,14 @@ anovas_svm.reduce()
 # flow. With Grid Children differs only by theire arguments, and thus
 # are aggregated toggether
 from epac import Grid
-svms = Grid(*[SVC(C=C) for C in [1, 10]])
+svms = Grid(SVC(C=1), SVC(C=10))
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms.walk_nodes()]
-[l.get_key(2) for l in svms.walk_nodes()]  # intermediary key collisions: trig aggregation
 
 # Two parameters
 svms = Grid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
-[l.get_key() for l in svms.walk_nodes()]
-[l.get_key(2) for l in svms.walk_nodes()]  # intermediary key collisions: trig aggregation
-
 
 # Cross-validation
 # ----------------
@@ -134,93 +113,33 @@ cv_lda.transform(X=X, y=y, sample_set="test")
 # -----------------------------------------
 from epac import Grid, Pipe, CVGridSearchRefit
 # CV + Grid search of a simple classifier
-wf = CVGridSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]],
-           n_folds=5)
+wf = CVGridSearchRefit(*[SVC(C=C) for C in [1, 10]])
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 # CV + Grid search of a pipeline with a nested grid search
-wf = CVGridSearchRefit(*[Pipe(SelectKBest(k=k),
-                      Grid(*[SVC(kernel="linear", C=C)\
-                          for C in [.0001, .001, .01, .1, 1, 10]]))
-                for k in [1, 5, 10]],
-           n_folds=5)
+methods = [Pipe(SelectKBest(k=k), Grid(*[SVC(C=C) for C in [1, 10]]))
+                for k in [1, 5]]
+wf = CVGridSearchRefit(*methods)
 wf.fit_predict(X=X, y=y)
 wf.reduce()
 
-# results contains:
-# - CV-model selection results "CVGridSearchRefit/CV/*"
-# - Refited results "CVGridSearchRefit/Methods/*"
-print wf.results.keys()
 
-for k in wf.results:
-    if k.find("CVGridSearchRefit/ParMethod") == 0:
-        wf.results[k]
-
-# Permutations + Cross-validation
+# Perms + Cross-validation of SVM(linear) and SVM(rbf) 
 # -------------------------------------
-#           Permutations                  Perm (Splitter)
-#         /     |       \
-#        0      1       2            Samples (Slicer)
-#       |
-#     CV                          CV (Splitter)
-#  /   |   \
-# 0    1    2                        Folds (Slicer)
-# |    |    |
-# LDA LDA LDA                        Classifier (Estimator)
+#           Perms        Perm (Splitter)
+#      /     |       \
+#     0      1       2   Samples (Slicer)
+#            |
+#           CV           CV (Splitter)
+#       /   |   \
+#      0    1    2       Folds (Slicer)
+#           |
+#        Methods         Methods (Splitter)
+#    /           \
+# SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 
-from epac import Permutations, CV
-from epac import SummaryStat, PvalPermutations
-from epac import StoreFs
-#from stores import
-# _obj_to_dict, _dict_to_obj
-
-perms_cv_lda = Permutations(CV(LDA(), n_folds=3, reducer=SummaryStat(filter_out_others=False)),
-                    n_perms=3, permute="y", reducer=PvalPermutations(filter_out_others=False))
-
-[l.get_key() for l in perms_cv_lda.walk_leaves()]
-[l.get_key(2) for l in perms_cv_lda.walk_leaves()]
-
-# Save tree
-import tempfile
-store = StoreFs(tempfile.mktemp())
-self = perms_cv_lda
-perms_cv_lda.save(store=store)
-# Fit & Predict
-perms_cv_lda.fit_predict(X=X, y=y)
-# Save results
-perms_cv_lda.save(attr="results")
-key = perms_cv_lda.get_key()
-# Reload tree, all you need to know is the key
-tree = WF.load(store=store, key=key)
-# Reduces results
-tree.reduce()
-
-
-## DEBUGGING
-## =========
-from epac import Methods
-multi = Methods(LDA(),  SVC(kernel="linear"))
-multi.fit(X=X, y=y)
-multi.predict(X=X)
-# Do both
-multi.fit_predict(X=X, y=y)
-from epac import conf, debug
-debug.DEBUG = True  # set debug to True
-multi.fit_predict(X=X, y=y)  # re-run
-ds_kwargs = dict(X=X, y=y)  # build the down-stream data flow
-# get all nodes from root to the current node (stored in debug.current)
-node_iterator = debug.current.get_path_from_root().__iter__()
-# Manually iterate from root to current node, until desire node
-self = node_iterator.next()
-print self
-ds_kwargs = self.fit_predict(recursion=False, **ds_kwargs)
-print ds_kwargs
-
-#debug.DEBUG = True
-#wf.fit_predict(X=X, y=y)  # re-run
-#self = debug.current  # get last node before error
-#ds_kwargs = debug.ds_kwargs  # get data
-#ds_kwargs_train, ds_kwargs_test = ds_split(ds_kwargs)
-#self.estimator.fit(**ds_kwargs_train)
-#ds_kwargs_train = self.fit(recursion=False, **ds_kwargs_train)
+from epac import Perms, CV, Methods
+perms_cv_svm = Perms(CV(Methods(SVC(kernel="linear"), SVC(kernel="rbf"))))
+perms_cv_svm.fit_predict(X=X, y=y)
+perms_cv_svm.reduce()

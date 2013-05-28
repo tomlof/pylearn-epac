@@ -14,13 +14,57 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import CVGridSearchRefit, Grid, Pipe, CV, Permutations
-from epac import SummaryStat, PvalPermutations
+from epac import CVGridSearchRefit, Grid, Pipe, CV, Perms
+from epac import SummaryStat, PvalPerms
+from epac.sklearn_plugins import Permutations
 
+class TestPermCV(unittest.TestCase):
+
+    def test_perm_cv(self):
+            X, y = datasets.make_classification(n_samples=20, n_features=5,
+                                                n_informative=2)
+            n_perms = 3
+            n_folds = 2
+            rnd = 0
+
+            # = With EPAC
+            wf = Perms(CV(SVC(kernel="linear"), n_folds=n_folds,
+                                reducer=SummaryStat(keep=True)),
+                                n_perms=n_perms, permute="y", 
+                                random_state=rnd, reducer=None)
+            r_epac = wf.fit_predict(X=X, y=y)
+
+            # = With SKLEARN
+            from sklearn.cross_validation import StratifiedKFold
+            clf = SVC(kernel="linear")
+            r_sklearn = [[None] * n_folds for i in xrange(n_perms)]
+            perm_nb = 0
+            for perm in Permutations(n=y.shape[0], n_perms=n_perms,
+                                    random_state=rnd):
+                y_p = y[perm]
+                fold_nb = 0
+                for idx_train, idx_test in StratifiedKFold(y=y_p,
+                                                           n_folds=n_folds):
+                    X_train = X[idx_train, :]
+                    X_test = X[idx_test, :]
+                    y_p_train = y_p[idx_train, :]
+                    clf.fit(X_train, y_p_train)
+                    r_sklearn[perm_nb][fold_nb] = clf.predict(X_test)
+                    fold_nb += 1
+                perm_nb += 1
+
+            # Comparison
+            comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
+            self.assertTrue(comp, u'Diff Perm / CV: EPAC vs sklearn')
+
+            # test reduce
+            r_epac_reduce = wf.reduce().values()[0]['pred_te']
+            comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
+            self.assertTrue(comp, u'Diff Perm / CV: EPAC reduce')
 
 class TestCVGridSearchRefit(unittest.TestCase):
 
-    def test_perm_cv_grid(self):
+    def test_perm_cv_grid_vs_sklearn(self):
         X, y = datasets.make_classification(n_samples=100, n_features=500,
                                             n_informative=5)
         n_perms = 3
@@ -38,12 +82,12 @@ class TestCVGridSearchRefit(unittest.TestCase):
                           Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                       for k in k_values],
                       n_folds=n_folds_nested, random_state=random_state)
-        wf = Permutations(
+        wf = Perms(
                  CV(pipeline,
                        n_folds=n_folds,
                        reducer=SummaryStat(keep=True)),
                  n_perms=n_perms, permute="y",
-                 reducer=PvalPermutations(keep=True),
+                 reducer=PvalPerms(keep=True),
                  random_state=random_state)
 
         wf.fit_predict(X=X, y=y)
@@ -56,7 +100,7 @@ class TestCVGridSearchRefit(unittest.TestCase):
         # = Without EPAC
         # ===================
         from sklearn.cross_validation import StratifiedKFold
-        from epac.sklearn_plugins import Permutation
+        from epac.sklearn_plugins import Permutations
         from sklearn.pipeline import Pipeline
         from sklearn import grid_search
 
@@ -75,7 +119,7 @@ class TestCVGridSearchRefit(unittest.TestCase):
             R2[key]['mean_score_tr'] = [None] * n_perms
 
         perm_nb = 0
-        perms = Permutation(n=y.shape[0], n_perms=n_perms, random_state=random_state)
+        perms = Permutations(n=y.shape[0], n_perms=n_perms, random_state=random_state)
         for idx in perms:
             #idx = perms.__iter__().next()
             y_p = y[idx]

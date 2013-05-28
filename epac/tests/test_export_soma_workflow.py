@@ -114,7 +114,7 @@ class EpacWorkflowTest(unittest.TestCase):
         #######################################################################
         ## EPAC WORKFLOW
         # -------------------------------------
-        #             Permutations                Perm (Splitter)
+        #             Perms                Perm (Splitter)
         #         /     |       \
         #        0      1       2            Samples (Slicer)
         #        |
@@ -130,14 +130,14 @@ class EpacWorkflowTest(unittest.TestCase):
         # |                     \
         # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
 
-        from epac import Permutations, CV, Pipeline, Grid
+        from epac import Perms, CV, Pipeline, Grid
 
         self.wf = None
 
         pipeline = Pipeline(SelectKBest(k=2),
                        Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
 
-        self.wf = Permutations(CV(pipeline, n_folds=3),
+        self.wf = Perms(CV(pipeline, n_folds=3),
                           n_perms=10, permute="y", y=self.y)
 
         self.wf.save(store=self.key_file)
@@ -198,7 +198,7 @@ class EpacWorkflowTest(unittest.TestCase):
         from soma.workflow.client import Helper
         from epac.export_multi_processes import export2somaworkflow
 
-        nodes = self.wf.get_node(regexp="*/Permutations/*")
+        nodes = self.wf.get_node(regexp="*/Perms/*")
 
         (wf_id, controller) = export2somaworkflow(
             in_datasets_file=self.datasets_file,
