@@ -28,19 +28,6 @@ def key_push(key, basename):
     else:
         return key or basename
 
-
-#def key_basename(key):
-#    """Returns the final component of a pathname"""
-#    i = key.rfind(conf.KEY_PATH_SEP) + 1
-#    return key[i:]
-#def key_dirname(key):
-#    """Returns the directory component of a key"""
-#    i = key.rfind('/') + 1
-#    head = key[:i]
-#    if head and head != '/' * len(head):
-#        head = head.rstrip('/')
-#    return head
-
 def key_pop(key, index=-1):
     """Split the key into head / tail.
 
@@ -663,37 +650,6 @@ class BaseNode(object):
         store.save(key=key_push(self.get_key(), conf.STORE_STORE_PREFIX),
                        obj=self.store, protocol="bin")
 
-    
-#        if debug.DEBUG:
-#            #global _N
-#            debug.current = self
-#        if not store:
-#            store = self.get_store()
-##        if not self.store and not self.parent:
-##            raise ValueError("No store has been defined")
-#        key = self.get_key()
-#        if not attr:  # save the entire node
-#            # Prevent recursion saving of children/parent in a single dump:
-#            # replace reference to chidren/parent by basename strings
-#            clone = copy.copy(self)
-#            clone.children = [child.get_signature() for child in self.children]
-#            if self.parent:
-#                clone.parent = ".."
-#            if hasattr(self, "estimator"):  # Always pickle estimator
-#                clone.estimator = None
-#                store.save(key=key_push(key, "estimator"), obj=self.estimator,
-#                           protocol="bin")
-#            store.save(key=key_push(key, conf.STORE_NODE_PREFIX), obj=clone)
-#        else:
-#            o = self.__dict__[attr]
-#            # avoid saving attributes of len 0
-#            if not hasattr(o, "__len__") or (len(o) > 0):
-#                store.save(key=key_push(key, attr), obj=o)
-#        if recursion and self.children:
-#            # Call children save down to leaves
-#            [child.save(store=store, attr=attr, recursion=recursion) for child
-#                in self.children]
-
     def _walk_true_nodes(self):
         yield self
         if self.children:
@@ -704,50 +660,3 @@ class BaseNode(object):
             for child in children:
                 for yielded in child.walk_nodes():
                     yield yielded
-#    @classmethod
-#    def load(cls, store, key, recursion=True):
-#        """I/O (persistance) load a node indexed by key from the store.
-#
-#        Parameters
-#        ----------
-#        store: Store()
-#
-#        key: string
-#            Load the node indexed by its key from the store. If missing then
-#            assume file system store and the key will point on the root of the
-#            store.
-#
-#        recursion: boolean
-#            Indicates if sub-nodes (down to the leaves) and parent nodes
-#            (path up to the root) should be recursively loaded. Default (True).
-#        """
-##        if key is None:  # assume fs store, and point on the root of the store
-##            key = key_join(prot=conf.KEY_PROT_FS, path=store)
-#        #store = self.get_store()
-#        print store, key
-#        loaded = store.load(key)
-#        node = loaded.pop(conf.STORE_NODE_PREFIX)
-#        node.__dict__.update(loaded)
-#        # Recursively load sub-tree
-#        if recursion and node.children:
-#            children = node.children
-#            node.children = list()
-#            for child in children:
-#                child_key = key_push(key, child)
-#                node.add_child(WF.load(store=store, key=child_key,
-#                                       recursion=recursion))
-#        # Recursively load nodes'path up to the root
-#        curr = node
-#        curr_key = key
-#        while recursion and curr.parent == '..':
-#            #print node.get_key()
-#            curr_key = key_pop(curr_key)
-#            parent = WF.load(store=store, key=curr_key, recursion=False)
-#            parent.children = list()
-#            parent.add_child(curr)
-#            #curr.parent = parent
-#            #parent.add_child(cu
-#            curr = parent
-#        return node
-
-WF = BaseNode

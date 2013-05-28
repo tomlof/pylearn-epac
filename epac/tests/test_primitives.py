@@ -42,6 +42,7 @@ class TestPipeline(unittest.TestCase):
         self.assertTrue(np.all(r_epac_reduce == r_sklearn),
                         u'Diff in Pipe: EPAC reduce')
 
+
 class TestCV(unittest.TestCase):
 
     def test_cv(self):
@@ -160,7 +161,8 @@ class TestMethods(unittest.TestCase):
         self.assertTrue(comp, u'Diff Methods')
 
         # test reduce
-        r_epac_reduce = wf.reduce().values()[0]['pred_te']
+        r_epac_reduce = [wf.reduce().values()[0]['pred_te'], 
+            wf.reduce().values()[1]['pred_te']]
         comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
         self.assertTrue(comp, u'Diff Perm / CV: EPAC reduce')
 

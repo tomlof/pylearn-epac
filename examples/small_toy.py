@@ -40,12 +40,13 @@ pipe.fit_predict(X=X, y=y)  # Do both
 
 # Multi-classifiers
 # -----------------
-# Methods       Methods (Splitter)
-#  /   \
-# LDA  SVM      Classifiers (Estimator)
+#         Methods       Methods (Splitter)
+#        /   \
+# SVM(C=1)  SVM(C=10)   Classifiers (Estimator)
 from epac import Methods
-multi = Methods(LDA(),  SVC())
+multi = Methods(SVC(C=1), SVC(C=10))
 multi.fit_predict(X=X, y=y)
+multi.reduce()
 
 
 #        Methods          Methods (Splitter)
@@ -79,7 +80,8 @@ svms.fit_predict(X=X, y=y)
 svms.reduce()
 
 # Two parameters
-svms = Grid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
+svms = Grid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf")
+    for C in [1, 10]])
 svms.fit_predict(X=X, y=y)
 svms.reduce()
 

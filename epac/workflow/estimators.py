@@ -191,6 +191,7 @@ class CVGridSearchRefit(Estimator):
             debug.current = self
             debug.Xy = Xy
         cv_grid_search_results = cv_grid_search.load_state(name="results")
+        cv_grid_search.store = None
         for key2 in cv_grid_search_results:
             pipeline = self.cv_grid_search(key2=key2,
                                            result=cv_grid_search_results[key2],
