@@ -280,6 +280,7 @@ class BaseNode(object):
             for child in self.children:
                 if key.find(child.get_key()) == 0:
                     return child.get_node(key)
+            return None
         elif regexp:
             if isinstance(regexp, str):
                 regexp = re.compile(regexp.replace("*", ".*").\
@@ -297,6 +298,8 @@ class BaseNode(object):
         else:
             raise ValueError("Provide at least a key for exact match"
             "or a regexp for wild card matches")
+        
+        
 
 #    def get_path_from_root(self):
 #        if self.parent is None:

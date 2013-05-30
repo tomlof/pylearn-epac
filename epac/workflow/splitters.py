@@ -65,7 +65,7 @@ class CV(BaseNodeSplitter):
     SUFFIX_TRAIN = "train"
     SUFFIX_TEST = "test"
 
-    def __init__(self, node, n_folds=5, random_state=None, 
+    def __init__(self, node, n_folds=5, random_state=None,
                  cv_type="stratified", reducer=SummaryStat(), **kwargs):
         super(CV, self).__init__()
         self.n_folds = n_folds

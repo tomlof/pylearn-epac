@@ -28,7 +28,8 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import range_log2
 from epac import StoreFs
-from epac.export_multi_processes import  run_multi_processes
+from epac.export_multi_processes import run_multi_processes
+
 
 def do_all(options):
     '''
@@ -36,7 +37,8 @@ def do_all(options):
       - epac_datasets.npz
       + epac_tree
     '''
-    ## All the file paths should be ***RELATIVE*** path in the working directory
+    ## All the file paths should be ***RELATIVE*** path in the working
+    ## directory
     # Training and test data
     datasets_file_relative_path = "./epac_datasets.npz"
     # root key for Epac tree

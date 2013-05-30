@@ -5,6 +5,8 @@ Created on Thu Mar 14 16:13:26 2013
 @author: edouard.duchesnay@cea.fr
 """
 import numpy as np
+import os
+
 
 def range_log2(n, add_n=True):
     """Return log2 range starting from 1"""
@@ -159,3 +161,21 @@ def _func_get_args_names(f):
     if "self" in args_names:
         args_names.remove("self")
     return args_names
+
+
+def which(program):
+    """Same with "which" command in linux
+    """
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+    return None
