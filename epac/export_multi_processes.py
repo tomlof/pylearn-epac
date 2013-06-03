@@ -18,6 +18,16 @@ import subprocess
 from epac.errors import NoSomaWFError, NoEpacTreeRootError
 from epac.configuration import conf
 from epac.utils import which
+from epac.workflow.estimators import CVGridSearchRefit
+
+_classes_cannot_be_splicted = [CVGridSearchRefit().__class__.__name__, 'CV']
+
+
+def _is_cannot_be_splicted(signature):
+    for _class_cannot_be_splicted in _classes_cannot_be_splicted:
+        if _class_cannot_be_splicted in signature:
+            return True
+    return False
 
 
 def push_node_in_list(node, nodes_per_processor_list):
@@ -34,7 +44,7 @@ def push_node_in_list(node, nodes_per_processor_list):
     return nodes_per_processor_list
 
 
-def export_nodes2somaworkflow_it(
+def export_nodes_recursively(
     node,
     num_processors,
     nodes_per_processor_list
@@ -57,14 +67,19 @@ def export_nodes2somaworkflow_it(
                 nodes_per_processor_list=nodes_per_processor_list)
     if left > 0:
         for i in range(len_children-left, len_children):
-            nodes_per_processor_list = export_nodes2somaworkflow_it(
-                children_nodes[i],
-                num_processors,
-                nodes_per_processor_list)
+            if not _is_cannot_be_splicted(children_nodes[i].get_signature()):
+                nodes_per_processor_list = export_nodes_recursively(
+                    children_nodes[i],
+                    num_processors,
+                    nodes_per_processor_list)
+            else:
+                nodes_per_processor_list = push_node_in_list(
+                    node=children_nodes[i],
+                    nodes_per_processor_list=nodes_per_processor_list)
     return nodes_per_processor_list
 
 
-def export_nodes2somaworkflow(node, num_processors):
+def export_nodes2num_processes(node, num_processors):
     '''export nodes
     Try to build "num_processors" queues which contains almost equally number
     of Epac nodes for computing.
@@ -81,7 +96,7 @@ def export_nodes2somaworkflow(node, num_processors):
     nodes_per_processor_list = dict()
     for i in range(num_processors):
         nodes_per_processor_list[i] = list()
-    nodes_per_processor_list = export_nodes2somaworkflow_it(
+    nodes_per_processor_list = export_nodes_recursively(
         node=node,
         num_processors=num_processors,
         nodes_per_processor_list=nodes_per_processor_list)
@@ -121,8 +136,7 @@ def export2somaworkflow(in_datasets_file_relative_path,
                         in_is_sumbit=False,
                         in_resource_id=None,
                         in_login="",
-                        in_pw=""
-                        ):
+                        in_pw=""):
     """Export soma epac nodes into a soma workflow file
 
     Examples
@@ -203,7 +217,6 @@ def export2somaworkflow(in_datasets_file_relative_path,
         sys.stderr.write(errmsg)
         sys.stdout.write(errmsg)
         raise NoSomaWFError
-
     ft_working_directory = FileTransfer(is_input=True,
                                         client_path=in_working_directory,
                                         name="working directory")
@@ -221,7 +234,7 @@ def export2somaworkflow(in_datasets_file_relative_path,
     else:
         if not in_tree_root:
             raise NoEpacTreeRootError
-        nodes_per_processor_list = export_nodes2somaworkflow(
+        nodes_per_processor_list = export_nodes2num_processes(
             in_tree_root,
             in_num_cores)
         keysfile_list = gen_keysfile_list_from_nodes_list(
@@ -305,7 +318,7 @@ def run_multi_processes(
         raise ValueError("epac_mapper cannot be found in PATH variable. "
                          "Please verify epac_mapper "
                          "contained in PATH.")
-    nodes_per_processor_list = export_nodes2somaworkflow(
+    nodes_per_processor_list = export_nodes2num_processes(
         node=in_tree_root,
         num_processors=in_num_cores
     )

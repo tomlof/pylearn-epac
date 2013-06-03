@@ -412,14 +412,20 @@ class BaseNode(object):
     def get_parameters(self):
         """Return the state of the object"""
 
-    def get_store(self):
+    def get_store(self, name="default"):
         """Return the first store found on the path to tree root. If no store
         has been defined create one on the tree root and return it."""
         curr = self
+        closest_store = None
         while True:
             if curr.store:
-                return curr.store
+                if not closest_store:
+                    closest_store = curr.store
+                if curr.store.load(key_push(self.get_key(), name)):
+                    return curr.store
             if not curr.parent:
+                if closest_store:
+                    return closest_store
                 curr.store = StoreMem()
                 return curr.store
             curr = curr.parent
@@ -617,7 +623,7 @@ class BaseNode(object):
         store.save(key_push(self.get_key(), name), state)
 
     def load_state(self, name="default"):
-        return self.get_store().load(key_push(self.get_key(), name))
+        return self.get_store(name=name).load(key_push(self.get_key(), name))
 
     def save_tree(self, store):
         """I/O (persistance) operation: save the whole tree: ie.: execution
