@@ -38,7 +38,7 @@ if __name__ == "__main__":
                       'represents a key node')
     parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
-    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./0.job']
+    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./10.job']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     # Set default values to parameters
@@ -110,16 +110,19 @@ if __name__ == "__main__":
             Xy = func(recursion=False, **Xy)
     # Execute what is specific to each keys
     for curr_key in listkey:
+        # curr_key = listkey.__iter__().next()
         cpXy = Xy
         print curr_key
         # curr_key = 'Permutations/Perm(nb=3)'
         curr_node = tree.get_node(curr_key)
         for node_common2curr in curr_node.get_path_from_node(common_parent):
-            if node_common2curr is common_parent: # skip commom ancestor
+            if node_common2curr is common_parent:
+                # skip commom ancestor
                 continue
-            if node_common2curr is  curr_node: # do not process current node
+            if node_common2curr is curr_node:
+                # do not process current node
                 break
-            print node_common2curr            
+            node_common2curr = tree.get_node(node_common2curr.get_key())
             func = getattr(node_common2curr, function)
             cpXy = func(recursion=False, **cpXy)
         # print "Recursively run from root to current node"
