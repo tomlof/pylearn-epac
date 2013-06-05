@@ -38,7 +38,7 @@ if __name__ == "__main__":
                       'represents a key node')
     parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
-    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./10.job']
+    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./3.job']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     # Set default values to parameters
@@ -104,6 +104,7 @@ if __name__ == "__main__":
     # Root to commun node, overwrite Xy since they won't be use anymore
     if common_parent:
         for node_root2common in common_parent.get_path_from_root():
+            node_root2common = tree.get_node(node_root2common.get_key())
             print node_root2common
             #print parent_node
             func = getattr(node_root2common, function)

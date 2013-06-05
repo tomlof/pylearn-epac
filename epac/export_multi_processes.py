@@ -294,7 +294,7 @@ def run_multi_processes(
     bin_epac_mapper = which("epac_mapper")
     if not bin_epac_mapper:
         raise ValueError("epac_mapper cannot be found in PATH variable. "
-                         "Please verify epac_mapper "
+                         "Please verify if epac_mapper is"
                          "contained in PATH.")
     nodes_per_processor_list = _export_nodes2num_processes(
         node=in_tree_root,
