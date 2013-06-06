@@ -12,132 +12,141 @@ Introduction
 ------------
 
 The library Epac can create an Epac tree for machine learning algorithms.
-This example shows how to export and to submit
-the Epac tree to soma-workflow without GUI.
+This example shows how to compute Epac with n processes
 """
 
 import os
 import sys
+import optparse
 import shutil
+import time
 import numpy as np
 
 
-from epac.export_multi_processes import export2somaworkflow
-from epac.workflow.base import conf
-
-
-#############################################################################
-## Working directory, input and output paths
-'''
-+ my_working_directory
-  - epac_datasets.npz
-  + storekeys
-    + ...
-  - epac_workflow_example
-'''
-
-## Setup a working directory (my_working_directory)
-## All the data should be saved and run in this directory
-my_working_directory = "/tmp/my_working_directory"
-
-## All the file paths should be ***RELATIVE*** path in the working directory
-## Because the file path in the client side and that in the sever side
-## are DIFFERENT.
-
-# Training and test data
-datasets_file = "./epac_datasets.npz"
-# root key for Epac tree
-key_file = "./storekeys"
-# Soma-workflow file which can be opened by soma_workflow_gui
-soma_workflow_file = "./epac_workflow_example"
-
-
-#############################################################################
-## Clean and change the working directory
-## so that we can use relative path in the directory "my_working_directory"
-
-if os.path.isdir(my_working_directory):
-    shutil.rmtree(my_working_directory)
-
-os.mkdir(my_working_directory)
-os.chdir(my_working_directory)
-
-#############################################################################
-## DATASET
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
+from epac import range_log2
+from epac import StoreFs
+from epac.export_multi_processes import export2somaworkflow
 
 
-X, y = datasets.make_classification(n_samples=10000, n_features=500,
-                                    n_informative=5)
-np.savez(datasets_file, X=X, y=y)
+def do_all(options):
+    '''
+    + my_working_directory
+      - epac_datasets.npz
+      - soma-workflow_epac_tree
+      + epac_tree
+    '''
+    ## All the file paths should be ***RELATIVE*** path in the working
+    ## directory
+    # Training and test data
+    datasets_file_relative_path = "./epac_datasets.npz"
+    # root key for Epac tree
+    tree_root_relative_path = "./epac_tree"
+    somaworkflow_relative_path = "./soma-workflow_epac_tree"
+    random_state = 0
+
+    ## 1) Create Working directory
+    ## ===========================
+    if os.path.isdir(options.working_dir_path):
+        shutil.rmtree(options.working_dir_path)
+    os.mkdir(options.working_dir_path)
+    os.chdir(options.working_dir_path)
+
+    ## 2) Build dataset
+    ## ================
+    X, y = datasets.make_classification(n_samples=options.n_samples,
+                                        n_features=options.n_features,
+                                        n_informative=options.n_informative)
+    np.savez(datasets_file_relative_path, X=X, y=y)
+
+    ## 3) Build Workflow
+    ## =================
+    from epac import Perms, CV, CVGridSearchRefit, Pipe, Grid
+    from epac import SummaryStat, PvalPerms
+    if options.k_max != "auto":
+        k_values = range_log2(np.minimum(int(options.k_max),
+                                         options.n_features), add_n=True)
+    else:
+        k_values = range_log2(options.n_features, add_n=True)
+    C_values = [1, 10]
+    time_start = time.time()
+    ## CV + Grid search of a pipeline with a nested grid search
+    pipeline = CVGridSearchRefit(*[
+                  Pipe(SelectKBest(k=k),
+                      Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
+                  for k in k_values],
+                  n_folds=options.n_folds_nested, random_state=random_state)
+    wf = Perms(CV(pipeline, n_folds=options.n_folds),
+             n_perms=options.n_perms, permute="y", random_state=random_state)
+    print "Time ellapsed, tree construction:", time.time() - time_start
+    time_save = time.time()
+    ## 4) Save on disk
+    ## ===============
+    store = StoreFs(dirpath=tree_root_relative_path)
+    wf.save_tree(store=store)
+    print "Time ellapsed, saving on disk:",  time.time() - time_save
+    ## 5) Run
+    ## ======
+    #wf.fit_predict(X=X, y=y)
+    (wf_id, controller) = export2somaworkflow(
+        in_datasets_file_relative_path=datasets_file_relative_path,
+        in_working_directory=options.working_dir_path,
+        out_soma_workflow_file=somaworkflow_relative_path,
+        in_tree_root=wf,
+        in_is_sumbit=True,
+        in_resource_id="",
+        in_login="",
+        in_pw="")
+    from soma.workflow.client import Helper
+    ## wait the workflow to finish
+    Helper.wait_workflow(wf_id, controller)
+    ## transfer the output files from the workflow
+    Helper.transfer_output_files(wf_id, controller)
+    ## Remove the workflow in soma-workflow
+    controller.delete_workflow(wf_id)
+    ## 6) Load Epac tree & Reduce
+    ## ==========================
+    wf = store.load()
+    print wf.reduce()
 
 
-##############################################################################
-## EPAC WORKFLOW
-#              Perms                 Perm (Splitter)
-#         /     |       \
-#        0      1       2            Samples (Slicer)
-#        |
-#          CV                        CV (Splitter)
-#  /       |       \
-# 0        1       2                 Folds (Slicer)
-# |        |       |
-# Pipe     Pipe     Pipe             Pipeline
-# |
-# 2                                  SelectKBest (Estimator)
-# |
-# Grid
-# |                     \
-# SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
+if __name__ == "__main__":
+    # Set default values to parameters
+    n_samples = 100
+    n_features = int(1E03)
+    n_informative = 5
+    n_perms = 10
+    n_folds = 10
+    n_folds_nested = 5
+    k_max = "auto"
+    n_cores = 3
+    working_dir_path = "/tmp/my_working_directory"
 
-from epac import Perms, CV, WF, Seq, Grid
-
-pipeline = Seq(SelectKBest(k=2),
-               Grid(*[SVC(kernel="linear", C=C) for C in [1, 10]]))
-
-wf = Perms(CV(pipeline, n_folds=3), n_perms=10, permute="y")
-
-# The Epac tree will be saved in with "key_file"
-wf.save(store=key_file)
-
-wf_key = wf.get_key()
-
-
-#########################################################################
-## RUN with soma-workflow on the local computer
-## (c.f. http://brainvisa.info/soma/soma-workflow/)
-
-
-(wf_id, controller) = export2somaworkflow(
-    in_datasets_file=datasets_file,
-    in_working_directory=my_working_directory,
-    out_soma_workflow_file=soma_workflow_file,
-    in_tree_root=wf,
-    in_is_sumbit=True,
-    in_resource_id="",
-    in_login="",
-    in_pw=""
-)
-
-from soma.workflow.client import Helper
-
-## wait the workflow to finish
-Helper.wait_workflow(wf_id, controller)
-## transfer the output files from the workflow
-Helper.transfer_output_files(wf_id, controller)
-## Remove the workflow in soma-workflow
-controller.delete_workflow(wf_id)
-
-
-#########################################################################
-## Reduce Process
-## Get results using reduce after soma_workflow finish all the jobs.
-
-os.chdir(my_working_directory)
-
-# Load Epac tree
-wf = WF.load(wf_key)
-
-wf.reduce()
+    # parse command line options
+    parser = optparse.OptionParser()
+    parser.add_option('-n', '--n_samples',
+        help='(default %d)' % n_samples, default=n_samples, type="int")
+    parser.add_option('-p', '--n_features',
+        help='(default %d)' % n_features, default=n_features, type="int")
+    parser.add_option('-i', '--n_informative',
+        help='(default %d)' % n_informative, default=n_informative, type="int")
+    parser.add_option('-m', '--n_perms',
+        help='(default %d)' % n_perms, default=n_perms, type="int")
+    parser.add_option('-f', '--n_folds',
+        help='(default %d)' % n_folds, default=n_folds, type="int")
+    parser.add_option('-g', '--n_folds_nested',
+        help='(default %d)' % n_folds_nested, default=n_folds_nested, type="int")
+    parser.add_option('-k', '--k_max',
+        help='"auto": 1, 2, 4, ... n_features values. "fixed": 1, 2, 4, ..., k_max (default %s)' % k_max, default=k_max, type="string")
+    parser.add_option('-t', '--trace',
+        help='Trace execution (default %s)' % False, action='store_true', default=False)
+    parser.add_option('-c', '--n_cores',
+        help='(default %d)' % n_cores, default=n_cores, type="int")
+    parser.add_option('-w', '--working_dir_path',
+        help='(default %s)' % working_dir_path, default=working_dir_path)
+    #argv = ['examples/large_toy.py']
+    #options, args = parser.parse_args(argv)
+    options, args = parser.parse_args(sys.argv)
+    do_all(options)
