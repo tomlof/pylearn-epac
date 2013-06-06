@@ -76,7 +76,6 @@ def do_all(options):
                       Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
                   n_folds=options.n_folds_nested, random_state=random_state)
-
     wf = Perms(CV(pipeline, n_folds=options.n_folds),
              n_perms=options.n_perms, permute="y", random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
@@ -94,7 +93,7 @@ def do_all(options):
     in_datasets_file_relative_path=datasets_file_relative_path,
     in_working_directory=options.working_dir_path,
     in_tree_root=wf,
-    in_num_cores=options.n_cores,
+    in_num_processes=options.n_cores,
     in_is_wait=True
     )
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
@@ -117,7 +116,7 @@ if __name__ == "__main__":
     n_folds = 10
     n_folds_nested = 5
     k_max = "auto"
-    n_cores = 2
+    n_cores = 3
     working_dir_path = "/tmp/my_working_directory"
 
     # parse command line options

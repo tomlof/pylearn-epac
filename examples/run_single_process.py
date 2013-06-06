@@ -23,6 +23,7 @@ def do_all(options):
     else:
         k_values = range_log2(options.n_features, add_n=True)
     C_values = [1, 10]
+    random_state = 0
     #print options
     #sys.exit(0)
     if options.trace:
@@ -44,11 +45,9 @@ def do_all(options):
                   Pipe(SelectKBest(k=k),
                       Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
                   for k in k_values],
-                  n_folds=options.n_folds_nested)
-
-    #print pipeline.stats(group_by="class")
+                  n_folds=options.n_folds_nested, random_state=random_state)
     wf = Perms(CV(pipeline, n_folds=options.n_folds),
-             n_perms=options.n_perms, permute="y")
+             n_perms=options.n_perms, permute="y", random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
 
     ## 3) Run Workflow
@@ -60,15 +59,15 @@ def do_all(options):
 
     ## 4) Reduce Workflow
     ## ==================
-    wf.reduce()
+    print wf.reduce()
     print "Time ellapsed, reduce:",   time.time() - time_reduce
 
 if __name__ == "__main__":
     # Set default values to parameters
     n_samples = 100
-    n_features = int(1E04)
+    n_features = int(1E03)
     n_informative = 5
-    n_perms = 100
+    n_perms = 10
     n_folds = 10
     n_folds_nested = 5
     k_max = "auto"
