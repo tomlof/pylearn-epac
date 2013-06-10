@@ -104,7 +104,7 @@ class CV(BaseNodeSplitter):
         self.cv_type = cv_type
         self.reducer = reducer
         self.slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
-        self.children = VirtualList(size=n_folds, callback=self.move_to_child)
+        self.children = VirtualList(size=n_folds, parent=self)
         self.slicer.parent = self
         subtree = node if isinstance(node, BaseNode) else Estimator(node)
         self.slicer.add_child(subtree)
@@ -186,7 +186,7 @@ class Perms(BaseNodeSplitter):
         self.random_state = random_state
         self.reducer = reducer
         self.slicer = RowSlicer(signature_name="Perm", nb=0, apply_on=permute)
-        self.children = VirtualList(size=n_perms, callback=self.move_to_child)
+        self.children = VirtualList(size=n_perms, parent=self)
         self.slicer.parent = self
         subtree = node if isinstance(node, BaseNode) else Estimator(node)
         self.slicer.add_child(subtree)
@@ -272,15 +272,16 @@ class Methods(BaseNodeSplitter):
 # -------------------------------- #
 
 class VirtualList(collections.Sequence):
-    def __init__(self, size, callback):
+    def __init__(self, size, parent):
         self.size = size
-        self.callback = callback
+        self.parent = parent
+        
     def __len__(self):
         return self.size
     def __getitem__(self, i):
         if i >= self.size:
             raise IndexError("%s index out of range" % self.__class__.__name__)
-        return self.callback(i)
+        return self.parent.move_to_child(nb=i)
         #return self.parent.move_to_child(i, self.slicer)
     def __iter__(self):
         """ Iterate over leaves"""
