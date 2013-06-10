@@ -77,7 +77,9 @@ class TestCVBestSearchRefit(unittest.TestCase):
 
         # = With EPAC
         pipelines = Methods(*[Pipe(SelectKBest(k=k),
-                                   Methods(*[SVC(C=C, kernel="linear") for C in C_values])) for k in k_values])
+                                   Methods(*[SVC(C=C, kernel="linear")
+                                   for C in C_values]))
+                                   for k in k_values])
         #print [n for n in pipelines.walk_leaves()]
         pipelines_cv = CVBestSearchRefit(pipelines,
                         sn_folds=n_folds_nested, random_state=random_state)
@@ -106,7 +108,9 @@ class TestCVBestSearchRefit(unittest.TestCase):
         r_sklearn['mean_score_tr'] = [None] * n_perms
 
         perm_nb = 0
-        perms = Permutations(n=y.shape[0], n_perms=n_perms, random_state=random_state)
+        perms = Permutations(n=y.shape[0],
+                             n_perms=n_perms,
+                             random_state=random_state)
         for idx in perms:
             #idx = perms.__iter__().next()
             y_p = y[idx]

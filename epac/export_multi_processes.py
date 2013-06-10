@@ -18,9 +18,9 @@ import subprocess
 from epac.errors import NoSomaWFError, NoEpacTreeRootError
 from epac.configuration import conf
 from epac.utils import which
-from epac.workflow.estimators import CVGridSearchRefit
+from epac.workflow.estimators import CVBestSearchRefit
 
-_classes_cannot_be_splicted = [CVGridSearchRefit().__class__.__name__]
+_classes_cannot_be_splicted = [CVBestSearchRefit.__class__.__name__]
 
 
 def _is_cannot_be_splicted(signature):
@@ -171,7 +171,7 @@ def export2somaworkflow(in_datasets_file_relative_path,
     in_num_processes: integer
         This parameter is used for optimizing exported nodes (in_nodes)
         according to the number of cores that you have on your running
-        machine. "in_num_processes" would be less than or equal to 
+        machine. "in_num_processes" would be less than or equal to
         the real number of cores on your computer.
 
     in_is_sumbit: boolean

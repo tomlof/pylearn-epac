@@ -21,7 +21,7 @@ from sklearn.feature_selection import SelectKBest
 
 from epac import StoreFs
 from epac import conf
-from epac import Perms, CV, Pipe, Grid, CVGridSearchRefit
+from epac import CVBestSearchRefit, Pipe, CV, Perms, Methods
 from epac import range_log2
 
 
@@ -29,9 +29,9 @@ def _displayres(d, indent=0):
     for key, value in d.iteritems():
         print '\t' * indent + str(key)
         if isinstance(value, dict):
-            _displayres(value, indent+1)
+            _displayres(value, indent + 1)
         else:
-            print '\t' * (indent+1) + str(value)
+            print '\t' * (indent + 1) + str(value)
 
 
 def _is_numeric_paranoid(obj):
@@ -132,9 +132,9 @@ class EpacWorkflowTest(unittest.TestCase):
                                   add_n=True)
         else:
             k_values = range_log2(self.n_features, add_n=True)
-        pipeline = CVGridSearchRefit(*[
+        pipeline = CVBestSearchRefit(*[
                                      Pipe(SelectKBest(k=k),
-                                     Grid(*[SVC(kernel="linear", C=C)
+                                     Methods(*[SVC(kernel="linear", C=C)
                                      for C in C_values]))
                                      for k in k_values],
                                      n_folds=n_folds_nested,
@@ -162,11 +162,11 @@ class EpacWorkflowTest(unittest.TestCase):
         # |
         # 2                                   SelectKBest (Estimator)
         # |
-        # Grid
+        # Methods
         # |                     \
         # SVM(linear,C=1)   SVM(linear,C=10)  Classifiers (Estimator)
         pipeline = Pipe(SelectKBest(k=2),
-                        Grid(*[SVC(kernel="linear", C=C)
+                        Methods(*[SVC(kernel="linear", C=C)
                         for C in [1, 3]]))
         self.wf = Perms(CV(pipeline, n_folds=3),
                         n_perms=3,

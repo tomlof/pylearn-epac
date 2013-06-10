@@ -25,6 +25,7 @@ def key_push(key, basename):
     else:
         return key or basename
 
+
 def key_pop(key, index=-1):
     """Split the key into head / tail.
 
@@ -69,7 +70,8 @@ def key_split(key, eval=False):
     >>> key_split(key='SelectKBest(k=1)/SVC(kernel=linear,C=1)')
     ['SelectKBest(k=1)', 'SVC(kernel=linear,C=1)']
     >>> key_split(key='SelectKBest(k=1)/SVC(kernel=linear,C=1)', eval=True)
-    [[('name', 'SelectKBest'), ('k', 1)], [('name', 'SVC'), ('kernel', 'linear'), ('C', 1)]]
+    [[('name', 'SelectKBest'), ('k', 1)], [('name', 'SVC'),
+      ('kernel', 'linear'), ('C', 1)]]
     """
     signatures = [signature for signature in key.split(conf.KEY_PATH_SEP)]
     if eval:
