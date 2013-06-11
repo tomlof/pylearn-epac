@@ -356,26 +356,29 @@ class BaseNode(object):
         >>> print [n.get_signature() for n in leaf.get_path_from_root()]
         ['Perms', 'Perm(nb=2)', 'CV', 'CV(nb=0)', 'SelectKBest', 'Methods', 'LDA']
         """
-        key = self.get_key()
-        parent_key = node.get_key()
-        path_key = key.replace(parent_key, "").lstrip(conf.KEY_PATH_SEP)
-        key_parts = key_split(path_key)
-        #idx = len(key_parts) - 1
-        curr = self
-        # Check if node can be found in parents
-        while curr and curr.get_key() != parent_key:
-            curr = curr.parent
-        if not curr or curr is not node:
-            raise ValueError('Parent node could not be found in tree')
-        # Go down from node to self
-        yield curr
-        while key_parts:
-            signature = key_parts.pop(0)
-            for child in curr.children:
-                if child.get_signature() == signature:
-                    break
-            curr = child
+        if node.get_key() == self.get_key():
+            yield node
+        else:
+            key = self.get_key()
+            parent_key = node.get_key()
+            path_key = key.replace(parent_key, "").lstrip(conf.KEY_PATH_SEP)
+            key_parts = key_split(path_key)
+            #idx = len(key_parts) - 1
+            curr = self
+            # Check if node can be found in parents
+            while curr and curr.get_key() != parent_key:
+                curr = curr.parent
+            if not curr or curr is not node:
+                raise ValueError('Parent node could not be found in tree')
+            # Go down from node to self
             yield curr
+            while key_parts:
+                signature = key_parts.pop(0)
+                for child in curr.children:
+                    if child.get_signature() == signature:
+                        break
+                curr = child
+                yield curr
 
     # --------------------- #
     # -- Key             -- #

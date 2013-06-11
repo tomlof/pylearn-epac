@@ -38,7 +38,7 @@ if __name__ == "__main__":
                       'represents a key node')
     parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
-    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./3.job']
+    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./0.job']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     # Set default values to parameters
@@ -109,6 +109,7 @@ if __name__ == "__main__":
             #print parent_node
             func = getattr(node_root2common, function)
             Xy = func(recursion=False, **Xy)
+            print repr(Xy)
     # Execute what is specific to each keys
     for curr_key in listkey:
         # curr_key = listkey.__iter__().next()
