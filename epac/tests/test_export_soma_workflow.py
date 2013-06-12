@@ -24,7 +24,7 @@ from epac import conf
 from epac import CVBestSearchRefit, Pipe, CV, Perms, Methods
 from epac import range_log2
 
-from epac.tests.wfexamples2test import WFExample1, WFExample2, WFExample3
+from epac.tests.wfexamples2test import get_wf_example_classes
 
 
 def _displayres(d, indent=0):
@@ -122,32 +122,48 @@ class EpacWorkflowTest(unittest.TestCase):
             n_informative=5)
         np.savez(self.datasets_file_relative_path, X=self.X, y=self.y)
 
-    def _build_first_workflow(self):
-        self.wf = WFExample1().get_workflow()
-        self.store = StoreFs(dirpath=self.tree_root_relative_path)
-        self.wf.save_tree(store=self.store)
+    def test_all_examples_multi_processes(self):
+        from epac.export_multi_processes import run_multi_processes
+        list_all_examples = get_wf_example_classes()
+        for example in list_all_examples:
+            self._build_wdir_dataset()
+            self.wf = example().get_workflow()
+            self.store = StoreFs(dirpath=self.tree_root_relative_path)
+            self.wf.save_tree(store=self.store)
+            run_multi_processes(
+            in_datasets_file_relative_path=self.datasets_file_relative_path,
+            in_working_directory=self.my_working_directory,
+            in_tree_root=self.wf,
+            in_num_processes=10,
+            in_is_wait=True)
+            self._start2cmp()
 
-    def _build_second_workflow(self):
-        self.wf = WFExample2().get_workflow()
-        self.store = StoreFs(dirpath=self.tree_root_relative_path)
-        self.wf.save_tree(store=self.store)
-
-    def _build_third_workflow(self):
-        self.wf = WFExample3().get_workflow(n_features=self.n_features)
-        self.store = StoreFs(dirpath=self.tree_root_relative_path)
-        self.wf.save_tree(store=self.store)
-
-    def _example_one(self):
-        self._build_wdir_dataset()
-        self._build_first_workflow()
-
-    def _example_two(self):
-        self._build_wdir_dataset()
-        self._build_second_workflow()
-
-    def _example_three(self):
-        self._build_wdir_dataset()
-        self._build_third_workflow()
+#    def _build_first_workflow(self):
+#        self.wf = WFExample1().get_workflow()
+#        self.store = StoreFs(dirpath=self.tree_root_relative_path)
+#        self.wf.save_tree(store=self.store)
+#
+#    def _build_second_workflow(self):
+#        self.wf = WFExample2().get_workflow()
+#        self.store = StoreFs(dirpath=self.tree_root_relative_path)
+#        self.wf.save_tree(store=self.store)
+#
+#    def _build_third_workflow(self):
+#        self.wf = WFExample3().get_workflow(n_features=self.n_features)
+#        self.store = StoreFs(dirpath=self.tree_root_relative_path)
+#        self.wf.save_tree(store=self.store)
+#
+#    def _example_one(self):
+#        self._build_wdir_dataset()
+#        self._build_first_workflow()
+#
+#    def _example_two(self):
+#        self._build_wdir_dataset()
+#        self._build_second_workflow()
+#
+#    def _example_three(self):
+#        self._build_wdir_dataset()
+#        self._build_third_workflow()
 
 #    def test_example_one(self):
 #        self._build_wdir_dataset()
@@ -169,41 +185,41 @@ class EpacWorkflowTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_soma_workflow_cluster(self):
-        from soma.workflow.client import Helper
-        from epac.export_multi_processes import export2somaworkflow
-        self._example_one()
-        (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=self.datasets_file_relative_path,
-            in_working_directory=self.my_working_directory,
-            out_soma_workflow_file=self.soma_workflow_relative_path,
-            in_tree_root=self.wf,
-            in_is_sumbit=True,
-            in_resource_id="ed203246@gabriel",
-            in_login="ed203246",
-            in_pw="")
-        ## wait the workflow to finish
-        Helper.wait_workflow(wf_id, controller)
-        ## transfer the output files from the workflow
-        Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
-        self._start2cmp()
-        self._example_two()
-        (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=self.datasets_file_relative_path,
-            in_working_directory=self.my_working_directory,
-            out_soma_workflow_file=self.soma_workflow_relative_path,
-            in_tree_root=self.wf,
-            in_is_sumbit=True,
-            in_resource_id="ed203246@gabriel",
-            in_login="ed203246",
-            in_pw="")
-        ## wait the workflow to finish
-        Helper.wait_workflow(wf_id, controller)
-        ## transfer the output files from the workflow
-        Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
-        self._start2cmp()
+#    def test_soma_workflow_cluster(self):
+#        from soma.workflow.client import Helper
+#        from epac.export_multi_processes import export2somaworkflow
+#        self._example_one()
+#        (wf_id, controller) = export2somaworkflow(
+#            in_datasets_file_relative_path=self.datasets_file_relative_path,
+#            in_working_directory=self.my_working_directory,
+#            out_soma_workflow_file=self.soma_workflow_relative_path,
+#            in_tree_root=self.wf,
+#            in_is_sumbit=True,
+#            in_resource_id="ed203246@gabriel",
+#            in_login="ed203246",
+#            in_pw="")
+#        ## wait the workflow to finish
+#        Helper.wait_workflow(wf_id, controller)
+#        ## transfer the output files from the workflow
+#        Helper.transfer_output_files(wf_id, controller)
+#        controller.delete_workflow(wf_id)
+#        self._start2cmp()
+#        self._example_two()
+#        (wf_id, controller) = export2somaworkflow(
+#            in_datasets_file_relative_path=self.datasets_file_relative_path,
+#            in_working_directory=self.my_working_directory,
+#            out_soma_workflow_file=self.soma_workflow_relative_path,
+#            in_tree_root=self.wf,
+#            in_is_sumbit=True,
+#            in_resource_id="ed203246@gabriel",
+#            in_login="ed203246",
+#            in_pw="")
+#        ## wait the workflow to finish
+#        Helper.wait_workflow(wf_id, controller)
+#        ## transfer the output files from the workflow
+#        Helper.transfer_output_files(wf_id, controller)
+#        controller.delete_workflow(wf_id)
+#        self._start2cmp()
 
 #    def test_soma_workflow(self):
 #        from soma.workflow.client import Helper
@@ -260,7 +276,6 @@ class EpacWorkflowTest(unittest.TestCase):
 #        controller.delete_workflow(wf_id)
 #        self._start2cmp()
 
-
 #    def test_multi_processes(self):
 #        from epac.export_multi_processes import run_multi_processes
 #        self._example_one()
@@ -300,8 +315,8 @@ class EpacWorkflowTest(unittest.TestCase):
         self._compare_res(self.res_epac, self.res_swf)
 
     def _compare_res(self, R1, R2):
-        _displayres(R1)
-        _displayres(R2)
+#        _displayres(R1)
+#        _displayres(R2)
         self.assertTrue(_isequal(R1, R2))
         return
 

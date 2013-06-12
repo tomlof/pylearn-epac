@@ -8,7 +8,8 @@ Created on Tue Jun 11 11:13:20 2013
 
 """
 
-
+import sys
+import inspect
 from abc import ABCMeta, abstractmethod
 import numpy as np
 from sklearn.svm import SVC
@@ -16,25 +17,26 @@ from sklearn.feature_selection import SelectKBest
 
 from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
 
+current_module = sys.modules[__name__]
+
 
 class WorkflowExample(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
     def get_workflow(self):
+        """Retrieve workflow"""
         return None
 
 
-class WFExample1(object):
+class WFExample1(WorkflowExample):
 
     def get_workflow(self):
         wf = Methods(*[SVC(kernel="linear", C=C) for C in [1, 3]])
         return wf
 
-WorkflowExample.register(WFExample1)
 
-
-class WFExample2(object):
+class WFExample2(WorkflowExample):
 
     def get_workflow(self):
         ####################################################################
@@ -64,10 +66,8 @@ class WFExample2(object):
         wf = Methods(*[SVC(kernel="linear", C=C) for C in [1, 3]])
         return wf
 
-WorkflowExample.register(WFExample2)
 
-
-class WFExample3(object):
+class WFExample3(WorkflowExample):
 
     def get_workflow(self, n_features=int(1E03)):
         random_state = 0
@@ -95,4 +95,23 @@ class WFExample3(object):
                         random_state=random_state)
         return wf
 
-WorkflowExample.register(WFExample3)
+
+def get_wf_example_classes(base_class="WorkflowExample"):
+    list_sub_classes = []
+    for name, obj in inspect.getmembers(sys.modules[__name__]):
+        if inspect.isclass(obj) \
+        and issubclass(obj, eval(base_class)) \
+        and name != base_class:
+            list_sub_classes.append(obj)
+#            print "==============================="
+#            print issubclass(obj, eval(base_class))
+#            print obj.__class__.__name__
+#            print name
+#            print obj
+    return list_sub_classes
+
+if __name__ == '__main__':
+    list_sub_classes = get_wf_example_classes(base_class="WorkflowExample")
+    for sub_class in list_sub_classes:
+        print repr(sub_class)
+        print sub_class().get_workflow()

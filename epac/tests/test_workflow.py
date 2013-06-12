@@ -51,7 +51,7 @@ class TestPermCV(unittest.TestCase):
                 r_sklearn[perm_nb][fold_nb] = clf.predict(X_test)
                 fold_nb += 1
             perm_nb += 1
-    
+
         # Comparison
         comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
         self.assertTrue(comp, u'Diff Perm / CV: EPAC vs sklearn')
