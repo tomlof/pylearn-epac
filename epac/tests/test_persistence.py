@@ -40,7 +40,7 @@ class TestWorkFlow(unittest.TestCase):
                             for k in k_values])
 
         pipeline = CVBestSearchRefit(pipelines,
-                                     sn_folds=n_folds_nested)
+                                     n_folds=n_folds_nested)
 
         tree_mem = CV(pipeline, n_folds=n_folds,
                       reducer=SummaryStat(keep=False))

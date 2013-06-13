@@ -87,7 +87,7 @@ class WFExample3(WorkflowExample):
                                    for C in C_values
                                    for k in k_values])
         pipeline = CVBestSearchRefit(cls,
-                                     sn_folds=n_folds_nested,
+                                     n_folds=n_folds_nested,
                                      random_state=random_state)
         wf = Perms(CV(pipeline, n_folds=n_folds),
                         n_perms=n_perms,

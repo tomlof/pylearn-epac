@@ -154,14 +154,14 @@ class EpacWorkflowTest(unittest.TestCase):
             self.store = StoreFs(dirpath=self.tree_root_relative_path)
             self.wf.save_tree(store=self.store)
             (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=self.datasets_file_relative_path,
-            in_working_directory=self.my_working_directory,
-            out_soma_workflow_file=self.soma_workflow_relative_path,
-            in_tree_root=self.wf,
-            in_is_sumbit=True,
-            in_resource_id="ed203246@gabriel",
-            in_login="ed203246",
-            in_pw="")
+                in_datasets_file_relative_path=self.datasets_file_relative_path,
+                in_working_directory=self.my_working_directory,
+                out_soma_workflow_file=self.soma_workflow_relative_path,
+                in_tree_root=self.wf,
+                in_is_sumbit=True,
+                in_resource_id="ed203246@gabriel",
+                in_login="ed203246",
+                in_pw="")
             Helper.wait_workflow(wf_id, controller)
             ## transfer the output files from the workflow
             Helper.transfer_output_files(wf_id, controller)
