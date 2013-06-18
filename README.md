@@ -44,7 +44,7 @@ Application programing interface
   - `score(<keyword arguments>)`: is called only if the estimator is a leaf node. It return an 
      scalar or a dictionary. In the latter the returned dictionary is added to 
      results.
-- `Node ::= Estimator | Pipe | Methods | Grid | CV | Permutations`. The workflow
+- `Node ::= Estimator | Pipe | Methods | CV | Permutations`. The workflow
    is a tree, made of nodes of several types:
 - `Pipe(Node+)`: Build pipepline with sequential execution of `Nodes`.
 
@@ -94,22 +94,6 @@ anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC(kernel="linear")) for k in
     [1, 5, 10]])
 anovas_svm.fit_predict(X=X, y=y)
 anovas_svm.reduce()
-```
-
-- `Grid(Node+)`: Similar to `Methods` but Nodes should be of the same types
-   and differs only with their arguments. This way collusions occur in results
-   upstream leading to aggregation (stacking into grid) of results.
-
-```python
-#                   Grid                Grid (Splitter)
-#                  /     \
-# SVM(linear, C=1)  .... SVM(rbf, C=10) Classifiers (Estimator)
-from epac import Grid
-svms = Grid(*[SVC(kernel=kernel, C=C) for kernel in ("linear", "rbf") for C in [1, 10]])
-svms.fit_predict(X=X, y=y)
-svms.reduce()
-[l.get_key() for l in svms]
-[l.get_key(2) for l in svms]  # intermediary key collisions: trig aggregation
 ```
 
 - `CV(Node, n_folds, y, reducer)`: Cross-validation parallelization node.
