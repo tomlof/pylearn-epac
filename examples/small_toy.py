@@ -111,7 +111,7 @@ wf.fit_predict(X=X, y=y)
 wf.reduce()
 
 
-# Perms + Cross-validation of SVM(linear) and SVM(rbf) 
+# Perms + Cross-validation of SVM(linear) and SVM(rbf)
 # -------------------------------------
 #           Perms        Perm (Splitter)
 #      /     |       \

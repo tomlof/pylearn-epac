@@ -13,7 +13,8 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
-from epac import range_log2
+
+from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
 
 
 def do_all(options):
@@ -38,16 +39,18 @@ def do_all(options):
 
     ## 2) Build Workflow
     ## =================
-    from epac import Perms, CV, CVBestSearchRefit, Pipe, Grid
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
-    pipeline = CVBestSearchRefit(*[
-                  Pipe(SelectKBest(k=k),
-                      Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
-                  for k in k_values],
+    cls = Methods(*[Pipe(SelectKBest(k=k),
+                      SVC(kernel="linear", C=C))
+                      for C in C_values
+                      for k in k_values])
+    pipeline = CVBestSearchRefit(cls,
                   n_folds=options.n_folds_nested, random_state=random_state)
     wf = Perms(CV(pipeline, n_folds=options.n_folds),
-             n_perms=options.n_perms, permute="y", random_state=random_state)
+             n_perms=options.n_perms,
+             permute="y",
+             random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
 
     ## 3) Run Workflow

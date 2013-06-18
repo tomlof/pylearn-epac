@@ -63,8 +63,7 @@ def do_all(options):
 
     ## 3) Build Workflow
     ## =================
-    from epac import Perms, CV, CVGridSearchRefit, Pipe, Grid
-    from epac import SummaryStat, PvalPerms
+    from epac import Perms, CV, CVBestSearchRefit, Pipe, Methods
     if options.k_max != "auto":
         k_values = range_log2(np.minimum(int(options.k_max),
                                          options.n_features), add_n=True)
@@ -73,13 +72,16 @@ def do_all(options):
     C_values = [1, 10]
     time_start = time.time()
     ## CV + Grid search of a pipeline with a nested grid search
-    pipeline = CVGridSearchRefit(*[
-                  Pipe(SelectKBest(k=k),
-                      Grid(*[SVC(kernel="linear", C=C) for C in C_values]))
-                  for k in k_values],
+    cls = Methods(*[Pipe(SelectKBest(k=k),
+                      SVC(kernel="linear", C=C))
+                      for C in C_values
+                      for k in k_values])
+    pipeline = CVBestSearchRefit(cls,
                   n_folds=options.n_folds_nested, random_state=random_state)
     wf = Perms(CV(pipeline, n_folds=options.n_folds),
-             n_perms=options.n_perms, permute="y", random_state=random_state)
+             n_perms=options.n_perms,
+             permute="y",
+             random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
     time_save = time.time()
     ## 4) Save on disk
