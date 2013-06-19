@@ -29,6 +29,9 @@ class Engine(object):
 
 class LocalEngine(Engine):
 
+    dataset_relative_path = "./dataset.npz"
+    tree_root_relative_path = "./epac_tree"
+
     def __init__(self,
                  tree_root,
                  num_processes=-1):
@@ -39,22 +42,20 @@ class LocalEngine(Engine):
             self.num_processes = multiprocessing.cpu_count()
         else:
             self.num_processes = num_processes
-        self.dataset_relative_path = "./dataset.npz"
-        self.tree_root_relative_path = "./epac_tree"
 
     def fit_predict(self, **Xy):
         tmp_work_dir_path = tempfile.mkdtemp()
         # print "tmp_work_dir_path="+tmp_work_dir_path
         np.savez(os.path.join(tmp_work_dir_path,
-                 self.dataset_relative_path), X=Xy['X'], y=Xy['y'])
+                 LocalEngine.dataset_relative_path), X=Xy['X'], y=Xy['y'])
         cur_work_dir = os.getcwd()
         os.chdir(tmp_work_dir_path)
         store = StoreFs(dirpath=os.path.join(
             tmp_work_dir_path,
-            self.tree_root_relative_path))
+            LocalEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
         run_multi_processes(
-            in_datasets_file_relative_path=self.dataset_relative_path,
+            in_datasets_file_relative_path=LocalEngine.dataset_relative_path,
             in_working_directory=tmp_work_dir_path,
             in_tree_root=self.tree_root,
             in_num_processes=self.num_processes,
@@ -67,6 +68,8 @@ class LocalEngine(Engine):
 
 
 class SomaWorkflowEngine(LocalEngine):
+
+    open_me_by_soma_workflow_gui = "open_me_by_soma_workflow_gui"
 
     def __init__(self,
                  tree_root,
@@ -87,19 +90,21 @@ class SomaWorkflowEngine(LocalEngine):
         from epac.export_multi_processes import export2somaworkflow
         from soma.workflow.client import Helper
         tmp_work_dir_path = tempfile.mkdtemp()
-        print "tmp_work_dir_path="+tmp_work_dir_path
+        # print "tmp_work_dir_path="+tmp_work_dir_path
         np.savez(os.path.join(tmp_work_dir_path,
-                 self.dataset_relative_path), X=Xy['X'], y=Xy['y'])
+                 LocalEngine.dataset_relative_path), X=Xy['X'], y=Xy['y'])
         cur_work_dir = os.getcwd()
         os.chdir(tmp_work_dir_path)
         store = StoreFs(dirpath=os.path.join(
             tmp_work_dir_path,
-            self.tree_root_relative_path))
+            LocalEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
         (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=self.dataset_relative_path,
+            in_datasets_file_relative_path=LocalEngine.dataset_relative_path,
             in_working_directory=tmp_work_dir_path,
-            out_soma_workflow_file="open_me_by_soma_workflow_gui",
+            out_soma_workflow_file=
+                SomaWorkflowEngine.open_me_by_soma_workflow_gui,
+            in_num_processes=self.num_processes,
             in_tree_root=self.tree_root,
             in_is_sumbit=True,
             in_resource_id=self.resource_id,
@@ -107,12 +112,40 @@ class SomaWorkflowEngine(LocalEngine):
             in_pw=self.pw)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        # controller.delete_workflow(wf_id)
+        controller.delete_workflow(wf_id)
         self.tree_root = store.load()
         os.chdir(cur_work_dir)
         if os.path.isdir(tmp_work_dir_path):
             shutil.rmtree(tmp_work_dir_path)
         return self.tree_root
 
-    def export2gui(self, soma_workflow_dir_filepath):
-        pass
+    def export2gui(self, soma_workflow_dirpath, **Xy):
+        from epac.export_multi_processes import export2somaworkflow
+        if(os.path.isdir(soma_workflow_dirpath)):
+            raise ValueError('%s is not an empty directory.' %
+                (soma_workflow_dirpath))
+        os.mkdir(soma_workflow_dirpath)
+        np.savez(os.path.join(soma_workflow_dirpath,
+                 LocalEngine.dataset_relative_path), X=Xy['X'], y=Xy['y'])
+        cur_work_dir = os.getcwd()
+        os.chdir(soma_workflow_dirpath)
+        store = StoreFs(dirpath=os.path.join(
+            soma_workflow_dirpath,
+            LocalEngine.tree_root_relative_path))
+        self.tree_root.save_tree(store=store)
+        export2somaworkflow(
+            in_datasets_file_relative_path=LocalEngine.dataset_relative_path,
+            in_working_directory=soma_workflow_dirpath,
+            out_soma_workflow_file=
+                SomaWorkflowEngine.open_me_by_soma_workflow_gui,
+            in_tree_root=self.tree_root,
+            in_num_processes=self.num_processes)
+        os.chdir(cur_work_dir)
+
+    @staticmethod
+    def load_res_tree_root_from(soma_workflow_dirpath):
+        store = StoreFs(dirpath=os.path.join(
+            soma_workflow_dirpath,
+            LocalEngine.tree_root_relative_path))
+        tree_root = store.load()
+        return tree_root

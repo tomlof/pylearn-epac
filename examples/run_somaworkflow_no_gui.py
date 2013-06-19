@@ -66,14 +66,16 @@ def do_all(options):
     ## 3) Run Workflow
     ## ===============
     time_fit_predict = time.time()
-#    sfw_engine = SomaWorkflowEngine(
-#                        tree_root=wf,
-#                        num_processes=options.n_cores)
     sfw_engine = SomaWorkflowEngine(
                         tree_root=wf,
                         num_processes=options.n_cores,
-                        resource_id="ed203246@gabriel",
-                        login="ed203246")
+                        )
+    ## Run on cluster
+#    sfw_engine = SomaWorkflowEngine(
+#                        tree_root=wf,
+#                        num_processes=options.n_cores,
+#                        resource_id="ed203246@gabriel",
+#                        login="ed203246")
     wf = sfw_engine.fit_predict(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     n_folds = 10
     n_folds_nested = 5
     k_max = "auto"
-    n_cores = 3
+    n_cores = 40
     # parse command line options
     parser = optparse.OptionParser()
     parser.add_option('-n', '--n_samples',
