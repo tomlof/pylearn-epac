@@ -73,7 +73,7 @@ def do_all(options):
     sfw_engine = SomaWorkflowEngine(
                         tree_root=wf,
                         num_processes=options.n_cores)
-    sfw_engine.export2gui(options.soma_workflow_dir, X=X, y=y)
+    sfw_engine.export_to_gui(options.soma_workflow_dir, X=X, y=y)
 
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
 
@@ -82,12 +82,7 @@ def do_all(options):
     reduce_filename = os.path.join(options.soma_workflow_dir, "reduce.py")
     f = open(reduce_filename, 'w')
     reduce_str = """from epac.engine import SomaWorkflowEngine
-from epac import StoreFs
-import os
-store = StoreFs(dirpath=os.path.join(
-            "%s",
-            SomaWorkflowEngine.tree_root_relative_path))
-wf = store.load()
+wf = SomaWorkflowEngine.load_from_gui("%s")
 print wf.reduce()
 """ % options.soma_workflow_dir
     f.write(reduce_str)
@@ -115,7 +110,7 @@ if __name__ == "__main__":
     n_folds_nested = 5
     k_max = "auto"
     n_cores = 40
-    soma_workflow_dir = "/tmp/soma_workflow_dir"
+    soma_workflow_dir = "/tmp/my_working_directory"
     # parse command line options
     parser = optparse.OptionParser()
     parser.add_option('-n', '--n_samples',

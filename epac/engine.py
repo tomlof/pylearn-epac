@@ -18,7 +18,6 @@ from epac import StoreFs
 from epac.export_multi_processes import run_multi_processes
 
 
-
 class Engine(object):
     __metaclass__ = ABCMeta
 
@@ -119,7 +118,7 @@ class SomaWorkflowEngine(LocalEngine):
             shutil.rmtree(tmp_work_dir_path)
         return self.tree_root
 
-    def export2gui(self, soma_workflow_dirpath, **Xy):
+    def export_to_gui(self, soma_workflow_dirpath, **Xy):
         from epac.export_multi_processes import export2somaworkflow
         if(os.path.isdir(soma_workflow_dirpath)):
             raise ValueError('%s is not an empty directory.' %
@@ -143,7 +142,7 @@ class SomaWorkflowEngine(LocalEngine):
         os.chdir(cur_work_dir)
 
     @staticmethod
-    def load_res_tree_root_from(soma_workflow_dirpath):
+    def load_from_gui(soma_workflow_dirpath):
         store = StoreFs(dirpath=os.path.join(
             soma_workflow_dirpath,
             LocalEngine.tree_root_relative_path))
