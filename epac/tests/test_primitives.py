@@ -148,7 +148,8 @@ class TestCVBestSearchRefit(unittest.TestCase):
 #        print repr(list_C_value)
         for C_value in list_C_value:
 #            print C_value
-            X, y = datasets.make_classification(n_samples=100, n_features=500,
+            X, y = datasets.make_classification(n_samples=100,
+                                                n_features=500,
                                                 n_informative=5)
             n_folds_nested = 2
             #random_state = 0

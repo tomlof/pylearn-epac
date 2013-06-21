@@ -12,7 +12,8 @@ Introduction
 ------------
 
 The library Epac can create an Epac tree for machine learning algorithms.
-This example shows how to compute Epac with n processes
+This example shows how to compute Epac with n processes on cluster based on
+soma-workflow gui
 """
 import os
 import sys
@@ -58,7 +59,8 @@ def do_all(options):
                       for C in C_values
                       for k in k_values])
     pipeline = CVBestSearchRefit(cls,
-                  n_folds=options.n_folds_nested, random_state=random_state)
+                  n_folds=options.n_folds_nested,
+                  random_state=random_state)
     wf = Perms(CV(pipeline, n_folds=options.n_folds),
              n_perms=options.n_perms,
              permute="y",

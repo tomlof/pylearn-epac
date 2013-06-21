@@ -12,7 +12,8 @@ Introduction
 ------------
 
 The library Epac can create an Epac tree for machine learning algorithms.
-This example shows how to compute Epac with n processes
+This example shows how to compute Epac with n processes on cluster based on
+soma-workflow
 """
 import sys
 import optparse
@@ -66,6 +67,7 @@ def do_all(options):
     ## 3) Run Workflow
     ## ===============
     time_fit_predict = time.time()
+    ## Run on local machine
     sfw_engine = SomaWorkflowEngine(
                         tree_root=wf,
                         num_processes=options.n_cores,

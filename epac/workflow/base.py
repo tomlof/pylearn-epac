@@ -322,8 +322,6 @@ class BaseNode(object):
         else:
             raise ValueError("Provide at least a key for exact match"
             "or a regexp for wild card matches")
-        
-        
 
     def get_path_from_root(self):
         """Get path iterator from root.
@@ -582,7 +580,7 @@ class BaseNode(object):
             node.store = stores[key1]
         # Save the stores
         for key1 in stores:
-            print key1, stores[key1]
+            # print key1, stores[key1]
             store.save(key=key_push(key1, conf.STORE_STORE_PREFIX),
                        obj=stores[key1], protocol="bin")
 
