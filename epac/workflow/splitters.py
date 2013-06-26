@@ -271,22 +271,26 @@ class Methods(BaseNodeSplitter):
 # -- Slicers                    -- #
 # -------------------------------- #
 
+
 class VirtualList(collections.Sequence):
     def __init__(self, size, parent):
         self.size = size
         self.parent = parent
-        
+
     def __len__(self):
         return self.size
+
     def __getitem__(self, i):
         if i >= self.size:
             raise IndexError("%s index out of range" % self.__class__.__name__)
         return self.parent.move_to_child(nb=i)
         #return self.parent.move_to_child(i, self.slicer)
+
     def __iter__(self):
         """ Iterate over leaves"""
         for i in xrange(self.size):
             yield self.__getitem__(i)
+
     def append(self, o):
         pass
 

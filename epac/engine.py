@@ -16,14 +16,19 @@ import numpy as np
 
 from epac import StoreFs
 from epac.export_multi_processes import run_multi_processes
+from epac.Inputs import MapInput
 
 
 class Engine(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def fit_predict(self, **Xy):
-        return None
+    def run(self, **Xy):
+        pass
+
+    @abstractmethod
+    def split_map_input(self, map_input):
+        pass
 
 
 class LocalEngine(Engine):
@@ -33,16 +38,18 @@ class LocalEngine(Engine):
 
     def __init__(self,
                  tree_root,
+                 function_name="fit_predict",
                  num_processes=-1):
         """Initialization for the LocalEngine
         """
         self.tree_root = tree_root
+        self.function_name = function_name
         if num_processes == -1:
             self.num_processes = multiprocessing.cpu_count()
         else:
             self.num_processes = num_processes
 
-    def fit_predict(self, **Xy):
+    def run(self, **Xy):
         tmp_work_dir_path = tempfile.mkdtemp()
         # print "tmp_work_dir_path="+tmp_work_dir_path
         np.savez(os.path.join(tmp_work_dir_path,
@@ -72,12 +79,14 @@ class SomaWorkflowEngine(LocalEngine):
 
     def __init__(self,
                  tree_root,
+                 function_name="fit_predict",
                  num_processes=-1,
                  resource_id="",
                  login="",
                  pw=""):
         super(SomaWorkflowEngine, self).__init__(
                         tree_root=tree_root,
+                        function_name=function_name,
                         num_processes=num_processes)
         if num_processes == -1:
             self.num_processes = 20
@@ -85,7 +94,7 @@ class SomaWorkflowEngine(LocalEngine):
         self.login = login
         self.pw = pw
 
-    def fit_predict(self, **Xy):
+    def run(self, **Xy):
         from epac.export_multi_processes import export2somaworkflow
         from soma.workflow.client import Helper
         tmp_work_dir_path = tempfile.mkdtemp()

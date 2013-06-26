@@ -7,6 +7,7 @@ Created on Fri May 17 16:37:54 2013
 from collections import Set
 import copy
 import warnings
+from epac.Inputs import ReduceInput
 
 
 class ResultSet(Set):
@@ -84,7 +85,7 @@ class ResultSet(Set):
         return [r["key"] for r in self.results]
 
 
-class Result(dict):
+class Result(ReduceInput):
     """Result is a record with a "key", and a "payload".
 
     Example

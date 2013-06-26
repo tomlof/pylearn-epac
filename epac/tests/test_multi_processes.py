@@ -41,11 +41,11 @@ class EpacWorkflowTest(unittest.TestCase):
             wf.fit_predict(X=self.X, y=self.y)
             local_engine = LocalEngine(tree_root=wf,
                                        num_processes=self.n_cores)
-            local_engine_wf = local_engine.fit_predict(X=self.X, y=self.y)
+            local_engine_wf = local_engine.run(X=self.X, y=self.y)
             sfw_engine = SomaWorkflowEngine(
                     tree_root=wf,
                     num_processes=self.n_cores)
-            sfw_engine_wf = sfw_engine.fit_predict(X=self.X, y=self.y)
+            sfw_engine_wf = sfw_engine.run(X=self.X, y=self.y)
             self.assertTrue(comp_2wf_reduce_res(wf, local_engine_wf))
             self.assertTrue(comp_2wf_reduce_res(wf, sfw_engine_wf))
 

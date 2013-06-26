@@ -29,11 +29,11 @@ class WorkflowExample(object):
         return None
 
 
-#class WFExample1(WorkflowExample):
-#
-#    def get_workflow(self):
-#        wf = Methods(*[SVC(kernel="linear", C=C) for C in [1, 3]])
-#        return wf
+class WFExample1(WorkflowExample):
+
+    def get_workflow(self):
+        wf = Methods(*[SVC(kernel="linear", C=C) for C in [1, 3]])
+        return wf
 
 
 class WFExample2(WorkflowExample):

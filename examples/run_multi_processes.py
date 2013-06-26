@@ -67,7 +67,7 @@ def do_all(options):
     ## ===============
     time_fit_predict = time.time()
     local_engine = LocalEngine(tree_root=wf, num_processes=options.n_cores)
-    wf = local_engine.fit_predict(X=X, y=y)
+    wf = local_engine.run(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
 
