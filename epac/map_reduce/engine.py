@@ -16,18 +16,23 @@ import numpy as np
 
 from epac import StoreFs
 from epac.export_multi_processes import run_multi_processes
-from epac.Inputs import MapInput
+from epac.map_reduce.Inputs import MapInput
+
+
+
 
 
 class Engine(object):
     __metaclass__ = ABCMeta
 
-    @abstractmethod
-    def run(self, **Xy):
-        pass
+    def __init__(self, split_input):
+        self.split_input = split_input
+
+#    def run2(self, map_input):
+#        list_map_input = self.split_input(map_input)
 
     @abstractmethod
-    def split_map_input(self, map_input):
+    def run(self, **Xy):
         pass
 
 

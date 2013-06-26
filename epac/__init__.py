@@ -11,10 +11,11 @@ from epac.workflow.splitters import CV, Perms, Methods#, Grid
 from epac.workflow.estimators import CVBestSearchRefit
 from epac.workflow.base import xy_split, xy_merge, key_pop, key_split
 from epac.configuration import conf, debug
-from epac.results import ResultSet, Result
+from epac.map_reduce.results import ResultSet, Result
 from epac.utils import dict_diff, range_log2
 from epac.stores import StoreFs, StoreMem
-from epac.mappers import MapperSubtrees
+from epac.map_reduce.mappers import MapperSubtrees
+from epac.map_reduce.engine import SomaWorkflowEngine, LocalEngine
 
 #from epac.workflow import WF, Pipe, CV, Perms, Methods, Grid
 #from epac.workflow import CVBestSearchRefit
@@ -24,7 +25,7 @@ from epac.mappers import MapperSubtrees
 #from epac.stores import get_store
 
 #from .stores import obj_to_dict, dict_to_obj
-from .reducers import SummaryStat, PvalPerms
+from epac.map_reduce.reducers import SummaryStat, PvalPerms
 
 from . import sklearn_plugins
 
@@ -48,5 +49,7 @@ __all__ = ['Pipe',
            'StoreFs',
            'StoreMem',
            'range_log2',
-           'MapperSubtrees'
+           'MapperSubtrees',
+           'SomaWorkflowEngine',
+           'LocalEngine'
            ]

@@ -12,8 +12,8 @@ Created on 20 June 2013
 
 import unittest
 from epac.tests.wfexamples2test import get_wf_example_classes
-from epac.engine import LocalEngine
-from epac.engine import SomaWorkflowEngine
+from epac import LocalEngine
+from epac import SomaWorkflowEngine
 
 from sklearn import datasets
 from epac.tests.utils import comp_2wf_reduce_res

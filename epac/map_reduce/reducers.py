@@ -9,7 +9,7 @@ import numpy as np
 import re
 from abc import abstractmethod
 #from epac.configuration import conf
-from epac.results import Result
+from epac.map_reduce.results import Result
 
 ## ======================================================================== ##
 ## == Reducers                                                           == ##

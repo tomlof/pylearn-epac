@@ -37,7 +37,7 @@ class MapperSubtrees(Mapper):
         tree_root: epac.BaseNode
             the root node of the epac tree
 
-        store_fs: 
+        store_fs:
             where the node want to save
         function:
             function of node

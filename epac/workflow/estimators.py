@@ -33,10 +33,10 @@ import copy
 from epac.workflow.base import BaseNode, xy_split, key_push, key_split
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _as_dict
-from epac.results import ResultSet, Result
+from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
 from epac.configuration import debug
-from epac.reducers import SummaryStat
+from epac.map_reduce.reducers import SummaryStat
 
 
 ## ================================= ##
