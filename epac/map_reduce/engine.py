@@ -9,27 +9,32 @@ Created on Mon Jun 17 11:09:30 2013
 
 import os
 import shutil
-from abc import ABCMeta, abstractmethod
 import multiprocessing
 import tempfile
 import numpy as np
 
+from abc import ABCMeta, abstractmethod
+
 from epac import StoreFs
 from epac.export_multi_processes import run_multi_processes
-from epac.map_reduce.Inputs import MapInput
-
-
-
 
 
 class Engine(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, split_input):
+    def __init__(self, split_input, mapper, reducer):
         self.split_input = split_input
+        self.mapper = mapper
+        self.reducer = reducer
 
-#    def run2(self, map_input):
-#        list_map_input = self.split_input(map_input)
+    def run2(self, map_input):
+        list_map_input = self.split_input(map_input)
+        list_reduce_input = []
+        for each_map_input in list_map_input:
+            reduce_input = self.mapper.map(each_map_input)
+            list_reduce_input.append(reduce_input)
+        ##the shuffle step have been skiped since we dont have this step
+        self.reducer.reduce(list_reduce_input)
 
     @abstractmethod
     def run(self, **Xy):

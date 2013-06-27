@@ -65,7 +65,7 @@ class FeatureRanking():
         score_func : callable
             Function taking two arrays X and y, and returning a pair of arrays
             (scores, pvalues).
-            
+
         Example
         -------
         from sklearn import datasets

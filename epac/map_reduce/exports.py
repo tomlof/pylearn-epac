@@ -84,7 +84,7 @@ def _export_nodes_recursively(
     return nodes_per_process_list
 
 
-def _export_nodes2num_processes(node, num_processes):
+def export_nodes2num_processes(node, num_processes):
     '''export nodes
     Try to build "num_processes" queues which contains almost equally number
     of Epac nodes for computing.
@@ -218,7 +218,7 @@ def export2somaworkflow(in_datasets_file_relative_path,
                                         name="working directory")
     if not in_tree_root:
         raise NoEpacTreeRootError
-    nodes_per_process_list = _export_nodes2num_processes(
+    nodes_per_process_list = export_nodes2num_processes(
         in_tree_root,
         in_num_processes)
     keysfile_list = _gen_keysfile_list_from_nodes_list(
@@ -299,7 +299,7 @@ def run_multi_processes(
         raise ValueError("epac_mapper cannot be found in PATH variable. "
                          "Please verify if epac_mapper is"
                          "contained in PATH.")
-    nodes_per_process_list = _export_nodes2num_processes(
+    nodes_per_process_list = export_nodes2num_processes(
         node=in_tree_root,
         num_processes=in_num_processes
     )

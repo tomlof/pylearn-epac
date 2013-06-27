@@ -7,7 +7,7 @@ Created on Fri May 17 16:37:54 2013
 from collections import Set
 import copy
 import warnings
-from epac.map_reduce.Inputs import ReduceInput
+from epac.map_reduce.inputs import ReduceInput
 
 
 class ResultSet(Set):

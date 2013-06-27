@@ -8,7 +8,7 @@ Created on Wed Jun 26 15:27:09 2013
 """
 
 
-class Input(object):
+class Input(dict):
     pass
 
 
@@ -16,5 +16,14 @@ class MapInput(Input):
     pass
 
 
-class ReduceInput(dict):
+class ReduceInput(Input):
     pass
+
+
+class NodeInput(MapInput):
+    ''' NodeInput for map and reduce
+    This can be splited by split_input.
+    '''
+    def __init__(self, node):
+        super(NodeInput, self).__init__()
+        self[node.get_key()] = node
