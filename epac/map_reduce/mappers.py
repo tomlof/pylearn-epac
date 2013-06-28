@@ -33,7 +33,7 @@ class MapperSubtrees(Mapper):
 
     Example
     -------
-
+    
     >>> import tempfile
     >>> import os
     >>> import numpy as np
@@ -62,7 +62,7 @@ class MapperSubtrees(Mapper):
     >>> tree_root_node = WFExample2().get_workflow()
     >>> tmp_work_dir_path = tempfile.mkdtemp()
     >>> tree_relative_path = "./epac_tree"
-    >>> np.savez(os.path.join(tmp_work_dir_path,"dataset.npz"), X=X, y=y)
+    >>> np.savez(os.path.join(tmp_work_dir_path, "dataset.npz"), X=X, y=y)
     >>> os.chdir(tmp_work_dir_path)
     >>> store_fs = StoreFs(dirpath=os.path.join(
     ...             tmp_work_dir_path,
@@ -75,7 +75,7 @@ class MapperSubtrees(Mapper):
     >>> node_input = NodesInput(tree_root_node.get_key())
     >>> split_node_input = SplitNodesInput(tree_root_node, num_processes=num_processes)
     >>> input_list = split_node_input.split(node_input)
-    >>> mapper = MapperSubtrees(Xy,tree_root_node,store_fs,"fit_predict")
+    >>> mapper = MapperSubtrees(Xy,tree_root_node, store_fs, "fit_predict")
     
     >>> ## Run map processes in parallel
     >>> ## =============================
@@ -95,8 +95,8 @@ class MapperSubtrees(Mapper):
     >>> ## pval_mean_score_te might be different since permutation is random
     >>> tree_root_node.reduce()
     ResultSet(
-    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.5, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.0},
-     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.5, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
+     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
     '''
     def __init__(self,
                  Xy,

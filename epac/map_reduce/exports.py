@@ -250,7 +250,7 @@ def export2somaworkflow(in_datasets_file_relative_path,
         return (wf_id, controller)
 
 
-def run_multi_processes(
+def __deprecated_run_multi_processes(
     in_datasets_file_relative_path,
     in_working_directory,
     in_tree_root,

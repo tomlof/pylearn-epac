@@ -16,7 +16,6 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 
 from epac import StoreFs
-from epac.export_multi_processes import run_multi_processes
 
 
 class Engine(object):
@@ -27,23 +26,56 @@ class Engine(object):
         self.mapper = mapper
         self.reducer = reducer
 
-    def run2(self, map_input):
-        list_map_input = self.split_input(map_input)
-        list_reduce_input = []
-        for each_map_input in list_map_input:
-            reduce_input = self.mapper.map(each_map_input)
-            list_reduce_input.append(reduce_input)
-        ##the shuffle step have been skiped since we dont have this step
-        self.reducer.reduce(list_reduce_input)
-
     @abstractmethod
     def run(self, **Xy):
         pass
-
+#        list_map_input = self.split_input(map_input)
+#        list_reduce_input = []
+#        for each_map_input in list_map_input:
+#            reduce_input = self.mapper.map(each_map_input)
+#            list_reduce_input.append(reduce_input)
+#        ##the shuffle step have been skiped since we dont have this step
+#        self.reducer.reduce(list_reduce_input)
 
 class LocalEngine(Engine):
+    '''LocalEninge run a specified function for a epac tree in parallel
 
-    dataset_relative_path = "./dataset.npz"
+    Example
+    -------
+
+    >>> from sklearn import datasets
+    >>> 
+    >>> from epac.map_reduce.engine import LocalEngine
+    >>> from epac.tests.wfexamples2test import WFExample2
+    >>>
+    >>> ## Build dataset
+    >>> ## =============
+    >>> X, y = datasets.make_classification(n_samples=10,
+    ...                                     n_features=20,
+    ...                                     n_informative=5,
+    ...                                     random_state=1)
+    >>> Xy = {'X':X, 'y':y}
+    >>>
+    >>> ## Build epac tree
+    >>> ## ===============
+    >>> tree_root_node = WFExample2().get_workflow()
+    >>>
+    >>> ## Build LocalEngine
+    >>> ## =================
+    >>> local_engine = LocalEngine(tree_root_node,
+    ...                            function_name="fit_predict",
+    ...                            num_processes=3)
+    >>> tree_root_node = local_engine.run(**Xy)
+    >>>
+    >>> ## Run reduce process
+    >>> ## ==================
+    >>> ## pval_mean_score_te might be different since permutation is random
+    >>> tree_root_node.reduce()
+    ResultSet(
+    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
+     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+
+    '''
     tree_root_relative_path = "./epac_tree"
 
     def __init__(self,
@@ -60,24 +92,37 @@ class LocalEngine(Engine):
             self.num_processes = num_processes
 
     def run(self, **Xy):
+        from functools import partial
+        from multiprocessing import Pool
+        from epac.map_reduce.inputs import NodesInput
+        from epac.map_reduce.split_input import SplitNodesInput
+        from epac.map_reduce.mappers import MapperSubtrees
+        from epac.map_reduce.mappers import map_process
+
         tmp_work_dir_path = tempfile.mkdtemp()
-        # print "tmp_work_dir_path="+tmp_work_dir_path
-        np.savez(os.path.join(tmp_work_dir_path,
-                 LocalEngine.dataset_relative_path), X=Xy['X'], y=Xy['y'])
-        cur_work_dir = os.getcwd()
-        os.chdir(tmp_work_dir_path)
         store = StoreFs(dirpath=os.path.join(
             tmp_work_dir_path,
             LocalEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
-        run_multi_processes(
-            in_datasets_file_relative_path=LocalEngine.dataset_relative_path,
-            in_working_directory=tmp_work_dir_path,
-            in_tree_root=self.tree_root,
-            in_num_processes=self.num_processes,
-            in_is_wait=True)
+
+        ## Split input into several parts and create mapper
+        ## ================================================
+        node_input = NodesInput(self.tree_root.get_key())
+        split_node_input = SplitNodesInput(self.tree_root,
+                                           num_processes=self.num_processes)
+        input_list = split_node_input.split(node_input)
+        mapper = MapperSubtrees(Xy,
+                                self.tree_root, store,
+                                self.function_name)
+        ## Run map processes in parallel
+        ## =============================
+        partial_map_process = partial(map_process, mapper=mapper)
+        pool = Pool(processes=self.num_processes)
+        pool.map(partial_map_process, input_list)
+
+        ## Load results tree and remove temp working directory
+        ## ===================================================
         self.tree_root = store.load()
-        os.chdir(cur_work_dir)
         if os.path.isdir(tmp_work_dir_path):
             shutil.rmtree(tmp_work_dir_path)
         return self.tree_root
@@ -167,3 +212,7 @@ class SomaWorkflowEngine(LocalEngine):
             LocalEngine.tree_root_relative_path))
         tree_root = store.load()
         return tree_root
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

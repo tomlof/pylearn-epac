@@ -62,7 +62,8 @@ class WFExample2(WorkflowExample):
                         for C in [1, 3]]))
         wf = Perms(CV(pipeline, n_folds=3),
                         n_perms=3,
-                        permute="y")
+                        permute="y",
+                        random_state=1)
         return wf
 
 
