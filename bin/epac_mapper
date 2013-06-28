@@ -10,12 +10,10 @@ Created on Wed Apr 24 11:18:19 2013
 """
 
 import sys
-import os
 import optparse
 import numpy as np
 from epac import conf, StoreFs, MapperSubtrees
-#from epac import
-
+from epac.map_reduce.inputs import NodesInput
 
 def load_datasets(datasets_filepath):
     Xy = np.load(datasets_filepath)
@@ -85,12 +83,21 @@ if __name__ == "__main__":
 
     if options.function:
         function = repr(options.function)
+
+    if len(listkey) <= 0:
+        sys.exit(0)
+
+    nodes_input = NodesInput(listkey[0])
+    for str_key in listkey:
+        nodes_input.add(str_key)
+
     # Load datasets
     # print "datasets_filepath:", datasets_filepath
     # print "keys:", keys
     # datasets_filepath = "/tmp/tmpZ2HqYb_datasets.npz"
     # datasets_filepath ="/tmp/tmpO8D3dG_datasets.npz"
     # keys="fs:///tmp/tmpXyC_XE/ParPerm/Perm(nb=0)"
+
     Xy = load_datasets(datasets_filepath)
     tree_root_relative_path = "./epac_tree"
     store_fs = StoreFs(tree_root_relative_path)
@@ -100,4 +107,4 @@ if __name__ == "__main__":
                                      tree_root=tree,
                                      store_fs=store_fs,
                                      function=function)
-    mapper_subtrees.map(listkey)
+    mapper_subtrees.map(nodes_input)
