@@ -63,7 +63,6 @@ class WFExample2(WorkflowExample):
         wf = Perms(CV(pipeline, n_folds=3),
                         n_perms=3,
                         permute="y")
-        wf = Methods(*[SVC(kernel="linear", C=C) for C in [1, 3]])
         return wf
 
 
