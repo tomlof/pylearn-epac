@@ -494,44 +494,46 @@ class BaseNode(object):
         if debug.DEBUG:
             debug.current = self
             debug.Xy = Xy
-        func = getattr(self, func_name)
-        Xy = func(recursion=False, **Xy)
+        #func = getattr(self, func_name)
+        Xy = self.transform(**Xy)
+        #Xy = func(recursion=False, **Xy)
         #Xy = self.transform(**Xy)
         if recursion and self.children:
             # Call children func_name down to leaves
-            ret = [child.top_down(func_name=func_name, recursion=recursion,
-                            **Xy) for child in self.get_children_top_down()]
+            ret = [child.top_down(**Xy) for child in self.get_children_top_down()]
             Xy = ret[0] if len(ret) == 1 else ret
         return Xy
 
-    def fit(self, recursion=True, **Xy):
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-        return Xy
+#    def fit(self, recursion=True, **Xy):
+#        if recursion:
+#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+#        return Xy
 
-    def transform(self, recursion=True, **Xy):
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **Xy)
-        return Xy
+    @abstractmethod
+    def transform(self, **Xy):
+        """"""
+#        if recursion:
+#            return self.top_down(func_name="transform", recursion=recursion,
+#                                 **Xy)
+#        return Xy
 
-    def predict(self, recursion=True, **Xy):
-        if recursion:
-            return self.top_down(func_name="predict", recursion=recursion,
-                                 **Xy)
-        return Xy
-
-    def fit_predict(self, recursion=True, **Xy):
-        if recursion:  # fit_predict was called in a top-down recursive context
-            return self.top_down(func_name="fit_predict", recursion=recursion,
-                                 **Xy)
-        Xy_train, Xy_test = xy_split(Xy)
-        Xy_train = self.fit(recursion=False, **Xy_train)
-        Xy_test = self.predict(recursion=False, **Xy_test)
-        if self.children:
-            return xy_merge(Xy_train, Xy_test)
-        else:
-            return Xy_test
+#    def predict(self, recursion=True, **Xy):
+#        if recursion:
+#            return self.top_down(func_name="predict", recursion=recursion,
+#                                 **Xy)
+#        return Xy
+#
+#    def fit_predict(self, recursion=True, **Xy):
+#        if recursion:  # fit_predict was called in a top-down recursive context
+#            return self.top_down(func_name="fit_predict", recursion=recursion,
+#                                 **Xy)
+#        Xy_train, Xy_test = xy_split(Xy)
+#        Xy_train = self.fit(recursion=False, **Xy_train)
+#        Xy_test = self.predict(recursion=False, **Xy_test)
+#        if self.children:
+#            return xy_merge(Xy_train, Xy_test)
+#        else:
+#            return Xy_test
 
     def get_children_top_down(self):
         """Return children during the top-down exection."""

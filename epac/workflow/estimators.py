@@ -138,6 +138,28 @@ class Estimator(BaseNode):
             result["key"] = key_push(self.get_signature(), result["key"])
         return result_set
 
+class InternalEstimator(Estimator):
+    """Extimator Wrapper: connect  fit + transform to transform"""
+    def transform(self, **Xy):
+        Xy_train, Xy_test = xy_split(Xy)
+        Xy_train_dict = _sub_dict(Xy_train, self._args_fit)        
+        self.estimator.fit(**Xy_train_dict)
+        # catch args_transform in ds, transform, store output in a dict
+        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy_train,
+                                             self._args_transform)),
+                       keys=self._args_transform)
+        test_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
+                                             self._args_transform)),
+                       keys=self._args_transform)
+        Xy_trn = xy_merge(trn_dict, test_dict)
+        # update ds with transformed values
+        Xy.update(Xy_trn)
+        return Xy
+
+class LeafEstimator(Estimator):
+    """Extimator Wrapper: connect fit + predict to transform"""
+    def transform(self, recursion=True, **Xy):
+
 
 class CVBestSearchRefit(Estimator):
     """Cross-validation + grid-search then refit with optimals parameters.
