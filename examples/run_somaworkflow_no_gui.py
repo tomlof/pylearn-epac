@@ -25,7 +25,7 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 
 from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
-from epac.engine import SomaWorkflowEngine
+from epac.map_reduce.engine import SomaWorkflowEngine
 
 
 def do_all(options):
@@ -78,7 +78,7 @@ def do_all(options):
 #                        num_processes=options.n_cores,
 #                        resource_id="ed203246@gabriel",
 #                        login="ed203246")
-    wf = sfw_engine.fit_predict(X=X, y=y)
+    wf = sfw_engine.run(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
 

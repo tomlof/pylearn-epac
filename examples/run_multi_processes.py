@@ -24,7 +24,7 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 
 from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
-from epac.engine import LocalEngine
+from epac.map_reduce.engine import LocalEngine
 
 
 def do_all(options):
@@ -62,19 +62,6 @@ def do_all(options):
              permute="y",
              random_state=random_state)
     print "Time ellapsed, tree construction:", time.time() - time_start
-
-        from epac import conf
-        conf.TRACE_TOPDOWN = True
-
-    ## 1) Build dataset
-    ## ================
-    X, y = datasets.make_classification(n_samples=options.n_samples,
-                                        n_features=options.n_features,
-                                        n_informative=options.n_informative)
-
-    ## 2) Build Workflow
-    ## =================
-    time_start = time.time()
     ## 3) Run Workflow
     ## ===============
     time_fit_predict = time.time()
