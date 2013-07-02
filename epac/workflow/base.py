@@ -508,3 +508,55 @@ class BaseNode(object):
         """I/O (persistance) operation: save single node states ie.: store"""
         store.save(key=key_push(self.get_key(), conf.STORE_STORE_PREFIX),
                        obj=self.store, protocol="bin")
+
+    def merge_tree_store(self, another_tree_root):
+        '''Merge all the stores from another_tree_root
+
+        Example
+        -------
+        >>> from epac.tests.wfexamples2test import WFExample1
+        >>> from sklearn import datasets
+
+        >>> ## Build dataset
+        >>> ## =============
+        >>> X, y = datasets.make_classification(n_samples=10,
+        ...                                     n_features=20,
+        ...                                     n_informative=5,
+        ...                                     random_state=1)
+        >>> Xy = {'X':X, 'y':y}
+        >>> ## Build Tree and compute results
+        >>> ## ==============================
+        >>> tree_root_node = WFExample1().get_workflow()
+        >>> tree_root_node.fit_predict(**Xy)
+        [array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0]), array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0])]
+        >>> if tree_root_node.store:
+        ...     print repr(tree_root_node.store.dict)
+        ... 
+        {'Methods/SVC(C=1)/result_set': ResultSet(
+        [{'key': SVC(C=1), 'score_te': 1.0, 'score_tr': 1.0, 'true_te': [1 0 1 0 1 1 1 0 0 0], 'pred_te': [1 0 1 0 1 1 1 0 0 0]}]), 'Methods/SVC(C=3)/result_set': ResultSet(
+        [{'key': SVC(C=3), 'score_te': 1.0, 'score_tr': 1.0, 'true_te': [1 0 1 0 1 1 1 0 0 0], 'pred_te': [1 0 1 0 1 1 1 0 0 0]}])}
+
+        >>> ## Build another tree to copy results in store
+        >>> ## ===========================================
+        >>> tree_root_node2 = WFExample1().get_workflow()
+        >>> print tree_root_node2.store
+        None
+        >>> 
+        >>> tree_root_node2.merge_tree_store(tree_root_node)
+        >>> if tree_root_node2.store:
+        ...     print repr(tree_root_node.store.dict)
+        ... 
+        {'Methods/SVC(C=1)/result_set': ResultSet(
+        [{'key': SVC(C=1), 'score_te': 1.0, 'score_tr': 1.0, 'true_te': [1 0 1 0 1 1 1 0 0 0], 'pred_te': [1 0 1 0 1 1 1 0 0 0]}]), 'Methods/SVC(C=3)/result_set': ResultSet(
+        [{'key': SVC(C=3), 'score_te': 1.0, 'score_tr': 1.0, 'true_te': [1 0 1 0 1 1 1 0 0 0], 'pred_te': [1 0 1 0 1 1 1 0 0 0]}])}
+        '''
+        if not self.store:
+            self.store = StoreMem()
+        for each_node in another_tree_root.walk_true_nodes():
+            if each_node.store:
+                self.store.dict.update(each_node.store.dict)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

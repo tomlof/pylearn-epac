@@ -9,13 +9,13 @@ Created on Thu Jun 13 11:12:28 2013
 
 import os
 from abc import ABCMeta, abstractmethod
-from epac import key_pop, StoreMem
+from epac import key_pop
 
 
 def map_process(map_input, mapper):
     '''See example of epac.map_reduce.mappers.MapperSubtrees
     '''
-    mapper.map(map_input)
+    return mapper.map(map_input)
 
 
 class Mapper(object):
@@ -34,72 +34,69 @@ class MapperSubtrees(Mapper):
     Example
     -------
 
-import tempfile
-import os
-import numpy as np
-import shutil
-from functools import partial
-from multiprocessing import Pool
+    >>> import tempfile
+    >>> import os
+    >>> import numpy as np
+    >>> import shutil
+    >>> from functools import partial
+    >>> from multiprocessing import Pool
+    >>>
+    >>> from epac import StoreFs
+    >>> from epac.tests.wfexamples2test import WFExample2
+    >>> from epac.map_reduce.inputs import NodesInput
+    >>> from epac.map_reduce.split_input import SplitNodesInput
+    >>> from epac.map_reduce.mappers import MapperSubtrees
+    >>> from epac.map_reduce.mappers import map_process
+    >>> from sklearn import datasets
 
-from epac import StoreFs
-from epac.tests.wfexamples2test import WFExample2
-from epac.map_reduce.inputs import NodesInput
-from epac.map_reduce.split_input import SplitNodesInput
-from epac.map_reduce.mappers import MapperSubtrees
-from epac.map_reduce.mappers import map_process
-from sklearn import datasets
+    >>> ## Build dataset
+    >>> ## =============
+    >>> X, y = datasets.make_classification(n_samples=10,
+    ...                                     n_features=20,
+    ...                                     n_informative=5,
+    ...                                     random_state=1)
+    >>> Xy = {'X':X, 'y':y}
 
-## Build dataset
-## =============
-X, y = datasets.make_classification(n_samples=10,
-                                    n_features=20,
-                                    n_informative=5,
-                                    random_state=1)
-Xy = {'X':X, 'y':y}
+    >>> ## Build epac tree and save it on the disk
+    >>> ## =======================================
+    >>> tree_root_node = WFExample2().get_workflow()
 
-## Build epac tree and save it on the disk
-## =======================================
-tree_root_node = WFExample2().get_workflow()
-tmp_work_dir_path = tempfile.mkdtemp()
-tree_relative_path = "./epac_tree"
-np.savez(os.path.join(tmp_work_dir_path, "dataset.npz"), X=X, y=y)
-os.chdir(tmp_work_dir_path)
-store_fs = StoreFs(dirpath=os.path.join(
-            tmp_work_dir_path,
-            tree_relative_path))
-tree_root_node.save_tree(store=store_fs)
+    >>> ## Split input into several parts and create mapper
+    >>> ## ================================================
+    >>> num_processes = 3
+    >>> node_input = NodesInput(tree_root_node.get_key())
+    >>> split_node_input = SplitNodesInput(tree_root_node, num_processes=num_processes)
+    >>> input_list = split_node_input.split(node_input)
+    >>> mapper = MapperSubtrees(Xy=Xy,
+    ...                         tree_root=tree_root_node,
+    ...                         function="transform")
 
-## Split input into several parts and create mapper
-## ================================================
-num_processes = 3
-node_input = NodesInput(tree_root_node.get_key())
-split_node_input = SplitNodesInput(tree_root_node, num_processes=num_processes)
-input_list = split_node_input.split(node_input)
-mapper = MapperSubtrees(Xy,tree_root_node, store_fs, "transform")
+    >>> ## Run map processes in parallel
+    >>> ## =============================
+    >>> partial_map_process = partial(map_process,mapper=mapper)
+    >>> pool = Pool(processes=num_processes)
+    >>> res_tree_root_list = pool.map(partial_map_process, input_list)
 
-## Run map processes in parallel
-## =============================
-partial_map_process = partial(map_process,mapper=mapper)
-pool = Pool(processes=num_processes)
-pool.map(partial_map_process, input_list)
+    >>> ## Merge results from pool
+    >>> for each_tree_root in res_tree_root_list:
+    ...     tree_root_node.merge_tree_store(each_tree_root)
 
-## Run map processes in single process
-## ===================================
-for input in input_list:
-    # input = input_list[0]
-    mapper.map(input)
+    >>> ## Run map processes in single process
+    >>> ## ===================================
+    >>> #for input in input_list:
+    >>> #    mapper.map(input)
 
-## Run reduce process
-## ==================
-tree_root_node = store_fs.load()
-## pval_mean_score_te might be different since permutation is random
-tree_root_node.reduce()
-
+    >>> ## Run reduce process
+    >>> ## ==================
+    >>> tree_root_node.reduce()
+    ResultSet(
+    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
+     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
     '''
     def __init__(self,
                  Xy,
                  tree_root,
-                 store_fs,
+                 store_fs=None,
                  function="transform"):
         """Initialization for the mapper
 
@@ -164,12 +161,14 @@ tree_root_node.reduce()
                 cpXy = func(**cpXy)
             curr_node = self.tree_root.get_node(curr_node.get_key())
             # print "Recursively run from root to current node"
-            curr_node.store = StoreMem()
-            curr_node.run(**cpXy)
-            #func = getattr(curr_node, self.function)
-            #func(recursion=True, **cpXy)
+            if self.store_fs:
+                curr_node.store = StoreMem()
+            func = getattr(curr_node, self.function)
+            func(recursion=True, **cpXy)
             # print "Save results"
-            curr_node.save_node(store=self.store_fs)
+            if self.store_fs:
+                curr_node.save_node(store=self.store_fs)
+            return self.tree_root
 
 if __name__ == "__main__":
     import doctest
