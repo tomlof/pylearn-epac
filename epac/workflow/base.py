@@ -509,9 +509,6 @@ class BaseNode(object):
 #            return self.top_down(func_name="fit", recursion=recursion, **Xy)
 #        return Xy
 
-    @abstractmethod
-    def transform(self, **Xy):
-        """"""
 #        if recursion:
 #            return self.top_down(func_name="transform", recursion=recursion,
 #                                 **Xy)
@@ -539,6 +536,9 @@ class BaseNode(object):
         """Return children during the top-down exection."""
         return self.children
 
+    @abstractmethod
+    def transform(self, **Xy):
+        """"""
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #

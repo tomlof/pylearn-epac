@@ -20,6 +20,7 @@ from epac.workflow.estimators import Estimator
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
 from epac.map_reduce.reducers import SummaryStat, PvalPerms
+from epac.configuration import conf
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -148,6 +149,7 @@ class CV(BaseNodeSplitter):
         elif self.cv_type == "loo":
             from sklearn.cross_validation import LeaveOneOut
             self._sclices = LeaveOneOut(n=Xy["y"].shape[0])
+        Xy[conf.KW_SPLIT_TRAIN_TEST] = True
         return Xy
 
     def get_parameters(self):

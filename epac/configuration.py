@@ -21,6 +21,7 @@ class conf:
     KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
     SUFFIX_JOB = "job"
     SOMA_WORKFLOW_FILEPATH = "soma_workflow_script"
+    KW_SPLIT_TRAIN_TEST = "split_train_test"
 
 
 class debug:

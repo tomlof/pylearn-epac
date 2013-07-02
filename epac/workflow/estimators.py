@@ -29,13 +29,12 @@ It is a user-defined object that should implements 4 methods:
 
 import re
 import numpy as np
-import copy
-from epac.workflow.base import BaseNode, xy_split, key_push, key_split
+from epac.workflow.base import BaseNode, xy_merge, xy_split, key_push, key_split
 from epac.utils import _func_get_args_names
 from epac.utils import _sub_dict, _as_dict
 from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
-from epac.configuration import debug
+from epac.configuration import conf
 from epac.map_reduce.reducers import SummaryStat
 
 
@@ -43,123 +42,167 @@ from epac.map_reduce.reducers import SummaryStat
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-class Estimator(BaseNode):
-    """Node that wrap estimators"""
+#class Estimator(BaseNode):
+#    """Node that wrap estimators"""
+#
+#    def __init__(self, estimator):
+#        self.estimator = estimator
+#        super(Estimator, self).__init__()
+#        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
+#            if hasattr(self.estimator, "fit") else None
+#        self.in_args_predict = _func_get_args_names(self.estimator.predict) \
+#            if hasattr(self.estimator, "predict") else None
+#        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
+#            if hasattr(self.estimator, "transform") else None
+#
+#    def get_signature(self):
+#        """Overload the base name method"""
+#        if not self.signature_args:
+#            return self.estimator.__class__.__name__
+#        else:
+#            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
+#                             for k in self.signature_args])
+#            args_str = "(" + args_str + ")"
+#            return self.estimator.__class__.__name__ + args_str
+#
+#    def get_parameters(self):
+#        return self.estimator.__dict__
+#
+#    def fit(self, recursion=True, **Xy):
+#        # fit was called in a top-down recursive context
+#        if recursion:
+#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
+#        # Regular fit
+#        Xy_dict = _sub_dict(Xy, self.in_args_fit)
+#        self.estimator.fit(**Xy_dict)
+#        if not self.children:  # if not children compute scores
+#            score = self.estimator.score(**Xy_dict)
+#            result = Result(key=self.get_signature())
+#            result[Result.SCORE, Result.TRAIN] = score
+#            result_set = ResultSet(result)
+#            self.save_state(result_set, name="result_set")
+#        if self.children:  # transform downstream data-flow (ds) for children
+#            return self.transform(recursion=False, **Xy)
+#        else:
+#            return self
+#
+#    def transform(self, recursion=True, **Xy):
+#        # transform was called in a top-down recursive context
+#        if recursion:
+#            return self.top_down(func_name="transform", recursion=recursion,
+#                                 **Xy)
+#        # Regular transform:
+#        # catch args_transform in ds, transform, store output in a dict
+#        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy,
+#                                             self.in_args_transform)),
+#                       keys=self.in_args_transform)
+#        # update ds with transformed values
+#        Xy.update(trn_dict)
+#        return Xy
+#
+#    def predict(self, recursion=True, **Xy):
+#        # fit was called in a top-down recursive context
+#        if recursion:
+#            return self.top_down(func_name="predict", recursion=recursion,
+#                                 **Xy)
+#        if self.children:  # if children call transform
+#            return self.transform(recursion=False, **Xy)
+#        # leaf node: do the prediction
+#        X_dict = _sub_dict(Xy, self.in_args_predict)
+#        pred = self.estimator.predict(**X_dict)
+#        # load previous train result_set and store test result_set
+#        result = self.load_state("result_set")[self.get_signature()]
+#        result[Result.PRED, Result.TEST] = pred
+#        # If true data (args in fit but not in predict) is provided then
+#        # add it to result_set plus compute score
+#        arg_only_in_fit = set(self.in_args_fit).difference(set(self.in_args_predict))
+#        if arg_only_in_fit.issubset(set(Xy.keys())):
+#            if len(arg_only_in_fit) != 1:
+#                raise ValueError("Do not know how to deal with more than one "
+#                    "result")
+#            result[Result.TRUE, Result.TEST] = Xy[arg_only_in_fit.pop()]
+#            result[Result.SCORE, Result.TEST] = self.estimator.score(**Xy)
+#        return pred
+#
+#    def reduce(self, store_results=True):
+#        # Terminaison (leaf) node return result_set
+#        if not self.children:
+#            return self.load_state(name="result_set")
+#        # 1) Build sub-aggregates over children
+#        children_result_set = [child.reduce(store_results=False) for
+#            child in self.children]
+#        result_set = ResultSet(*children_result_set)
+#        # Append node signature in the keys
+#        for result in result_set:
+#            result["key"] = key_push(self.get_signature(), result["key"])
+#        return result_set
 
+class InternalEstimator:
+    """Extimator Wrapper: connect  fit + transform to transform"""
     def __init__(self, estimator):
         self.estimator = estimator
-        super(Estimator, self).__init__()
-        self._args_fit = _func_get_args_names(self.estimator.fit) \
+        #super(InternalEstimator, self).__init__()
+        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
             if hasattr(self.estimator, "fit") else None
-        self._args_predict = _func_get_args_names(self.estimator.predict) \
-            if hasattr(self.estimator, "predict") else None
-        self._args_transform = _func_get_args_names(self.estimator.transform) \
+        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
             if hasattr(self.estimator, "transform") else None
 
-    def get_signature(self):
-        """Overload the base name method"""
-        if not self.signature_args:
-            return self.estimator.__class__.__name__
-        else:
-            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
-                             for k in self.signature_args])
-            args_str = "(" + args_str + ")"
-            return self.estimator.__class__.__name__ + args_str
-
-    def get_parameters(self):
-        return self.estimator.__dict__
-
-    def fit(self, recursion=True, **Xy):
-        # fit was called in a top-down recursive context
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-        # Regular fit
-        Xy_dict = _sub_dict(Xy, self._args_fit)
-        self.estimator.fit(**Xy_dict)
-        if not self.children:  # if not children compute scores
-            score = self.estimator.score(**Xy_dict)
-            result = Result(key=self.get_signature())
-            result[Result.SCORE, Result.TRAIN] = score
-            result_set = ResultSet(result)
-            self.save_state(result_set, name="result_set")
-        if self.children:  # transform downstream data-flow (ds) for children
-            return self.transform(recursion=False, **Xy)
-        else:
-            return self
-
-    def transform(self, recursion=True, **Xy):
-        # transform was called in a top-down recursive context
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **Xy)
-        # Regular transform:
-        # catch args_transform in ds, transform, store output in a dict
-        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy,
-                                             self._args_transform)),
-                       keys=self._args_transform)
-        # update ds with transformed values
-        Xy.update(trn_dict)
-        return Xy
-
-    def predict(self, recursion=True, **Xy):
-        # fit was called in a top-down recursive context
-        if recursion:
-            return self.top_down(func_name="predict", recursion=recursion,
-                                 **Xy)
-        if self.children:  # if children call transform
-            return self.transform(recursion=False, **Xy)
-        # leaf node: do the prediction
-        X_dict = _sub_dict(Xy, self._args_predict)
-        pred = self.estimator.predict(**X_dict)
-        # load previous train result_set and store test result_set
-        result = self.load_state("result_set")[self.get_signature()]
-        result[Result.PRED, Result.TEST] = pred
-        # If true data (args in fit but not in predict) is provided then
-        # add it to result_set plus compute score
-        arg_only_in_fit = set(self._args_fit).difference(set(self._args_predict))
-        if arg_only_in_fit.issubset(set(Xy.keys())):
-            if len(arg_only_in_fit) != 1:
-                raise ValueError("Do not know how to deal with more than one "
-                    "result")
-            result[Result.TRUE, Result.TEST] = Xy[arg_only_in_fit.pop()]
-            result[Result.SCORE, Result.TEST] = self.estimator.score(**Xy)
-        return pred
-
-    def reduce(self, store_results=True):
-        # Terminaison (leaf) node return result_set
-        if not self.children:
-            return self.load_state(name="result_set")
-        # 1) Build sub-aggregates over children
-        children_result_set = [child.reduce(store_results=False) for
-            child in self.children]
-        result_set = ResultSet(*children_result_set)
-        # Append node signature in the keys
-        for result in result_set:
-            result["key"] = key_push(self.get_signature(), result["key"])
-        return result_set
-
-class InternalEstimator(Estimator):
-    """Extimator Wrapper: connect  fit + transform to transform"""
     def transform(self, **Xy):
-        Xy_train, Xy_test = xy_split(Xy)
-        Xy_train_dict = _sub_dict(Xy_train, self._args_fit)        
-        self.estimator.fit(**Xy_train_dict)
-        # catch args_transform in ds, transform, store output in a dict
-        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy_train,
-                                             self._args_transform)),
-                       keys=self._args_transform)
-        test_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
-                                             self._args_transform)),
-                       keys=self._args_transform)
-        Xy_trn = xy_merge(trn_dict, test_dict)
+        if conf.KW_SPLIT_TRAIN_TEST in Xy:
+            Xy_train, Xy_test = xy_split(Xy)
+            self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            # catch args_transform in ds, transform, store output in a dict
+            Xy_out_tr = _as_dict(self.estimator.transform(**_sub_dict(Xy_train,
+                                                 self.in_args_transform)),
+                           keys=self.in_args_transform)
+            Xy_out_te = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
+                                                 self.in_args_transform)),
+                           keys=self.in_args_transform)
+            Xy_out = xy_merge(Xy_out_tr, Xy_out_te)
+        else:
+            self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            # catch args_transform in ds, transform, store output in a dict
+            Xy_out = _as_dict(self.estimator.transform(**_sub_dict(Xy,
+                                                 self.in_args_transform)),
+                           keys=self.in_args_transform)
         # update ds with transformed values
-        Xy.update(Xy_trn)
+        Xy.update(Xy_out)
         return Xy
 
-class LeafEstimator(Estimator):
-    """Extimator Wrapper: connect fit + predict to transform"""
-    def transform(self, recursion=True, **Xy):
+class LeafEstimator:
+    """Extimator Wrapper: connect  fit + transform to transform"""
+    def __init__(self, estimator):
+        self.estimator = estimator
+        #super(InternalEstimator, self).__init__()
+        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
+            if hasattr(self.estimator, "fit") else None
+        self.in_args_predict = _func_get_args_names(self.estimator.predict) \
+            if hasattr(self.estimator, "predict") else None
+        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
+            if hasattr(self.estimator, "transform") else None
+        self.out_args_predict = list(set(self.in_args_fit).difference(self.in_args_predict)) \
+            if hasattr(self.estimator, "predict") else None
 
+    """Extimator Wrapper: connect fit + predict to transform"""
+    def transform(self, **Xy):
+        if conf.KW_SPLIT_TRAIN_TEST in Xy:
+            Xy_train, Xy_test = xy_split(Xy)
+            self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            # catch args_transform in ds, transform, store output in a dict
+            Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
+                                                 self.in_args_predict)),
+                           keys=self.out_args_predict)
+            Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
+                                                 self.in_args_predict)),
+                           keys=self.out_args_predict)
+            Xy_out = xy_merge(Xy_out_tr, Xy_out_te)
+        else:
+            self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            # catch args_transform in ds, transform, store output in a dict
+            Xy_out = _as_dict(self.estimator.predict(**_sub_dict(Xy,
+                                                 self.in_args_predict)),
+                           keys=self.out_args_predict)
+        return Xy_out
 
 class CVBestSearchRefit(Estimator):
     """Cross-validation + grid-search then refit with optimals parameters.
