@@ -214,7 +214,7 @@ tree_root_node.reduce()
             in_pw=self.pw)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        # controller.delete_workflow(wf_id)
+        controller.delete_workflow(wf_id)
         self.tree_root = store.load()
         os.chdir(cur_work_dir)
         if os.path.isdir(tmp_work_dir_path):
