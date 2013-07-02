@@ -33,7 +33,7 @@ Application programing interface
 --------------------------------
 
 - `Estimator`: is the basic machine-learning building-bloc of the workflow. It is
-   a user-defined object that should implements 4 methods:
+   a user-defined object that should implement 4 methods:
   - `fit(<keyword arguments>)`: return `self`.
   - `transform(<keyword arguments>)`: is called only if the estimator is a non-leaf node.
      return an array or a dictionary. In the latter case, the returned dictionary
@@ -64,9 +64,10 @@ pipe = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
 pipe.fit(X=X, y=y).predict(X=X)
 ```
 
+
 - `Methods(Node+, reducer)`: Build workflow with parallel execution of `Nodes`.
    It is the basic parallelization node. In the bottom-up results it applies the
-   reducer (if provided) and results are passed up to the parrent node. It ensure
+   reducer (if provided) and results are passed up to the parent node. It ensures
    that their are collisions between children intermediary by trying to differentiate
    them using arguments.
 
@@ -84,7 +85,7 @@ multi.predict(X=X)
 multi.fit_predict(X=X, y=y)
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
-# No collisions between upstream keys, then no aggretation.
+# No collisions between upstream keys, then no aggregation.
 # Methods   Methods (Splitter)
 #  /   |   \
 # 1    5   10  SelectKBest (Estimator)
@@ -135,7 +136,7 @@ perms_cv_lda.fit_predict(X=X, y=y)
 tree.reduce()
 ```
 
-- `CVBestSearchRefit(Node+, n_folds, y, reducer)`:  Cross-validation + grid-search then refit with optimals parameters.
+- `CVBestSearchRefit(Node+, n_folds, y, reducer)`:  Cross-validation + grid-search then refit with optimal parameters.
 
 ```python
 from epac import Grid, Pipe, CVBestSearchRefit
@@ -157,7 +158,7 @@ wf.reduce()
 Details
 -------
 
-Nodes are of three types Mapper, Splitter or Slicer.
+Nodes are of three types Mapper, Splitter and Slicer.
 
 Splitters: process downstream data-flow.
 They are non leaf node  (degree >= 1) with several children.
