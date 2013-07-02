@@ -9,7 +9,7 @@ Created on Thu Jun 13 11:12:28 2013
 
 import os
 from abc import ABCMeta, abstractmethod
-from epac import key_pop
+from epac import key_pop, StoreMem
 
 
 def map_process(map_input, mapper):
@@ -136,8 +136,7 @@ class MapperSubtrees(Mapper):
             for node_root2common in common_parent.get_path_from_root():
                 node_root2common = \
                     self.tree_root.get_node(node_root2common.get_key())
-                # print node_root2common
-                # print parent_node
+                print node_root2common
                 func = getattr(node_root2common, self.function)
                 self.Xy = func(**self.Xy)
         # Execute what is specific to each keys
@@ -168,7 +167,7 @@ class MapperSubtrees(Mapper):
             # print "Save results"
             if self.store_fs:
                 curr_node.save_node(store=self.store_fs)
-            return self.tree_root
+        return self.tree_root
 
 if __name__ == "__main__":
     import doctest

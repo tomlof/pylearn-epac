@@ -36,7 +36,7 @@ if __name__ == "__main__":
                       'represents a key node')
     parser.add_option('-x', '--function',
                       help='Function to execute. Default "fit_predict"')
-    #argv = ['epac_mapper', '--datasets=./epac_datasets.npz', '--keysfile=./0.job']
+    #argv = ['epac_mapper', '--datasets=./dataset.npz', '--keysfile=./0.job']
     #options, args = parser.parse_args(argv)
     options, args = parser.parse_args(sys.argv)
     # Set default values to parameters
@@ -107,4 +107,4 @@ if __name__ == "__main__":
                                      tree_root=tree,
                                      store_fs=store_fs,
                                      function=function)
-    mapper_subtrees.map(nodes_input)
+    tree = mapper_subtrees.map(nodes_input)

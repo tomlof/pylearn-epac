@@ -43,34 +43,37 @@ class LocalEngine(Engine):
     Example
     -------
 
-from sklearn import datasets
+    >>> from sklearn import datasets
+    >>> 
+    >>> from epac.map_reduce.engine import LocalEngine
+    >>> from epac.tests.wfexamples2test import WFExample2
+    
+    >>> ## Build dataset
+    >>> ## =============
+    >>> X, y = datasets.make_classification(n_samples=10,
+    ...                                     n_features=20,
+    ...                                     n_informative=5,
+    ...                                     random_state=1)
+    >>> Xy = {'X':X, 'y':y}
+    
+    >>> ## Build epac tree
+    >>> ## ===============
+    >>> tree_root_node = WFExample2().get_workflow()
+    
+    >>> ## Build LocalEngine
+    >>> ## =================
+    >>> local_engine = LocalEngine(tree_root_node,
+    ...                            function_name="transform",
+    ...                            num_processes=3)
+    >>> tree_root_node = local_engine.run(**Xy)
+    
+    >>> ## Run reduce process
+    >>> ## ==================
+    >>> tree_root_node.reduce()
+    ResultSet(
+    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
+     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
 
-from epac.map_reduce.engine import LocalEngine
-from epac.tests.wfexamples2test import WFExample2
-
-## Build dataset
-## =============
-X, y = datasets.make_classification(n_samples=10,
-                                    n_features=20,
-                                    n_informative=5,
-                                    random_state=1)
-Xy = {'X':X, 'y':y}
-
-## Build epac tree
-## ===============
-tree_root_node = WFExample2().get_workflow()
-
-## Build LocalEngine
-## =================
-local_engine = LocalEngine(tree_root_node,
-                           function_name="transform",
-                           num_processes=3)
-tree_root_node = local_engine.run(**Xy)
-
-## Run reduce process
-## ==================
-## pval_mean_score_te might be different since permutation is random
-tree_root_node.reduce()
     '''
     tree_root_relative_path = "./epac_tree"
 
@@ -93,7 +96,9 @@ tree_root_node.reduce()
         """
         self.tree_root = tree_root
         self.function_name = function_name
-        if num_processes == -1:
+        if num_processes == 0:
+            num_processes = 1
+        if num_processes < 0:
             self.num_processes = multiprocessing.cpu_count()
         else:
             self.num_processes = num_processes
@@ -106,67 +111,29 @@ tree_root_node.reduce()
         from epac.map_reduce.mappers import MapperSubtrees
         from epac.map_reduce.mappers import map_process
 
-        tmp_work_dir_path = tempfile.mkdtemp()
-        store = StoreFs(dirpath=os.path.join(
-            tmp_work_dir_path,
-            LocalEngine.tree_root_relative_path))
-        self.tree_root.save_tree(store=store)
-
         ## Split input into several parts and create mapper
         ## ================================================
         node_input = NodesInput(self.tree_root.get_key())
         split_node_input = SplitNodesInput(self.tree_root,
                                            num_processes=self.num_processes)
         input_list = split_node_input.split(node_input)
-        mapper = MapperSubtrees(Xy,
-                                self.tree_root, store,
-                                self.function_name)
+        mapper = MapperSubtrees(Xy=Xy,
+                                tree_root=self.tree_root,
+                                function=self.function_name)
+
         ## Run map processes in parallel
         ## =============================
         partial_map_process = partial(map_process, mapper=mapper)
         pool = Pool(processes=self.num_processes)
-        pool.map(partial_map_process, input_list)
+        res_tree_root_list = pool.map(partial_map_process, input_list)
+        for each_tree_root in res_tree_root_list:
+            self.tree_root.merge_tree_store(each_tree_root)
 
-        ## Load results tree and remove temp working directory
-        ## ===================================================
-        self.tree_root = store.load()
-        if os.path.isdir(tmp_work_dir_path):
-            shutil.rmtree(tmp_work_dir_path)
         return self.tree_root
 
 
 class SomaWorkflowEngine(LocalEngine):
     '''Using soma-workflow to run epac tree in parallel
-
-    Example
-    -------
-
-from sklearn import datasets
-from epac.map_reduce.engine import SomaWorkflowEngine
-from epac.tests.wfexamples2test import WFExample2
-
-## Build dataset
-## =============
-X, y = datasets.make_classification(n_samples=10,
-                                    n_features=20,
-                                    n_informative=5,
-                                    random_state=1)
-Xy = {'X':X, 'y':y}
-## Build epac tree
-## ===============
-tree_root_node = WFExample2().get_workflow()
-
-## Build SomaWorkflowEngine
-## =================
-sfw_engine = SomaWorkflowEngine(tree_root=tree_root_node,
-                                function_name="transform",
-                                num_processes=3)
-tree_root_node = sfw_engine.run(**Xy)
-
-## Run reduce process
-## ==================
-tree_root_node.reduce()
-
     '''
     dataset_relative_path = "./dataset.npz"
     open_me_by_soma_workflow_gui = "open_me_by_soma_workflow_gui"
@@ -189,6 +156,42 @@ tree_root_node.reduce()
         self.pw = pw
 
     def run(self, **Xy):
+        '''Run soma-workflow without gui
+
+        Example
+        -------
+
+        >>> from sklearn import datasets
+        >>> from epac.map_reduce.engine import SomaWorkflowEngine
+        >>> from epac.tests.wfexamples2test import WFExample2
+
+        >>> ## Build dataset
+        >>> ## =============
+        >>> X, y = datasets.make_classification(n_samples=10,
+        ...                                     n_features=20,
+        ...                                     n_informative=5,
+        ...                                     random_state=1)
+        >>> Xy = {'X':X, 'y':y}
+
+        >>> ## Build epac tree
+        >>> ## ===============
+        >>> tree_root_node = WFExample2().get_workflow()
+
+        >>> ## Build SomaWorkflowEngine and run function for each node
+        >>> ## =======================================================
+        >>> sfw_engine = SomaWorkflowEngine(tree_root=tree_root_node,
+        ...                                 function_name="fit_predict",
+        ...                                 num_processes=3)
+        >>> tree_root_node = sfw_engine.run(**Xy)
+        light mode
+
+        >>> ## Run reduce process
+        >>> ## ==================
+        >>> tree_root_node.reduce()
+        ResultSet(
+        [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
+         {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+        '''
         from epac.map_reduce.exports import export2somaworkflow
         from soma.workflow.client import Helper
         tmp_work_dir_path = tempfile.mkdtemp()
@@ -204,8 +207,8 @@ tree_root_node.reduce()
         (wf_id, controller) = export2somaworkflow(
             in_datasets_file_relative_path=SomaWorkflowEngine.dataset_relative_path,
             in_working_directory=tmp_work_dir_path,
-            out_soma_workflow_file=
-            SomaWorkflowEngine.open_me_by_soma_workflow_gui,
+            out_soma_workflow_file=\
+                SomaWorkflowEngine.open_me_by_soma_workflow_gui,
             in_num_processes=self.num_processes,
             in_tree_root=self.tree_root,
             in_is_sumbit=True,
