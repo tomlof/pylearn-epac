@@ -107,7 +107,7 @@ def _as_dict(v, keys):
     return {keys[i]: v[i] for i in xrange(len(keys))}
 
 
-def _dict_prefix_keys(prefix, d):
+def _dict_prefix_keys(d, prefix):
     return {prefix + str(k): d[k] for k in d}
 
 

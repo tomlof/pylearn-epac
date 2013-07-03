@@ -57,8 +57,9 @@ class Estimator(BaseNode):
     def get_parameters(self):
         return self.estimator.__dict__
 
+
 class InternalEstimator(Estimator):
-    """Estimator Wrapper: Automatically connect estimator.fit and 
+    """Estimator Wrapper: Automatically connect estimator.fit and
     estimator.transform to BaseNode.transform.
 
     Parameters:
@@ -117,7 +118,7 @@ class InternalEstimator(Estimator):
 
 
 class LeafEstimator(Estimator):
-    """Estimator Wrapper: Automatically connect estimator.fit and 
+    """Estimator Wrapper: Automatically connect estimator.fit and
     estimator.predict to BaseNode.transform.
 
     Parameters:
@@ -154,27 +155,35 @@ class LeafEstimator(Estimator):
                 self.out_args_predict = fit_predict_diff
             else:
                 self.out_args_predict = self.in_args_predict
-        else: 
+        else:
             self.out_args_predict =  out_args_predict
 
     """Extimator Wrapper: connect fit + predict to transform"""
     def transform(self, **Xy):
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
             Xy_train, Xy_test = train_test_split(Xy)
+            Xy_out = dict()
+            # Train fit
             self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
-            # catch args_transform in ds, transform, store output in a dict
+            # Train predict
             Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out_tr = _dict_prefix_keys(
-                conf.PREDICTION + conf.SEP + conf.TRAIN + conf.SEP, Xy_out_tr)
+            Xy_out_tr = _dict_prefix_keys(Xy_out_tr,
+                prefix=conf.PREDICTION + conf.SEP + conf.TRAIN + conf.SEP)
+            Xy_out.update(Xy_out_tr)
+            # Test predict
             Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out_te = _dict_prefix_keys(
-                conf.PREDICTION + conf.SEP + conf.TEST + conf.SEP, Xy_out_te)
-            Xy_out_tr.update(Xy_out_te)
-            Xy_out = Xy_out_tr
+            Xy_out_te = _dict_prefix_keys(Xy_out_te,
+                prefix=conf.PREDICTION + conf.SEP + conf.TEST + conf.SEP)
+            Xy_out.update(Xy_out_te)
+            ## True test
+            Xy_test_true = _sub_dict(Xy_test, self.out_args_predict)
+            Xy_out_true = _dict_prefix_keys(Xy_test_true,
+                prefix=conf.TRUE + conf.SEP + conf.TEST + conf.SEP)
+            Xy_out.update(Xy_out_true)
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
