@@ -22,6 +22,7 @@ class conf:
     TRAIN = "train"
     TEST = "test"
     TRUE = "true"
+    PREDICTION= "pred"
 
 class debug:
     DEBUG = False

@@ -30,7 +30,7 @@ It is a user-defined object that should implements 4 methods:
 import re
 import numpy as np
 from epac.workflow.base import BaseNode, key_push, key_split
-from epac.utils import _func_get_args_names, train_test_merge, train_test_split
+from epac.utils import _func_get_args_names, train_test_merge, train_test_split, _dict_prefix_keys
 from epac.utils import _sub_dict, _as_dict
 from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
@@ -140,10 +140,15 @@ class LeafEstimator(BaseNode):
             Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
+            Xy_out_tr = _dict_prefix_keys(
+                conf.PREDICTION + conf.SEP + conf.TRAIN + conf.SEP, Xy_out_tr)
             Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
+            Xy_out_te = _dict_prefix_keys(
+                conf.PREDICTION + conf.SEP + conf.TEST + conf.SEP, Xy_out_te)
+            Xy_out_tr.update(Xy_out_te)
+            Xy_out = Xy_out_tr
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
