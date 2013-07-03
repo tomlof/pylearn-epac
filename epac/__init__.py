@@ -8,7 +8,7 @@ Created on Wed Jan 23 13:58:21 2013
 
 from epac.workflow.pipeline import Pipe
 from epac.workflow.splitters import CV, Perms, Methods#, Grid
-from epac.workflow.estimators import CVBestSearchRefit
+from epac.workflow.estimators import CVBestSearchRefit, InternalEstimator, LeafEstimator
 from epac.workflow.base import key_pop, key_split
 from epac.configuration import conf, debug
 from epac.map_reduce.results import ResultSet, Result
@@ -34,6 +34,7 @@ __all__ = ['Pipe',
            'Perms',
            'Methods',
            'CVBestSearchRefit',
+            'InternalEstimator', 'LeafEstimator',
            'SummaryStat',
            'PvalPerms',
            'Result',

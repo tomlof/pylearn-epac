@@ -16,7 +16,7 @@ import numpy as np
 import copy
 
 from epac.workflow.base import BaseNode, key_push, key_pop
-from epac.workflow.estimators import Estimator
+from epac.workflow.estimators import LeafEstimator
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
 from epac.map_reduce.reducers import SummaryStat, PvalPerms
@@ -94,8 +94,6 @@ class CV(BaseNodeSplitter):
         A Reducer should inmplement the reduce(node, key2, val) method.
         Default SummaryStat() with default arguments.
     """
-    SUFFIX_TRAIN = "train"
-    SUFFIX_TEST = "test"
 
     def __init__(self, node, n_folds=5, random_state=None,
                  cv_type="stratified", reducer=SummaryStat(), **kwargs):
@@ -118,20 +116,10 @@ class CV(BaseNodeSplitter):
                 if cpt == nb:
                     break
                 cpt += 1
-            self.slicer.set_sclices({CV.SUFFIX_TRAIN: train,
-                                             CV.SUFFIX_TEST: test})
+            self.slicer.set_sclices({conf.TRAIN: train, conf.TEST: test})
         return self.slicer
 
-    def fit(self, recursion=True, **Xy):
-        """Call transform with sample_set="train" """
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-        return self.transform(recursion=False, **Xy)
-
-    def transform(self, recursion=True, **Xy):
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **Xy)
+    def transform(self, **Xy):
         # Set the slicing
         if not "y" in Xy:
             raise ValueError('"y" should be provided')
@@ -207,16 +195,7 @@ class Perms(BaseNodeSplitter):
     def get_parameters(self):
         return dict(n_perms=self.n_perms, permute=self.permute)
 
-    def fit(self, recursion=True, **Xy):
-        """Call transform with sample_set="train" """
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-        return self.transform(recursion=False, **Xy)
-
-    def transform(self, recursion=True, **Xy):
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **Xy)
+    def transform(self, **Xy):
         # Set the slicing
         if not "y" in Xy:
             raise ValueError('"y" should be provided')
@@ -357,14 +336,11 @@ class RowSlicer(Slicer):
                 slices.tolist() if isinstance(slices, np.ndarray) else slices
             self.n = len(self.slices)
 
-    def transform(self, recursion=True, sample_set=None, **Xy):
+    def transform(self, **Xy):
         if not self.slices:
             raise ValueError("Slicing hasn't been initialized. "
             "Slicers constructors such as CV or Perm should be called "
             "with a sample. Ex.: CV(..., y=y), Perm(..., y=y)")
-        if recursion:
-            return self.top_down(func_name="transform", recursion=recursion,
-                                 **Xy)
         data_keys = self.apply_on if self.apply_on else Xy.keys()
         # filter out non-array or array with wrong dimension
         for k in data_keys:
@@ -375,26 +351,9 @@ class RowSlicer(Slicer):
             if not data_key in Xy:
                 continue
             if isinstance(self.slices, dict):
-                if not sample_set:
-                    raise ValueError("sample_set should be provided. "
-                    "self.slices is a dict with several slices, one should "
-                    "indiquates which slices to use among %s" %
-                    self.slices.keys())
                 indices = self.slices[sample_set]
             else:
                 indices = self.slices
             Xy[data_key] = Xy[data_key][indices]
         return Xy
 
-    def fit(self, recursion=True, **Xy):
-        """Call transform with sample_set="train" """
-        if recursion:
-            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-        return self.transform(recursion=False, sample_set="train", **Xy)
-
-    def predict(self, recursion=True, **Xy):
-        """Call transform  with sample_set="test" """
-        if recursion:
-            return self.top_down(func_name="predict", recursion=recursion,
-                                 **Xy)
-        return self.transform(recursion=False, sample_set="test", **Xy)

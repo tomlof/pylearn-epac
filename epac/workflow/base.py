@@ -444,34 +444,6 @@ class BaseNode(object):
             self.save_state(Xy, name="results")
         return Xy
 
-#    def fit(self, recursion=True, **Xy):
-#        if recursion:
-#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-#        return Xy
-
-#        if recursion:
-#            return self.top_down(func_name="transform", recursion=recursion,
-#                                 **Xy)
-#        return Xy
-
-#    def predict(self, recursion=True, **Xy):
-#        if recursion:
-#            return self.top_down(func_name="predict", recursion=recursion,
-#                                 **Xy)
-#        return Xy
-#
-#    def fit_predict(self, recursion=True, **Xy):
-#        if recursion:  # fit_predict was called in a top-down recursive context
-#            return self.top_down(func_name="fit_predict", recursion=recursion,
-#                                 **Xy)
-#        Xy_train, Xy_test = train_test_split(Xy)
-#        Xy_train = self.fit(recursion=False, **Xy_train)
-#        Xy_test = self.predict(recursion=False, **Xy_test)
-#        if self.children:
-#            return train_test_merge(Xy_train, Xy_test)
-#        else:
-#            return Xy_test
-
     def get_children_top_down(self):
         """Return children during the top-down exection."""
         return self.children

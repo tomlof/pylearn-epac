@@ -42,102 +42,6 @@ from epac.map_reduce.reducers import SummaryStat
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-class Estimator(BaseNode):
-    """Node that wrap estimators"""
-    pass
-#
-#    def __init__(self, estimator):
-#        self.estimator = estimator
-#        super(Estimator, self).__init__()
-#        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
-#            if hasattr(self.estimator, "fit") else None
-#        self.in_args_predict = _func_get_args_names(self.estimator.predict) \
-#            if hasattr(self.estimator, "predict") else None
-#        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
-#            if hasattr(self.estimator, "transform") else None
-#
-#    def get_signature(self):
-#        """Overload the base name method"""
-#        if not self.signature_args:
-#            return self.estimator.__class__.__name__
-#        else:
-#            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
-#                             for k in self.signature_args])
-#            args_str = "(" + args_str + ")"
-#            return self.estimator.__class__.__name__ + args_str
-#
-#    def get_parameters(self):
-#        return self.estimator.__dict__
-#
-#    def fit(self, recursion=True, **Xy):
-#        # fit was called in a top-down recursive context
-#        if recursion:
-#            return self.top_down(func_name="fit", recursion=recursion, **Xy)
-#        # Regular fit
-#        Xy_dict = _sub_dict(Xy, self.in_args_fit)
-#        self.estimator.fit(**Xy_dict)
-#        if not self.children:  # if not children compute scores
-#            score = self.estimator.score(**Xy_dict)
-#            result = Result(key=self.get_signature())
-#            result[Result.SCORE, conf.TRAIN] = score
-#            result_set = ResultSet(result)
-#            self.save_state(result_set, name="result_set")
-#        if self.children:  # transform downstream data-flow (ds) for children
-#            return self.transform(recursion=False, **Xy)
-#        else:
-#            return self
-#
-#    def transform(self, recursion=True, **Xy):
-#        # transform was called in a top-down recursive context
-#        if recursion:
-#            return self.top_down(func_name="transform", recursion=recursion,
-#                                 **Xy)
-#        # Regular transform:
-#        # catch args_transform in ds, transform, store output in a dict
-#        trn_dict = _as_dict(self.estimator.transform(**_sub_dict(Xy,
-#                                             self.in_args_transform)),
-#                       keys=self.in_args_transform)
-#        # update ds with transformed values
-#        Xy.update(trn_dict)
-#        return Xy
-#
-#    def predict(self, recursion=True, **Xy):
-#        # fit was called in a top-down recursive context
-#        if recursion:
-#            return self.top_down(func_name="predict", recursion=recursion,
-#                                 **Xy)
-#        if self.children:  # if children call transform
-#            return self.transform(recursion=False, **Xy)
-#        # leaf node: do the prediction
-#        X_dict = _sub_dict(Xy, self.in_args_predict)
-#        pred = self.estimator.predict(**X_dict)
-#        # load previous train result_set and store test result_set
-#        result = self.load_state("result_set")[self.get_signature()]
-#        result[Result.PRED, conf.TEST] = pred
-#        # If true data (args in fit but not in predict) is provided then
-#        # add it to result_set plus compute score
-#        arg_only_in_fit = set(self.in_args_fit).difference(set(self.in_args_predict))
-#        if arg_only_in_fit.issubset(set(Xy.keys())):
-#            if len(arg_only_in_fit) != 1:
-#                raise ValueError("Do not know how to deal with more than one "
-#                    "result")
-#            result[Result.TRUE, conf.TEST] = Xy[arg_only_in_fit.pop()]
-#            result[Result.SCORE, conf.TEST] = self.estimator.score(**Xy)
-#        return pred
-#
-#    def reduce(self, store_results=True):
-#        # Terminaison (leaf) node return result_set
-#        if not self.children:
-#            return self.load_state(name="result_set")
-#        # 1) Build sub-aggregates over children
-#        children_result_set = [child.reduce(store_results=False) for
-#            child in self.children]
-#        result_set = ResultSet(*children_result_set)
-#        # Append node signature in the keys
-#        for result in result_set:
-#            result["key"] = key_push(self.get_signature(), result["key"])
-#        return result_set
-
 class InternalEstimator(BaseNode):
     """Estimator Wrapper: Automatically connect estimator.fit and 
     estimator.transform to BaseNode.transform.
@@ -248,7 +152,7 @@ class LeafEstimator(BaseNode):
                            keys=self.out_args_predict)
         return Xy_out
 
-class CVBestSearchRefit(Estimator):
+class CVBestSearchRefit(BaseNode):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
