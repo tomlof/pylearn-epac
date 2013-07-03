@@ -136,7 +136,7 @@ class MapperSubtrees(Mapper):
             for node_root2common in common_parent.get_path_from_root():
                 node_root2common = \
                     self.tree_root.get_node(node_root2common.get_key())
-                print node_root2common
+                # print node_root2common
                 func = getattr(node_root2common, self.function)
                 self.Xy = func(**self.Xy)
         # Execute what is specific to each keys

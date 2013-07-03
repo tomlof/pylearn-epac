@@ -37,17 +37,18 @@ class Engine(object):
 #        ##the shuffle step have been skiped since we dont have this step
 #        self.reducer.reduce(list_reduce_input)
 
+
 class LocalEngine(Engine):
-    '''LocalEninge run a specified function for a epac tree in parallel
+    '''LocalEninge run function for each node of epac tree in parallel
 
     Example
     -------
 
     >>> from sklearn import datasets
-    >>> 
+    >>>
     >>> from epac.map_reduce.engine import LocalEngine
     >>> from epac.tests.wfexamples2test import WFExample2
-    
+
     >>> ## Build dataset
     >>> ## =============
     >>> X, y = datasets.make_classification(n_samples=10,
@@ -55,18 +56,18 @@ class LocalEngine(Engine):
     ...                                     n_informative=5,
     ...                                     random_state=1)
     >>> Xy = {'X':X, 'y':y}
-    
+
     >>> ## Build epac tree
     >>> ## ===============
     >>> tree_root_node = WFExample2().get_workflow()
-    
+
     >>> ## Build LocalEngine
     >>> ## =================
     >>> local_engine = LocalEngine(tree_root_node,
     ...                            function_name="transform",
     ...                            num_processes=3)
     >>> tree_root_node = local_engine.run(**Xy)
-    
+
     >>> ## Run reduce process
     >>> ## ==================
     >>> tree_root_node.reduce()
@@ -128,7 +129,6 @@ class LocalEngine(Engine):
         res_tree_root_list = pool.map(partial_map_process, input_list)
         for each_tree_root in res_tree_root_list:
             self.tree_root.merge_tree_store(each_tree_root)
-
         return self.tree_root
 
 
@@ -205,7 +205,8 @@ class SomaWorkflowEngine(LocalEngine):
             SomaWorkflowEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
         (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=SomaWorkflowEngine.dataset_relative_path,
+            in_datasets_file_relative_path=\
+                SomaWorkflowEngine.dataset_relative_path,
             in_working_directory=tmp_work_dir_path,
             out_soma_workflow_file=\
                 SomaWorkflowEngine.open_me_by_soma_workflow_gui,
@@ -239,7 +240,8 @@ class SomaWorkflowEngine(LocalEngine):
             SomaWorkflowEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
         export2somaworkflow(
-            in_datasets_file_relative_path=SomaWorkflowEngine.dataset_relative_path,
+            in_datasets_file_relative_path=\
+                SomaWorkflowEngine.dataset_relative_path,
             in_working_directory=soma_workflow_dirpath,
             out_soma_workflow_file=
                 SomaWorkflowEngine.open_me_by_soma_workflow_gui,
