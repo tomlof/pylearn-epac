@@ -29,8 +29,8 @@ It is a user-defined object that should implements 4 methods:
 
 import re
 import numpy as np
-from epac.workflow.base import BaseNode, xy_merge, xy_split, key_push, key_split
-from epac.utils import _func_get_args_names
+from epac.workflow.base import BaseNode, key_push, key_split
+from epac.utils import _func_get_args_names, train_test_merge, train_test_split
 from epac.utils import _sub_dict, _as_dict
 from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
@@ -42,8 +42,9 @@ from epac.map_reduce.reducers import SummaryStat
 ## == Wrapper node for estimators == ##
 ## ================================= ##
 
-#class Estimator(BaseNode):
-#    """Node that wrap estimators"""
+class Estimator(BaseNode):
+    """Node that wrap estimators"""
+    pass
 #
 #    def __init__(self, estimator):
 #        self.estimator = estimator
@@ -78,7 +79,7 @@ from epac.map_reduce.reducers import SummaryStat
 #        if not self.children:  # if not children compute scores
 #            score = self.estimator.score(**Xy_dict)
 #            result = Result(key=self.get_signature())
-#            result[Result.SCORE, Result.TRAIN] = score
+#            result[Result.SCORE, conf.TRAIN] = score
 #            result_set = ResultSet(result)
 #            self.save_state(result_set, name="result_set")
 #        if self.children:  # transform downstream data-flow (ds) for children
@@ -112,7 +113,7 @@ from epac.map_reduce.reducers import SummaryStat
 #        pred = self.estimator.predict(**X_dict)
 #        # load previous train result_set and store test result_set
 #        result = self.load_state("result_set")[self.get_signature()]
-#        result[Result.PRED, Result.TEST] = pred
+#        result[Result.PRED, conf.TEST] = pred
 #        # If true data (args in fit but not in predict) is provided then
 #        # add it to result_set plus compute score
 #        arg_only_in_fit = set(self.in_args_fit).difference(set(self.in_args_predict))
@@ -120,8 +121,8 @@ from epac.map_reduce.reducers import SummaryStat
 #            if len(arg_only_in_fit) != 1:
 #                raise ValueError("Do not know how to deal with more than one "
 #                    "result")
-#            result[Result.TRUE, Result.TEST] = Xy[arg_only_in_fit.pop()]
-#            result[Result.SCORE, Result.TEST] = self.estimator.score(**Xy)
+#            result[Result.TRUE, conf.TEST] = Xy[arg_only_in_fit.pop()]
+#            result[Result.SCORE, conf.TEST] = self.estimator.score(**Xy)
 #        return pred
 #
 #    def reduce(self, store_results=True):
@@ -137,19 +138,35 @@ from epac.map_reduce.reducers import SummaryStat
 #            result["key"] = key_push(self.get_signature(), result["key"])
 #        return result_set
 
-class InternalEstimator:
-    """Extimator Wrapper: connect  fit + transform to transform"""
-    def __init__(self, estimator):
+class InternalEstimator(BaseNode):
+    """Estimator Wrapper: Automatically connect estimator.fit and 
+    estimator.transform to BaseNode.transform.
+
+    Parameters:
+        estimator: object that implement fit and transform
+
+        in_args_fit: list of strings
+            names of input arguments of the fit method. If missing discover
+            discover it automatically.
+
+        in_args_transform: list of strings
+            names of input arguments of the tranform method. If missing,
+            discover it automatically.
+    """
+    def __init__(self, estimator, in_args_fit=None, in_args_transform=None):
+        if not hasattr(estimator, "fit") or not \
+            hasattr(estimator, "transform"):
+            raise ValueError("estimator should implement fit and transform")
+        super(InternalEstimator, self).__init__()
         self.estimator = estimator
-        #super(InternalEstimator, self).__init__()
         self.in_args_fit = _func_get_args_names(self.estimator.fit) \
-            if hasattr(self.estimator, "fit") else None
+            if in_args_fit is None else in_args_fit
         self.in_args_transform = _func_get_args_names(self.estimator.transform) \
-            if hasattr(self.estimator, "transform") else None
+            if in_args_transform is None else in_args_transform
 
     def transform(self, **Xy):
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
-            Xy_train, Xy_test = xy_split(Xy)
+            Xy_train, Xy_test = train_test_split(Xy)
             self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out_tr = _as_dict(self.estimator.transform(**_sub_dict(Xy_train,
@@ -158,7 +175,7 @@ class InternalEstimator:
             Xy_out_te = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
                                                  self.in_args_transform)),
                            keys=self.in_args_transform)
-            Xy_out = xy_merge(Xy_out_tr, Xy_out_te)
+            Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
@@ -169,24 +186,51 @@ class InternalEstimator:
         Xy.update(Xy_out)
         return Xy
 
-class LeafEstimator:
-    """Extimator Wrapper: connect  fit + transform to transform"""
-    def __init__(self, estimator):
+class LeafEstimator(BaseNode):
+    """Estimator Wrapper: Automatically connect estimator.fit and 
+    estimator.predict to BaseNode.transform.
+
+    Parameters:
+        estimator: object that implement fit and transform
+
+        in_args_fit: list of strings
+            names of input arguments of the fit method. If missing discover
+            discover it automatically.
+
+        in_args_predict: list of strings
+            names of input arguments of the predict method. If missing,
+            discover it automatically.
+
+        out_args_predict: list of strings
+            names of output arguments of the predict method. If missing,
+            discover it automatically by self.in_args_fit - in_args_predict.
+            If not differences (such with PCA with fit(X) and predict(X))
+            use in_args_predict.
+    """
+    def __init__(self, estimator, in_args_fit=None, in_args_predict=None,
+                 out_args_predict=None):
+        if not hasattr(estimator, "fit") or not \
+            hasattr(estimator, "predict"):
+            raise ValueError("estimator should implement fit and predict")
+        super(LeafEstimator, self).__init__()
         self.estimator = estimator
-        #super(InternalEstimator, self).__init__()
         self.in_args_fit = _func_get_args_names(self.estimator.fit) \
-            if hasattr(self.estimator, "fit") else None
+            if in_args_fit is None else in_args_fit
         self.in_args_predict = _func_get_args_names(self.estimator.predict) \
-            if hasattr(self.estimator, "predict") else None
-        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
-            if hasattr(self.estimator, "transform") else None
-        self.out_args_predict = list(set(self.in_args_fit).difference(self.in_args_predict)) \
-            if hasattr(self.estimator, "predict") else None
+            if in_args_predict is None else in_args_predict
+        if out_args_predict is None:
+            fit_predict_diff = list(set(self.in_args_fit).difference(self.in_args_predict))
+            if len(fit_predict_diff) > 0:
+                self.out_args_predict = fit_predict_diff
+            else:
+                self.out_args_predict = self.in_args_predict
+        else: 
+            self.out_args_predict =  out_args_predict
 
     """Extimator Wrapper: connect fit + predict to transform"""
     def transform(self, **Xy):
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
-            Xy_train, Xy_test = xy_split(Xy)
+            Xy_train, Xy_test = train_test_split(Xy)
             self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
@@ -195,7 +239,7 @@ class LeafEstimator:
             Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out = xy_merge(Xy_out_tr, Xy_out_te)
+            Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
@@ -287,7 +331,7 @@ class CVBestSearchRefit(Estimator):
         return pred
 
     def fit_predict(self, recursion=True, **Xy):
-        Xy_train, Xy_test = xy_split(Xy)
+        Xy_train, Xy_test = train_test_split(Xy)
         self.fit(recursion=False, **Xy_train)
         Xy_test = self.predict(recursion=False, **Xy_test)
         return Xy_test

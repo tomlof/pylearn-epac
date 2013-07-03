@@ -10,7 +10,7 @@ Define "Pipeline": the primitive to build sequential execution of tasks.
 ## te: test
 
 from epac.workflow.base import BaseNode
-from epac.workflow.estimators import Estimator
+from epac.workflow.estimators import LeafEstimator, InternalEstimator
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -25,10 +25,23 @@ def Pipe(*nodes):
     Parameters
     ----------
     task [, task]*
+
+    Example
+    -------
+    >>> from sklearn.svm import SVC
+    >>> from sklearn.feature_selection import SelectKBest
+    >>> from epac import Pipe
+    >>> pipe = Pipe(SelectKBest(k=2), SVC())
     """
     root = None
-    for node in nodes:
-        curr = node if isinstance(node, BaseNode) else Estimator(node)
+    
+    for i in xrange(len(nodes)):
+        node = nodes[i]
+        if  not isinstance(node, BaseNode):
+            if i == len(nodes) - 1:    
+                curr = LeafEstimator(node)
+            else:
+                curr = InternalEstimator(node)
         if not root:
             root = curr
         else:

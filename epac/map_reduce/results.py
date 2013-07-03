@@ -94,10 +94,8 @@ class Result(ReduceInput):
     >>> r1 = Result('SVC(C=1)', **dict(a=1, b=2))
     >>> r2 = Result(key='SVC(C=10)', a=1, b=2)
     >>> r1["foo"] = "bar"
-    >>> r1[Result.SCORE, Result.TRAIN] = 1.0
+    >>> r1[Result.SCORE, conf.TRAIN] = 1.0
     """
-    TRAIN = "tr"
-    TEST = "te"
     SCORE = "score"
     PRED = "pred"
     TRUE = "true"

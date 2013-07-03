@@ -14,15 +14,14 @@ class conf:
     TRACE_TOPDOWN = False
     STORE_FS_PICKLE_SUFFIX = ".pkl"
     STORE_FS_JSON_SUFFIX = ".json"
-    STORE_NODE_PREFIX = "node"
     STORE_EXECUTION_TREE_PREFIX = "execution_tree"
     STORE_STORE_PREFIX = "store"
-    KEY_PATH_SEP = "/"
-    KEY_PROT_PATH_SEP = "://"  # key storage protocol / path separator
+    SEP = "/"
     SUFFIX_JOB = "job"
-    SOMA_WORKFLOW_FILEPATH = "soma_workflow_script"
     KW_SPLIT_TRAIN_TEST = "split_train_test"
-
+    TRAIN = "train"
+    TEST = "test"
+    TRUE = "true"
 
 class debug:
     DEBUG = False

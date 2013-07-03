@@ -21,7 +21,7 @@ from epac.configuration import conf, debug
 
 def key_push(key, basename):
     if key and basename:
-        return key + conf.KEY_PATH_SEP + basename
+        return key + conf.SEP + basename
     else:
         return key or basename
 
@@ -41,11 +41,11 @@ def key_pop(key, index=-1):
     ('CV', 'CV(nb=0)/SelectKBest/LDA')
     """
     if index == 0:
-        i = key.find(conf.KEY_PATH_SEP)
+        i = key.find(conf.SEP)
         head = key[:i]
         tail = key[(i + 1):]
     else:
-        i = key.rfind(conf.KEY_PATH_SEP) + 1
+        i = key.rfind(conf.SEP) + 1
         tail = key[i:]
         head = key[:(i - 1)]
     return head, tail
@@ -73,7 +73,7 @@ def key_split(key, eval=False):
     [[('name', 'SelectKBest'), ('k', 1)], [('name', 'SVC'),
       ('kernel', 'linear'), ('C', 1)]]
     """
-    signatures = [signature for signature in key.split(conf.KEY_PATH_SEP)]
+    signatures = [signature for signature in key.split(conf.SEP)]
     if eval:
         return [signature_eval(signature) for signature in signatures]
     else:
@@ -108,68 +108,6 @@ def signature_eval(signature):
         return ret
     else:
         return [("name", signature)]
-
-## ============================================== ##
-## == down-stream data-flow manipulation utils == ##
-## ============================================== ##
-
-def xy_split(Xy):
-    """Split Xy into two dictonaries. If input dictonnary whas not build
-    with xy_merge(Xy1, Xy2) then return twice the input
-    dictonnary.
-
-    Parameters
-    ----------
-    Xy: dict
-
-    Returns
-    -------
-    dict1, dict2 : splited dictionaries
-
-    Example
-    -------
-    >>> xy_merged = xy_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
-    >>> print xy_merged
-    {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
-    >>> print xy_split(xy_merged)
-    ({'a': 1, 'b': 2}, {'a': 33, 'c': 55, 'b': 44})
-    >>> print xy_split(dict(a=1, b=2))
-    ({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
-    """
-    keys1 = [key1 for key1 in Xy if (str(key1).find("__1__%") == 0)]
-    keys2 = [key2 for key2 in Xy if (str(key2).find("__2__%") == 0)]
-    if not keys1 and not keys2:
-        return Xy, Xy
-    if keys1 and keys2:
-        Xy1 = {key1.replace("__1__%", ""):
-                        Xy[key1] for key1 in keys1}
-        Xy2 = {key2.replace("__2__%", ""):
-                        Xy[key2] for key2 in keys2}
-        return Xy1, Xy2
-    raise KeyError("data-flow could not be splitted")
-
-
-def xy_merge(Xy1, Xy2):
-    """Merge two dict avoiding keys collision.
-
-    Parameters
-    ----------
-    Xy1: dict
-    Xy2: dict
-
-    Returns
-    -------
-    dict : merged dictionary
-
-    Example
-    -------
-    >>> xy_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
-    {'__2__%b': 44, '__2__%c': 55, '__2__%a': 33, '__1__%a': 1, '__1__%b': 2}
-    """
-    Xy1 = {"__1__%" + str(k): Xy1[k] for k in Xy1}
-    Xy2 = {"__2__%" + str(k): Xy2[k] for k in Xy2}
-    Xy1.update(Xy2)
-    return Xy1
 
 
 ## ======================================= ##
@@ -359,7 +297,7 @@ class BaseNode(object):
         else:
             key = self.get_key()
             parent_key = node.get_key()
-            path_key = key.replace(parent_key, "").lstrip(conf.KEY_PATH_SEP)
+            path_key = key.replace(parent_key, "").lstrip(conf.SEP)
             key_parts = key_split(path_key)
             #idx = len(key_parts) - 1
             curr = self
@@ -465,7 +403,7 @@ class BaseNode(object):
     # -- Top-down data-flow operations        -- #
     # ------------------------------------------ #
 
-    def top_down(self, func_name, recursion=True, **Xy):
+    def top_down(self, **Xy):
         """Top-down data processing method
 
             This method does nothing more that recursively call
@@ -498,10 +436,12 @@ class BaseNode(object):
         Xy = self.transform(**Xy)
         #Xy = func(recursion=False, **Xy)
         #Xy = self.transform(**Xy)
-        if recursion and self.children:
+        if self.children:
             # Call children func_name down to leaves
             ret = [child.top_down(**Xy) for child in self.get_children_top_down()]
             Xy = ret[0] if len(ret) == 1 else ret
+        else:
+            self.save_state(Xy, name="results")
         return Xy
 
 #    def fit(self, recursion=True, **Xy):
@@ -524,11 +464,11 @@ class BaseNode(object):
 #        if recursion:  # fit_predict was called in a top-down recursive context
 #            return self.top_down(func_name="fit_predict", recursion=recursion,
 #                                 **Xy)
-#        Xy_train, Xy_test = xy_split(Xy)
+#        Xy_train, Xy_test = train_test_split(Xy)
 #        Xy_train = self.fit(recursion=False, **Xy_train)
 #        Xy_test = self.predict(recursion=False, **Xy_test)
 #        if self.children:
-#            return xy_merge(Xy_train, Xy_test)
+#            return train_test_merge(Xy_train, Xy_test)
 #        else:
 #            return Xy_test
 

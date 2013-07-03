@@ -6,6 +6,7 @@ Created on Thu Mar 14 16:13:26 2013
 """
 import numpy as np
 import os
+from epac.configuration import conf
 
 
 def range_log2(n, add_n=True):
@@ -140,3 +141,65 @@ def which(program):
             if is_exe(exe_file):
                 return exe_file
     return None
+
+## ============================================== ##
+## == down-stream data-flow manipulation utils == ##
+## ============================================== ##
+
+def train_test_split(Xy):
+    """Split Xy into two dictonaries. If input dictonnary whas not build
+    with train_test_merge(Xy1, Xy2) then return twice the input
+    dictonnary.
+
+    Parameters
+    ----------
+    Xy: dict
+
+    Returns
+    -------
+    dict1, dict2 : splited dictionaries
+
+    Example
+    -------
+    >>> train_test_merged = train_test_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    >>> print train_test_merged
+    {'tr/b': 2, 'tr/a': 1, 'te/c': 55, 'te/b': 44, 'te/a': 33}
+    >>> print train_test_split(train_test_merged)
+    ({'a': 1, 'b': 2}, {'a': 33, 'c': 55, 'b': 44})
+    >>> print train_test_split(dict(a=1, b=2))
+    ({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
+    """
+    preffix_train = conf.TRAIN + conf.SEP
+    preffix_test = conf.TEST + conf.SEP
+    keys_train = [k for k in Xy if (str(k).find(preffix_train) == 0)]
+    keys_test = [k for k in Xy if (str(k).find(preffix_test) == 0)]
+    if not keys_train and not keys_test:
+        return Xy, Xy
+    if keys_train and keys_test:
+        Xy_train = {k.replace(preffix_train, ""): Xy[k] for k in keys_train}
+        Xy_test ={k.replace(preffix_test, ""): Xy[k] for k in keys_test}
+        return Xy_train, Xy_test
+    raise KeyError("data-flow could not be splitted")
+
+
+def train_test_merge(Xy_train, Xy_test):
+    """Merge two dict avoiding keys collision.
+
+    Parameters
+    ----------
+    Xy_train: dict
+    Xy_test: dict
+
+    Returns
+    -------
+    dict : merged dictionary
+
+    Example
+    -------
+    >>> train_test_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
+    {'tr/b': 2, 'tr/a': 1, 'te/c': 55, 'te/b': 44, 'te/a': 33}
+    """
+    Xy_train = {conf.TRAIN + conf.SEP + str(k): Xy_train[k] for k in Xy_train}
+    Xy_test = {conf.TEST + conf.SEP + str(k): Xy_test[k] for k in Xy_test}
+    Xy_train.update(Xy_test)
+    return Xy_train

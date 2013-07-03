@@ -27,4 +27,8 @@ self  = InternalEstimator(SelectKBest(k=2))
 self.transform(X=X, y=y)
 
 self  = LeafEstimator(SVC())
-self.transform(X=X, y=y, )
+self.transform(X=X, y=y, split_train_test=True)
+
+from epac import Pipe
+pipe = Pipe(SelectKBest(k=2), SVC())
+pipe.top_down(X=X, y=y)
