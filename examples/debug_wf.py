@@ -32,4 +32,6 @@ self.transform(X=X, y=y, split_train_test=True)
 from epac import Pipe, CV
 pipe = Pipe(SelectKBest(k=2), SVC())
 cv = CV(pipe)
-top_down(X=X, y=y)
+cv.top_down(X=X, y=y)
+Xy = dict(X=X, y=y)
+self = cv.children[0]

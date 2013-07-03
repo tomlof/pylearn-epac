@@ -137,7 +137,6 @@ class CV(BaseNodeSplitter):
         elif self.cv_type == "loo":
             from sklearn.cross_validation import LeaveOneOut
             self._sclices = LeaveOneOut(n=Xy["y"].shape[0])
-        Xy[conf.KW_SPLIT_TRAIN_TEST] = True
         return Xy
 
     def get_parameters(self):
@@ -348,12 +347,12 @@ class RowSlicer(Slicer):
                 Xy[k].shape[0] != self.n:
                 data_keys.remove(k)
         for data_key in data_keys:  # slice input data
-            if not data_key in Xy:
-                continue
+            dat = Xy.pop(data_key)
             if isinstance(self.slices, dict):
-                indices = self.slices[sample_set]
+                Xy[conf.KW_SPLIT_TRAIN_TEST] = True
+                for sample_set in self.slices:
+                    Xy[sample_set + conf.SEP + data_key] = dat[self.slices[sample_set]]
             else:
-                indices = self.slices
-            Xy[data_key] = Xy[data_key][indices]
+                Xy[data_key] = dat[self.slices]
         return Xy
 
