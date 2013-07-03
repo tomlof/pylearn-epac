@@ -196,8 +196,7 @@ class LeafEstimator(Estimator):
         return self.load_state(name="result_set")
 
 
-
-class CVBestSearchRefit(BaseNode):
+class CVBestSearchRefit(Estimator):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
@@ -234,7 +233,13 @@ class CVBestSearchRefit(BaseNode):
         """Return children during the top-down execution."""
         return []
 
-    def fit(self, recursion=True, **Xy):
+    def transform(self, **Xy):
+        Xy_train, Xy_test = train_test_split(Xy)
+        self._fit(**Xy_train)
+        Xy_test = self._predict(**Xy_test)
+        return Xy_test
+
+    def _fit(self, **Xy):
         # Fit/predict CV grid search
         cv = self.children[0]
         cv.store = StoreMem()  # local store erased at each fit
@@ -243,7 +248,7 @@ class CVBestSearchRefit(BaseNode):
         if not isinstance(cv, CV):
             raise ValueError('Child of %s is not a "CV."'
             % self.__class__.__name__)
-        cv.fit_predict(recursion=True, **Xy)
+        cv.top_down(**Xy)
         #  Pump-up results
         cv_result_set = cv.reduce(store_results=False)
         key_val = [(result.key(), result[self.score]) for result in cv_result_set]
@@ -269,21 +274,17 @@ class CVBestSearchRefit(BaseNode):
         # Delete (eventual) about previous refit
         return self
 
-    def predict(self, recursion=True, **Xy):
+    def _predict(self, recursion=True, **Xy):
         """Call transform  with sample_set="test" """
         refited = self.children[1]
-        pred = refited.predict(recursion=True, **Xy)
+        pred = refited.top_down(**Xy)
         # Update current results with refited prediction
         refited_result = refited.reduce(store_results=False).values()[0]
         result = self.load_state(name="result_set").values()[0]
         result.update(refited_result.payload())
         return pred
 
-    def fit_predict(self, recursion=True, **Xy):
-        Xy_train, Xy_test = train_test_split(Xy)
-        self.fit(recursion=False, **Xy_train)
-        Xy_test = self.predict(recursion=False, **Xy_test)
-        return Xy_test
+
 
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set
