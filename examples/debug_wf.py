@@ -21,6 +21,7 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 run -i epac/workflow/base.py
 run -i epac/workflow/estimators.py
 run -i epac/utils.py
+run -i epac/map_reduce/results.py
 
 Xy = dict(X=X, y=y)
 self  = InternalEstimator(SelectKBest(k=2))
@@ -33,5 +34,8 @@ from epac import Pipe, CV
 pipe = Pipe(SelectKBest(k=2), SVC())
 cv = CV(pipe)
 cv.top_down(X=X, y=y)
+cv.reduce()
+
+
 Xy = dict(X=X, y=y)
 self = cv.children[0]

@@ -41,8 +41,23 @@ from epac.map_reduce.reducers import SummaryStat
 ## ================================= ##
 ## == Wrapper node for estimators == ##
 ## ================================= ##
+class Estimator(BaseNode):
+    """Node that wrap estimators"""
 
-class InternalEstimator(BaseNode):
+    def get_signature(self):
+        """Overload the base name method"""
+        if not self.signature_args:
+            return self.estimator.__class__.__name__
+        else:
+            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
+                             for k in self.signature_args])
+            args_str = "(" + args_str + ")"
+            return self.estimator.__class__.__name__ + args_str
+
+    def get_parameters(self):
+        return self.estimator.__dict__
+
+class InternalEstimator(Estimator):
     """Estimator Wrapper: Automatically connect estimator.fit and 
     estimator.transform to BaseNode.transform.
 
@@ -90,7 +105,18 @@ class InternalEstimator(BaseNode):
         Xy.update(Xy_out)
         return Xy
 
-class LeafEstimator(BaseNode):
+    def reduce(self, store_results=True):
+        # 1) Build sub-aggregates over children
+        children_result_set = [child.reduce(store_results=False) for
+            child in self.children]
+        result_set = ResultSet(*children_result_set)
+        # Append node signature in the keys
+        for result in result_set:
+            result["key"] = key_push(self.get_signature(), result["key"])
+        return result_set
+
+
+class LeafEstimator(Estimator):
     """Estimator Wrapper: Automatically connect estimator.fit and 
     estimator.predict to BaseNode.transform.
 
@@ -156,6 +182,11 @@ class LeafEstimator(BaseNode):
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
         return Xy_out
+
+    def reduce(self, store_results=True):
+        return self.load_state(name="result_set")
+
+
 
 class CVBestSearchRefit(BaseNode):
     """Cross-validation + grid-search then refit with optimals parameters.

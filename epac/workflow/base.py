@@ -13,6 +13,7 @@ from abc import abstractmethod
 import ast
 from epac.stores import StoreMem
 from epac.configuration import conf, debug
+from epac.map_reduce.results import ResultSet, Result
 
 
 ## ================================= ##
@@ -428,7 +429,7 @@ class BaseNode(object):
             A dictionnary of processed data
         """
         if conf.TRACE_TOPDOWN:
-            print self.get_key(), func_name
+            print self.get_key()
         if debug.DEBUG:
             debug.current = self
             debug.Xy = Xy
@@ -441,7 +442,8 @@ class BaseNode(object):
             ret = [child.top_down(**Xy) for child in self.get_children_top_down()]
             Xy = ret[0] if len(ret) == 1 else ret
         else:
-            self.save_state(Xy, name="results")
+            result = Result(key=self.get_signature(), **Xy)
+            self.save_state(ResultSet(result), name="result_set")
         return Xy
 
     def get_children_top_down(self):
