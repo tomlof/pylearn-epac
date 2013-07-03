@@ -65,6 +65,43 @@ class InternalEstimator(Estimator):
     Parameters:
         estimator: object that implement fit and transform
 
+    Automatically connect estimator.fit (if exist) and estimator.transform
+
+    Example
+    -------
+    >>> from sklearn import datasets
+    >>> from sklearn.svm import SVC
+    >>> from sklearn.lda import LDA
+    >>> from sklearn.feature_selection import SelectKBest
+    >>> from epac.workflow.estimators import InternalEstimator
+    >>>
+    >>> X, y = datasets.make_classification(n_samples=12,
+    ...                                     n_features=10,
+    ...                                     n_informative=2,
+    ...                                     random_state=1)
+    >>> Xy = dict(X=X, y=y)
+    >>> internal_estimator  = InternalEstimator(SelectKBest(k=2))
+    >>> internal_estimator.transform(**Xy)
+    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), 'X': array([[-0.34385368,  0.75623409],
+           [ 0.19829972, -1.16389861],
+           [-0.74715829,  0.86977629],
+           [ 1.13162939,  0.90876519],
+           [ 0.23009474, -0.68017257],
+           [ 0.16003707, -1.55458039],
+           [ 0.40349164,  1.38791468],
+           [-1.11731035,  0.23476552],
+           [ 1.19891788,  0.0888684 ],
+           [-0.75439794, -0.90039992],
+           [ 0.12015895,  2.05996541],
+           [-0.20889423,  2.05313908]])}
+    """
+    def __init__(self, estimator, in_args_fit=None, in_args_transform=None):
+        """
+        Parameters
+        ----------
+        estimator: any class contains fit and transform functions
+            any class implements fit and transform
+
         in_args_fit: list of strings
             names of input arguments of the fit method. If missing discover
             discover it automatically.
@@ -72,8 +109,7 @@ class InternalEstimator(Estimator):
         in_args_transform: list of strings
             names of input arguments of the tranform method. If missing,
             discover it automatically.
-    """
-    def __init__(self, estimator, in_args_fit=None, in_args_transform=None):
+        """
         if not hasattr(estimator, "fit") or not \
             hasattr(estimator, "transform"):
             raise ValueError("estimator should implement fit and transform")
@@ -85,16 +121,22 @@ class InternalEstimator(Estimator):
             if in_args_transform is None else in_args_transform
 
     def transform(self, **Xy):
+        """
+        Parameter
+        ---------
+        Xy: dictionary
+            parameters for fit and transform
+        """
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
             Xy_train, Xy_test = train_test_split(Xy)
             self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
-            Xy_out_tr = _as_dict(self.estimator.transform(**_sub_dict(Xy_train,
-                                                 self.in_args_transform)),
-                           keys=self.in_args_transform)
+            Xy_out_tr = _as_dict(self.estimator.transform(
+                        **_sub_dict(Xy_train,self.in_args_transform)),
+                        keys=self.in_args_transform)
             Xy_out_te = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
-                                                 self.in_args_transform)),
-                           keys=self.in_args_transform)
+                            self.in_args_transform)),
+                            keys=self.in_args_transform)
             Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
@@ -105,6 +147,7 @@ class InternalEstimator(Estimator):
         # update ds with transformed values
         Xy.update(Xy_out)
         return Xy
+
 
     def reduce(self, store_results=True):
         # 1) Build sub-aggregates over children
@@ -118,11 +161,35 @@ class InternalEstimator(Estimator):
 
 
 class LeafEstimator(Estimator):
-    """Estimator Wrapper: Automatically connect estimator.fit and
-    estimator.predict to BaseNode.transform.
+    """Estimator Wrapper: 
+    Automatically connect estimator.fit (if exist) and estimator.predict to 
+    BaseNode.transform.
 
-    Parameters:
-        estimator: object that implement fit and transform
+    Example
+    -------
+    >>> from sklearn import datasets
+    >>> from sklearn.svm import SVC
+    >>> from sklearn.lda import LDA
+    >>> from sklearn.feature_selection import SelectKBest
+    >>> from epac.workflow.estimators import LeafEstimator
+    >>>
+    >>> X, y = datasets.make_classification(n_samples=12,
+    ...                                     n_features=10,
+    ...                                     n_informative=2,
+    ...                                     random_state=1)
+    >>> Xy = dict(X=X, y=y)
+    >>> leaf_estimator  = LeafEstimator(SVC())
+    >>> leaf_estimator.transform(**Xy)
+    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}
+
+    """
+    def __init__(self, estimator, in_args_fit=None, in_args_predict=None,
+                 out_args_predict=None):
+        '''
+        Parameters
+        ----------
+        estimator: any class contains fit and predict functions 
+            any class implements fit and predict
 
         in_args_fit: list of strings
             names of input arguments of the fit method. If missing discover
@@ -137,9 +204,7 @@ class LeafEstimator(Estimator):
             discover it automatically by self.in_args_fit - in_args_predict.
             If not differences (such with PCA with fit(X) and predict(X))
             use in_args_predict.
-    """
-    def __init__(self, estimator, in_args_fit=None, in_args_predict=None,
-                 out_args_predict=None):
+        '''
         if not hasattr(estimator, "fit") or not \
             hasattr(estimator, "predict"):
             raise ValueError("estimator should implement fit and predict")
@@ -160,6 +225,12 @@ class LeafEstimator(Estimator):
 
     """Extimator Wrapper: connect fit + predict to transform"""
     def transform(self, **Xy):
+        """
+        Parameter
+        ---------
+        Xy: dictionary
+            parameters for fit and transform
+        """
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
             Xy_train, Xy_test = train_test_split(Xy)
             Xy_out = dict()
@@ -207,7 +278,7 @@ class CVBestSearchRefit(Estimator):
 
     See CV parameters, plus other parameters:
 
-    score: str
+    score: string
         the score name to be optimized (default "mean_score_te").
 
     arg_max: boolean
@@ -289,3 +360,7 @@ class CVBestSearchRefit(Estimator):
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set
         return self.load_state(name="result_set")
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
