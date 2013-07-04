@@ -15,7 +15,7 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import CVBestSearchRefit, Pipe, CV, Perms, Methods
-from epac import SummaryStat, PvalPerms
+from epac import ClassificationReport, PvalPerms
 from epac.sklearn_plugins import Permutations
 
 
@@ -29,7 +29,7 @@ class TestPermCV(unittest.TestCase):
         rnd = 0
         # = With EPAC
         wf = Perms(CV(SVC(kernel="linear"), n_folds=n_folds,
-                            reducer=SummaryStat(keep=True)),
+                            reducer=ClassificationReport(keep=True)),
                             n_perms=n_perms, permute="y",
                             random_state=rnd, reducer=None)
         r_epac = wf.fit_predict(X=X, y=y)
@@ -84,7 +84,7 @@ class TestCVBestSearchRefit(unittest.TestCase):
                         n_folds=n_folds_nested,
                         random_state=random_state)
         wf = Perms(CV(pipelines_cv, n_folds=n_folds,
-                      reducer=SummaryStat(keep=True)),
+                      reducer=ClassificationReport(keep=True)),
                  n_perms=n_perms, permute="y",
                  reducer=PvalPerms(keep=True),
                  random_state=random_state)

@@ -30,12 +30,12 @@ It is a user-defined object that should implements 4 methods:
 import re
 import numpy as np
 from epac.workflow.base import BaseNode, key_push, key_split
-from epac.utils import _func_get_args_names, train_test_merge, train_test_split, _dict_prefix_keys
+from epac.utils import _func_get_args_names, train_test_merge, train_test_split, _dict_suffix_keys
 from epac.utils import _sub_dict, _as_dict
 from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
 from epac.configuration import conf
-from epac.map_reduce.reducers import SummaryStat
+from epac.map_reduce.reducers import ClassificationReport
 
 
 ## ================================= ##
@@ -169,20 +169,20 @@ class LeafEstimator(Estimator):
             Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out_tr = _dict_prefix_keys(Xy_out_tr,
-                prefix=conf.PREDICTION + conf.SEP + conf.TRAIN + conf.SEP)
+            Xy_out_tr = _dict_suffix_keys(Xy_out_tr,
+                suffix=conf.SEP + conf.TRAIN + conf.SEP + conf.PREDICTION)
             Xy_out.update(Xy_out_tr)
             # Test predict
             Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
-            Xy_out_te = _dict_prefix_keys(Xy_out_te,
-                prefix=conf.PREDICTION + conf.SEP + conf.TEST + conf.SEP)
+            Xy_out_te = _dict_suffix_keys(Xy_out_te,
+                suffix=conf.SEP + conf.TEST + conf.SEP + conf.PREDICTION)
             Xy_out.update(Xy_out_te)
             ## True test
             Xy_test_true = _sub_dict(Xy_test, self.out_args_predict)
-            Xy_out_true = _dict_prefix_keys(Xy_test_true,
-                prefix=conf.TRUE + conf.SEP + conf.TEST + conf.SEP)
+            Xy_out_true = _dict_suffix_keys(Xy_test_true,
+                suffix=conf.SEP + conf.TEST + conf.SEP + conf.TRUE)
             Xy_out.update(Xy_out_true)
         else:
             self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
@@ -221,7 +221,7 @@ class CVBestSearchRefit(Estimator):
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import CV
         #methods = Methods(*tasks)
-        cv = CV(node=node, reducer=SummaryStat(keep=False), **kwargs)
+        cv = CV(node=node, reducer=ClassificationReport(keep=False), **kwargs)
         self.score = score
         self.arg_max = arg_max
         self.add_child(cv)  # first child is the CV

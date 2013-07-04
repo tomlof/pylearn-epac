@@ -19,7 +19,7 @@ from epac.workflow.base import BaseNode, key_push, key_pop
 from epac.workflow.estimators import LeafEstimator
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
-from epac.map_reduce.reducers import SummaryStat, PvalPerms
+from epac.map_reduce.reducers import ClassificationReport, PvalPerms
 from epac.configuration import conf
 
 ## ======================================================================== ##
@@ -92,11 +92,11 @@ class CV(BaseNodeSplitter):
 
     reducer: Reducer
         A Reducer should inmplement the reduce(node, key2, val) method.
-        Default SummaryStat() with default arguments.
+        Default ClassificationReport() with default arguments.
     """
 
     def __init__(self, node, n_folds=5, random_state=None,
-                 cv_type="stratified", reducer=SummaryStat(), **kwargs):
+                 cv_type="stratified", reducer=ClassificationReport(), **kwargs):
         super(CV, self).__init__()
         self.n_folds = n_folds
         self.random_state = random_state
@@ -351,7 +351,7 @@ class RowSlicer(Slicer):
             if isinstance(self.slices, dict):
                 Xy[conf.KW_SPLIT_TRAIN_TEST] = True
                 for sample_set in self.slices:
-                    Xy[sample_set + conf.SEP + data_key] = dat[self.slices[sample_set]]
+                    Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set]]
             else:
                 Xy[data_key] = dat[self.slices]
         return Xy

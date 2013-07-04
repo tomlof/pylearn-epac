@@ -16,7 +16,7 @@ from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 from epac import Pipe, Methods, CV, Perms
-from epac import SummaryStat, PvalPerms
+from epac import ClassificationReport, PvalPerms
 from epac import StoreFs
 from epac import CVBestSearchRefit
 from epac.sklearn_plugins import Permutations
@@ -43,7 +43,7 @@ class TestWorkFlow(unittest.TestCase):
                                      n_folds=n_folds_nested)
 
         tree_mem = CV(pipeline, n_folds=n_folds,
-                      reducer=SummaryStat(keep=False))
+                      reducer=ClassificationReport(keep=False))
         # Save Tree
         import tempfile
         store = StoreFs(dirpath=tempfile.mkdtemp(), clear=True)

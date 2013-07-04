@@ -7,7 +7,7 @@ Created on Wed Jan 23 13:58:21 2013
 """
 
 from epac.workflow.pipeline import Pipe
-from epac.workflow.splitters import CV, Perms, Methods#, Grid
+from epac.workflow.splitters import CV, Perms, Methods
 from epac.workflow.estimators import CVBestSearchRefit, InternalEstimator, LeafEstimator
 from epac.workflow.base import key_pop, key_split
 from epac.configuration import conf, debug
@@ -17,15 +17,8 @@ from epac.stores import StoreFs, StoreMem
 from epac.map_reduce.mappers import MapperSubtrees
 from epac.map_reduce.engine import SomaWorkflowEngine, LocalEngine
 
-#from epac.workflow import WF, Pipe, CV, Perms, Methods, Grid
-#from epac.workflow import CVBestSearchRefit
-#from epac.workflow import conf, debug
-#from epac.workflow import train_test_split, train_test_merge
-#from epac.utils import dict_diff
-#from epac.stores import get_store
 
-#from .stores import obj_to_dict, dict_to_obj
-from epac.map_reduce.reducers import SummaryStat, PvalPerms
+from epac.map_reduce.reducers import ClassificationReport, PvalPerms
 
 from . import sklearn_plugins
 
@@ -35,8 +28,7 @@ __all__ = ['Pipe',
            'Methods',
            'CVBestSearchRefit',
             'InternalEstimator', 'LeafEstimator',
-           'SummaryStat',
-           'PvalPerms',
+           'ClassificationReport', 'PvalPerms',
            'Result',
            'ResultSet',
            'sklearn_plugins',

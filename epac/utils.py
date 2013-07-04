@@ -7,6 +7,7 @@ Created on Thu Mar 14 16:13:26 2013
 import numpy as np
 import os
 from epac.configuration import conf
+from epac.workflow.base import key_push, key_pop
 
 
 def range_log2(n, add_n=True):
@@ -110,6 +111,8 @@ def _as_dict(v, keys):
 def _dict_prefix_keys(d, prefix):
     return {prefix + str(k): d[k] for k in d}
 
+def _dict_suffix_keys(d, suffix):
+    return {str(k) + suffix: d[k] for k in d}
 
 def _func_get_args_names(f):
     """Return non defaults function args names
@@ -163,21 +166,19 @@ def train_test_split(Xy):
     -------
     >>> train_test_merged = train_test_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
     >>> print train_test_merged
-    {'tr/b': 2, 'tr/a': 1, 'te/c': 55, 'te/b': 44, 'te/a': 33}
+    {'c/test': 55, 'a/test': 33, 'b/test': 44, 'a/train': 1, 'b/train': 2}
     >>> print train_test_split(train_test_merged)
     ({'a': 1, 'b': 2}, {'a': 33, 'c': 55, 'b': 44})
     >>> print train_test_split(dict(a=1, b=2))
     ({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
     """
-    preffix_train = conf.TRAIN + conf.SEP
-    preffix_test = conf.TEST + conf.SEP
-    keys_train = [k for k in Xy if (str(k).find(preffix_train) == 0)]
-    keys_test = [k for k in Xy if (str(k).find(preffix_test) == 0)]
+    keys_train = [k for k in Xy if (key_pop(k)[1] == conf.TRAIN)]
+    keys_test = [k for k in Xy if (key_pop(k)[1] == conf.TEST)]
     if not keys_train and not keys_test:
         return Xy, Xy
     if keys_train and keys_test:
-        Xy_train = {k.replace(preffix_train, ""): Xy[k] for k in keys_train}
-        Xy_test ={k.replace(preffix_test, ""): Xy[k] for k in keys_test}
+        Xy_train = {key_pop(k)[0]: Xy[k] for k in keys_train}
+        Xy_test ={key_pop(k)[0]: Xy[k] for k in keys_test}
         return Xy_train, Xy_test
     raise KeyError("data-flow could not be splitted")
 
@@ -197,9 +198,9 @@ def train_test_merge(Xy_train, Xy_test):
     Example
     -------
     >>> train_test_merge(dict(a=1, b=2), dict(a=33, b=44, c=55))
-    {'tr/b': 2, 'tr/a': 1, 'te/c': 55, 'te/b': 44, 'te/a': 33}
+    {'a/test': 33, 'a/train': 1, 'b/test': 44, 'b/train': 2, 'c/test': 55}
     """
-    Xy_train = {conf.TRAIN + conf.SEP + str(k): Xy_train[k] for k in Xy_train}
-    Xy_test = {conf.TEST + conf.SEP + str(k): Xy_test[k] for k in Xy_test}
+    Xy_train = {key_push(k, conf.TRAIN): Xy_train[k] for k in Xy_train}
+    Xy_test = {key_push(k, conf.TEST) : Xy_test[k] for k in Xy_test}
     Xy_train.update(Xy_test)
     return Xy_train

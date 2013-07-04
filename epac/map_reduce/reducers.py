@@ -8,8 +8,10 @@ Reducers for EPAC
 import numpy as np
 import re
 from abc import abstractmethod
-#from epac.configuration import conf
 from epac.map_reduce.results import Result
+from epac.configuration import conf
+from epac.workflow.base import key_push, key_pop
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 ## ======================================================================== ##
 ## == Reducers                                                           == ##
@@ -33,45 +35,55 @@ class Reducer(object):
         """
 
 
-class SummaryStat(Reducer):
-    """Reducer that select sub-result(s) items according to select_regexp, and
-    reduce the sub-result(s) using the statistics stat.
-    
+class ClassificationReport(Reducer):
+    """Reducer compute classification statistics.
+
     select_regexp: srt
-      A string to select items (defaults "score_te")
+      A string to select items (defaults "test"). It must match two items:
+      "true/test" and "pred/test".
 
     keep: boolean
       Should other items be kept (False) into summarized results.
       (default False)
 
     Example:
-from epac import SummaryStat
-result = [{'key': 'LDA', 'score_te': 0.0}, {'key': 'LDA', 'score_te': 0.5}]
+    >>> from epac import ClassificationReport
+    >>> reducer = ClassificationReport()
+    >>> reducer.reduce({'key': "SVC", 'y/test/pred': [0, 1, 1, 1], 'y/test/true': [0, 0, 1, 1]})
+    {'key': SVC, 'y/test/score_accuray': 0.75, 'y/test/score_precision': [ 1.          0.66666667], 'y/test/score_recall': [ 0.5  1. ], 'y/test/score_f1': [ 0.66666667  0.8       ], 'y/test/score_recall_mean': 0.75}
 
-
-    >>> from epac import SummaryStat
-    >>> result = Result('LDA', {'score_tr': [1, .8], 'score_te': [.9, .7]})
-    >>> print SummaryStat(keep=True).reduce(result)
-    {'score_te': [0.9, 0.7], 'mean_score_te': 0.80000000000000004, 'mean_score_tr': 0.90000000000000002, 'score_tr': [1, 0.8]}
-    >>> print SummaryStat(keep=False).reduce(result)
-    {'mean_score_te': 0.80000000000000004, 'mean_score_tr': 0.90000000000000002}
     """
-    def __init__(self, select_regexp='score', stat="mean",
+    def __init__(self, select_regexp=conf.TEST,
                  keep=False):
         self.select_regexp = select_regexp
-        self.stat = stat
         self.keep = keep
 
     def reduce(self, result):
         if self.select_regexp:
-            select_key3s = [key3 for key3 in result
+            inputs = [key3 for key3 in result
                 if re.search(self.select_regexp, str(key3))]
         else:
-            select_key3s = result.keys()
-        out = Result(key=result.key())
-        for key3 in select_key3s:
-            if self.stat == "mean":
-                out[self.stat, key3] = np.mean(np.array(result[key3]), axis=0)
+            inputs = result.keys()
+        if len(inputs) != 2:
+            raise KeyError("Need to find exactly two result to compute a score."
+            "Found %i: %s" % (len(inputs), inputs))
+        key_true = [k for k in inputs if k.find(conf.TRUE) != -1][0]
+        key_pred = [k for k in inputs if k.find(conf.PREDICTION) != -1][0]
+        y_true = result[key_true]
+        y_pred = result[key_pred]
+        try:  # If list of arrays (CV, LOO, etc.) concatenate them
+            y_true = np.concatenate(y_true)
+            y_pred = np.concatenate(y_pred)
+        except ValueError:
+            pass
+        out = Result(key=result["key"])
+        p, r, f1, s = precision_recall_fscore_support(y_true, y_pred, average=None)
+        key, _ = key_pop(key_pred, -1)
+        out[key_push(key, conf.SCORE_PRECISION)] = p
+        out[key_push(key, conf.SCORE_RECALL)] = r
+        out[key_push(key, conf.SCORE_RECALL_MEAN)] = r.mean()
+        out[key_push(key, conf.SCORE_F1)] = f1
+        out[key_push(key, conf.SCORE_ACCURACY)] = accuracy_score(y_true, y_pred)
         if self.keep:
             out.update(result)
         return out

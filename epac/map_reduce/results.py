@@ -97,8 +97,6 @@ class Result(ReduceInput):
     >>> r1[Result.SCORE, conf.TRAIN] = 1.0
     """
     SCORE = "score"
-    PRED = "pred"
-    TRUE = "true"
     SEP = "_"
     PRINT_ORDER_REGEXP = ["key", ".*mean_score_te", ".*mean_score_tr",
                           ".*score_te", ".*score_tr"]

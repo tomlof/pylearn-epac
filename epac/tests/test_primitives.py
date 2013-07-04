@@ -17,7 +17,7 @@ import sklearn.pipeline
 from sklearn.cross_validation import StratifiedKFold
 from sklearn import grid_search
 from epac import Pipe, Methods, CV, Perms, CVBestSearchRefit
-from epac import SummaryStat
+from epac import ClassificationReport
 from epac.sklearn_plugins import Permutations
 
 class TestPipeline(unittest.TestCase):
@@ -53,7 +53,7 @@ class TestCV(unittest.TestCase):
 
         # = With EPAC
         wf = CV(SVC(kernel="linear"), n_folds=n_folds,
-                reducer=SummaryStat(keep=True))
+                reducer=ClassificationReport(keep=True))
         r_epac = wf.fit_predict(X=X, y=y)
 
         # = With SKLEARN

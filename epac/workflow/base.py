@@ -433,10 +433,9 @@ class BaseNode(object):
         if debug.DEBUG:
             debug.current = self
             debug.Xy = Xy
-        #func = getattr(self, func_name)
+        if not self.parent:
+            self.initialization(**Xy)  ## Performe some initialization
         Xy = self.transform(**Xy)
-        #Xy = func(recursion=False, **Xy)
-        #Xy = self.transform(**Xy)
         if self.children:
             # Call children func_name down to leaves
             ret = [child.top_down(**Xy) for child in self.get_children_top_down()]
@@ -453,6 +452,10 @@ class BaseNode(object):
     @abstractmethod
     def transform(self, **Xy):
         """"""
+
+    def initialization(self, **Xy):
+        conf.init_ml(**Xy)
+        
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #

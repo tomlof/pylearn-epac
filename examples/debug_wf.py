@@ -18,24 +18,16 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 # |
 # SVM Classifier (Estimator)
 
-run -i epac/workflow/base.py
-run -i epac/workflow/estimators.py
-run -i epac/utils.py
-run -i epac/map_reduce/results.py
+#run -i epac/workflow/base.py
+#run -i epac/workflow/estimators.py
+#run -i epac/utils.py
+#run -i epac/map_reduce/results.py
+#run -i epac/map_reduce/reducers.py
 
 Xy = dict(X=X, y=y)
-self  = InternalEstimator(SelectKBest(k=2))
-self.transform(X=X, y=y)
-
-self  = LeafEstimator(SVC())
-self.transform(X=X, y=y, split_train_test=True)
 
 from epac import Pipe, CV
 pipe = Pipe(SelectKBest(k=2), SVC())
-cv = CV(pipe, reducer=None)
+cv = CV(pipe,reducer=None)
 cv.top_down(X=X, y=y)
 cv.reduce()
-
-
-Xy = dict(X=X, y=y)
-self = cv.children[0]
