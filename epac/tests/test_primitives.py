@@ -20,6 +20,7 @@ from epac import Pipe, Methods, CV, Perms, CVBestSearchRefit
 from epac import ClassificationReport
 from epac.sklearn_plugins import Permutations
 
+
 class TestPipeline(unittest.TestCase):
 
     def test_pipeline(self):
