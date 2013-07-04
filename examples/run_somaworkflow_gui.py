@@ -27,7 +27,7 @@ from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
 
 from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
-from epac.engine import SomaWorkflowEngine
+from epac.map_reduce.engine import SomaWorkflowEngine
 
 
 def do_all(options):
@@ -83,7 +83,7 @@ def do_all(options):
 #    ## ==========================
     reduce_filename = os.path.join(options.soma_workflow_dir, "reduce.py")
     f = open(reduce_filename, 'w')
-    reduce_str = """from epac.engine import SomaWorkflowEngine
+    reduce_str = """from epac.map_reduce.engine import SomaWorkflowEngine
 wf = SomaWorkflowEngine.load_from_gui("%s")
 print wf.reduce()
 """ % options.soma_workflow_dir

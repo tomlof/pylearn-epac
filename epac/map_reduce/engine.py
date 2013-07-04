@@ -12,10 +12,16 @@ import shutil
 import multiprocessing
 import tempfile
 import numpy as np
+import sys
+import socket
 
 from abc import ABCMeta, abstractmethod
 
 from epac import StoreFs
+from epac.errors import NoSomaWFError, NoEpacTreeRootError
+from epac.configuration import conf
+from epac.map_reduce.split_input import SplitNodesInput
+from epac.map_reduce.inputs import NodesInput
 
 
 class Engine(object):
@@ -107,8 +113,7 @@ class LocalEngine(Engine):
     def run(self, **Xy):
         from functools import partial
         from multiprocessing import Pool
-        from epac.map_reduce.inputs import NodesInput
-        from epac.map_reduce.split_input import SplitNodesInput
+
         from epac.map_reduce.mappers import MapperSubtrees
         from epac.map_reduce.mappers import map_process
 
@@ -125,7 +130,7 @@ class LocalEngine(Engine):
         ## Run map processes in parallel
         ## =============================
         partial_map_process = partial(map_process, mapper=mapper)
-        pool = Pool(processes=self.num_processes)
+        pool = Pool(processes=len(input_list))
         res_tree_root_list = pool.map(partial_map_process, input_list)
         for each_tree_root in res_tree_root_list:
             self.tree_root.merge_tree_store(each_tree_root)
@@ -154,6 +159,46 @@ class SomaWorkflowEngine(LocalEngine):
         self.resource_id = resource_id
         self.login = login
         self.pw = pw
+
+    def _save_job_list(self,
+                        working_directory,
+                        nodesinput_list):
+        '''Write job list into working_directory as 0.job, 1.job, etc.
+
+        Parameters
+        ----------
+        working_directory: string
+            directory to write job list
+
+        nodesinput_list: list of NodesInput
+            This is for parallel computing for each element in the list.
+            All of them are saved separately in working_directory.
+            
+        Example
+        -------
+        >>> from epac.map_reduce.engine import SomaWorkflowEngine
+        >>> nodesinput_list = [{'Perms/Perm(nb=0)': 'Perms/Perm(nb=0)'}, 
+        ...                    {'Perms/Perm(nb=1)': 'Perms/Perm(nb=1)'}, 
+        ...                    {'Perms/Perm(nb=2)': 'Perms/Perm(nb=2)'}]
+        >>> working_directory =  "/tmp"
+        >>> swf_engine = SomaWorkflowEngine(None)
+        >>> swf_engine._save_job_list(working_directory, nodesinput_list)
+        ['./0.job', './1.job', './2.job']
+        '''
+        keysfile_list = list()
+        jobi = 0
+        for nodesinput in nodesinput_list:
+            keysfile = "."+os.path.sep+repr(jobi)+"."+conf.SUFFIX_JOB
+            keysfile_list.append(keysfile)
+            # print "in_working_directory="+in_working_directory
+            # print "keysfile="+keysfile
+            abs_keysfile = os.path.join(working_directory, keysfile)
+            f = open(abs_keysfile, 'w')
+            for key_signature in nodesinput:
+                f.write("%s\n" % key_signature)
+            f.close()
+            jobi = jobi + 1
+        return keysfile_list
 
     def run(self, **Xy):
         '''Run soma-workflow without gui
@@ -192,33 +237,67 @@ class SomaWorkflowEngine(LocalEngine):
         [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
          {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
         '''
-        from epac.map_reduce.exports import export2somaworkflow
-        from soma.workflow.client import Helper
+        try:
+            from soma.workflow.client import Job, Workflow
+            from soma.workflow.client import Helper, FileTransfer
+            from soma.workflow.client import WorkflowController
+        except ImportError:
+            errmsg = "No soma-workflow is found. "\
+                "Please verify your soma-worklow"\
+                "on your computer (e.g. PYTHONPATH) \n"
+            sys.stderr.write(errmsg)
+            sys.stdout.write(errmsg)
+            raise NoSomaWFError
         tmp_work_dir_path = tempfile.mkdtemp()
-        # print "tmp_work_dir_path="+tmp_work_dir_path
-        np.savez(os.path.join(tmp_work_dir_path,
-                 SomaWorkflowEngine.dataset_relative_path), **Xy)
         cur_work_dir = os.getcwd()
         os.chdir(tmp_work_dir_path)
+        ft_working_directory = FileTransfer(is_input=True,
+                                        client_path=tmp_work_dir_path,
+                                        name="working directory")
+        ## Save the database and tree to working directory
+        ## ===============================================
+        np.savez(os.path.join(tmp_work_dir_path,
+                 SomaWorkflowEngine.dataset_relative_path), **Xy)
         store = StoreFs(dirpath=os.path.join(
             tmp_work_dir_path,
             SomaWorkflowEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
-        (wf_id, controller) = export2somaworkflow(
-            in_datasets_file_relative_path=\
-                SomaWorkflowEngine.dataset_relative_path,
-            in_working_directory=tmp_work_dir_path,
-            out_soma_workflow_file=\
-                SomaWorkflowEngine.open_me_by_soma_workflow_gui,
-            in_num_processes=self.num_processes,
-            in_tree_root=self.tree_root,
-            in_is_sumbit=True,
-            in_resource_id=self.resource_id,
-            in_login=self.login,
-            in_pw=self.pw)
+
+        ## Subtree job allocation on disk
+        ## ==============================
+        node_input = NodesInput(self.tree_root.get_key())
+        split_node_input = SplitNodesInput(self.tree_root,
+                                           num_processes=self.num_processes)
+        nodesinput_list = split_node_input.split(node_input)
+        keysfile_list = self._save_job_list(tmp_work_dir_path,
+                                            nodesinput_list)
+        ## Build soma-workflow
+        ## ===================
+        jobs = [Job(command=[u"epac_mapper",
+                         u'--datasets', '"%s"' %
+                         (SomaWorkflowEngine.dataset_relative_path),
+                         u'--keysfile', '"%s"' %
+                         (nodesfile)],
+                referenced_input_files=[ft_working_directory],
+                referenced_output_files=[ft_working_directory],
+                name="epac_job_key=%s" % (nodesfile),
+                working_directory=ft_working_directory)
+                for nodesfile in keysfile_list]
+        soma_workflow = Workflow(jobs=jobs)
+        if not  self.resource_id or self.resource_id == "":
+            self.resource_id = socket.gethostname()
+        controller = WorkflowController(self.resource_id,
+                                        self.login,
+                                        self.pw)
+        ## run soma-workflow
+        ## =================
+        wf_id = controller.submit_workflow(workflow=soma_workflow,
+                                           name="epac workflow")
+        Helper.transfer_input_files(wf_id, controller)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
+        ## read result tree
+        ## ================
         self.tree_root = store.load()
         os.chdir(cur_work_dir)
         if os.path.isdir(tmp_work_dir_path):
@@ -226,27 +305,62 @@ class SomaWorkflowEngine(LocalEngine):
         return self.tree_root
 
     def export_to_gui(self, soma_workflow_dirpath, **Xy):
-        from epac.export_multi_processes import export2somaworkflow
-        if(os.path.isdir(soma_workflow_dirpath)):
-            raise ValueError('%s is not an empty directory.' %
-                (soma_workflow_dirpath))
-        os.mkdir(soma_workflow_dirpath)
-        np.savez(os.path.join(soma_workflow_dirpath,
-                 SomaWorkflowEngine.dataset_relative_path), X=Xy['X'], y=Xy['y'])
+        '''
+        Example
+        -------
+        see the directory of "examples" in epac
+        '''
+        try:
+            from soma.workflow.client import Job, Workflow
+            from soma.workflow.client import Helper, FileTransfer
+        except ImportError:
+            errmsg = "No soma-workflow is found. "\
+                "Please verify your soma-worklow"\
+                "on your computer (e.g. PYTHONPATH) \n"
+            sys.stderr.write(errmsg)
+            sys.stdout.write(errmsg)
+            raise NoSomaWFError
+        if not os.path.exists(soma_workflow_dirpath):
+            os.makedirs(soma_workflow_dirpath)
+        tmp_work_dir_path = soma_workflow_dirpath
         cur_work_dir = os.getcwd()
-        os.chdir(soma_workflow_dirpath)
+        os.chdir(tmp_work_dir_path)
+        ft_working_directory = FileTransfer(is_input=True,
+                                        client_path=tmp_work_dir_path,
+                                        name="working directory")
+        ## Save the database and tree to working directory
+        ## ===============================================
+        np.savez(os.path.join(tmp_work_dir_path,
+                 SomaWorkflowEngine.dataset_relative_path), **Xy)
         store = StoreFs(dirpath=os.path.join(
-            soma_workflow_dirpath,
+            tmp_work_dir_path,
             SomaWorkflowEngine.tree_root_relative_path))
         self.tree_root.save_tree(store=store)
-        export2somaworkflow(
-            in_datasets_file_relative_path=\
-                SomaWorkflowEngine.dataset_relative_path,
-            in_working_directory=soma_workflow_dirpath,
-            out_soma_workflow_file=
-                SomaWorkflowEngine.open_me_by_soma_workflow_gui,
-            in_tree_root=self.tree_root,
-            in_num_processes=self.num_processes)
+        ## Subtree job allocation on disk
+        ## ==============================
+        node_input = NodesInput(self.tree_root.get_key())
+        split_node_input = SplitNodesInput(self.tree_root,
+                                           num_processes=self.num_processes)
+        nodesinput_list = split_node_input.split(node_input)
+        keysfile_list = self._save_job_list(tmp_work_dir_path,
+                                            nodesinput_list)
+        ## Build soma-workflow
+        ## ===================
+        jobs = [Job(command=[u"epac_mapper",
+                         u'--datasets', '"%s"' %
+                         (SomaWorkflowEngine.dataset_relative_path),
+                         u'--keysfile', '"%s"' %
+                         (nodesfile)],
+                referenced_input_files=[ft_working_directory],
+                referenced_output_files=[ft_working_directory],
+                name="epac_job_key=%s" % (nodesfile),
+                working_directory=ft_working_directory)
+                for nodesfile in keysfile_list]
+        soma_workflow = Workflow(jobs=jobs)
+        if soma_workflow_dirpath and soma_workflow_dirpath != "":
+            out_soma_workflow_file = os.path.join(soma_workflow_dirpath,
+                         SomaWorkflowEngine.open_me_by_soma_workflow_gui)
+            Helper.serialize(out_soma_workflow_file, soma_workflow)
         os.chdir(cur_work_dir)
 
     @staticmethod

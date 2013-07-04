@@ -84,7 +84,8 @@ class SplitNodesInput(SplitInput):
             # print "dict_nodes_input=" + repr(dict_nodes_input)
         self.input_list = []
         for key in dict_nodes_input:
-            self.input_list.append(dict_nodes_input[key])
+            if len(dict_nodes_input[key]) > 0:
+                self.input_list.append(dict_nodes_input[key])
         return self.input_list
 
 if __name__ == "__main__":
