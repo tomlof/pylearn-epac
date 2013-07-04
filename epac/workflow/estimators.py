@@ -1,33 +1,18 @@
 """
-Estimator is the basic machine-learning building-bloc of the workflow.
-It is a user-defined object that should implements 4 methods:
+Estimator wrap ML procedure into EPAC Node. To be EPAC compatible, one should
+inherit from BaseNode and implement the "transform" method.
 
-
-- fit(<keyword arguments>): return self.
-
-- transform(<keyword arguments>): is called only if the estimator is a
-  non-leaf node.
-  Return an array or a dictionary. In the latter case, the returned dictionary
-  is added to the downstream data-flow.
-
-- predict(<keyword arguments>): is called only if the estimator is a leaf node.
-  It return an array or a dictionary. In the latter the returned dictionary is
-  added to results.
-
-- score(<keyword arguments>): is called only if the estimator is a leaf node.
-  It return an scalar or a dictionary. In the latter the returned dictionary is
-  added to results.
-
+InternalEstimator and LeafEstimator aim to provide automatic wrapper to objects
+that implement fit and predict methods.
 
 @author: edouard.duchesnay@cea.fr
-@author: benoit.da_mota@inria.fr
+@author: jinpeng.li@cea.fr
 """
 
 ## Abreviations
 ## tr: train
 ## te: test
 
-import re
 import numpy as np
 from epac.workflow.base import BaseNode, key_push, key_split
 from epac.utils import _func_get_args_names, train_test_merge, train_test_split, _dict_suffix_keys
@@ -43,6 +28,10 @@ from epac.map_reduce.reducers import ClassificationReport
 ## ================================= ##
 class Estimator(BaseNode):
     """Node that wrap estimators"""
+
+    def __init__(self, estimator):
+        super(Estimator, self).__init__()
+        self.estimator = estimator
 
     def get_signature(self):
         """Overload the base name method"""
@@ -113,8 +102,7 @@ class InternalEstimator(Estimator):
         if not hasattr(estimator, "fit") or not \
             hasattr(estimator, "transform"):
             raise ValueError("estimator should implement fit and transform")
-        super(InternalEstimator, self).__init__()
-        self.estimator = estimator
+        super(InternalEstimator, self).__init__(estimator=estimator)
         self.in_args_fit = _func_get_args_names(self.estimator.fit) \
             if in_args_fit is None else in_args_fit
         self.in_args_transform = \
@@ -215,8 +203,7 @@ class LeafEstimator(Estimator):
         if not hasattr(estimator, "fit") or not \
             hasattr(estimator, "predict"):
             raise ValueError("estimator should implement fit and predict")
-        super(LeafEstimator, self).__init__()
-        self.estimator = estimator
+        super(LeafEstimator, self).__init__(estimator=estimator)
         self.in_args_fit = _func_get_args_names(self.estimator.fit) \
             if in_args_fit is None else in_args_fit
         self.in_args_predict = _func_get_args_names(self.estimator.predict) \
@@ -269,6 +256,13 @@ class LeafEstimator(Estimator):
             Xy_out = _as_dict(self.estimator.predict(**_sub_dict(Xy,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
+            Xy_out = _dict_suffix_keys(Xy_out,
+                suffix=conf.SEP + conf.PREDICTION)
+            ## True test
+            Xy_true = _sub_dict(Xy, self.out_args_predict)
+            Xy_out_true = _dict_suffix_keys(Xy_true,
+                suffix=conf.SEP + conf.TRUE)
+            Xy_out.update(Xy_out_true)
         return Xy_out
 
     def reduce(self, store_results=True):
@@ -296,74 +290,47 @@ class CVBestSearchRefit(Estimator):
 
     def __init__(self, node, **kwargs):
         super(CVBestSearchRefit, self).__init__(estimator=None)
-        score = kwargs.pop("score") if "score" in kwargs else "mean_score_te"
+        score = kwargs.pop("score") if "score" in kwargs else 'y/test/score_recall_mean'
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import CV
         #methods = Methods(*tasks)
-        cv = CV(node=node, reducer=ClassificationReport(keep=False), **kwargs)
+        self.cv = CV(node=node, reducer=ClassificationReport(keep=False), **kwargs)
         self.score = score
         self.arg_max = arg_max
-        self.add_child(cv)  # first child is the CV
 
     def get_signature(self):
         return self.__class__.__name__
 
-    def get_children_top_down(self):
-        """Return children during the top-down execution."""
-        return []
-
     def transform(self, **Xy):
         Xy_train, Xy_test = train_test_split(Xy)
-        self._fit(**Xy_train)
-        Xy_test = self._predict(**Xy_test)
-        return Xy_test
+        if Xy_train is Xy_test:            
+            to_refit, best_params = self._search_best(**Xy)
+        else:
+            to_refit, best_params = self._search_best(**Xy_train)
+        out = to_refit.top_down(**Xy)
+        out["best_params"] = best_params
+        return out
 
-    def _fit(self, **Xy):
+    def _search_best(self, **Xy):
         # Fit/predict CV grid search
-        cv = self.children[0]
-        cv.store = StoreMem()  # local store erased at each fit
+        self.cv.store = StoreMem()  # local store erased at each fit
         from epac.workflow.splitters import CV
         from epac.workflow.pipeline import Pipe
-        if not isinstance(cv, CV):
-            raise ValueError('Child of %s is not a "CV."'
-            % self.__class__.__name__)
-        cv.top_down(**Xy)
+        self.cv.top_down(**Xy)
         #  Pump-up results
-        cv_result_set = cv.reduce(store_results=False)
+        cv_result_set = self.cv.reduce(store_results=False)
         key_val = [(result.key(), result[self.score]) \
                 for result in cv_result_set]
-        mean_cv = np.asarray(zip(*key_val)[1])
-        mean_cv_opt = np.max(mean_cv) if self.arg_max else  np.min(mean_cv)
-        idx_best = np.where(mean_cv == mean_cv_opt)[0][0]
+        scores = np.asarray(zip(*key_val)[1])
+        scores_opt = np.max(scores) if self.arg_max else  np.min(scores)
+        idx_best = np.where(scores == scores_opt)[0][0]
         best_key = key_val[idx_best][0]
         # Find nodes that match the best
-        nodes_dict = {n.get_signature(): n for n in self.walk_true_nodes() \
+        nodes_dict = {n.get_signature(): n for n in self.cv.walk_true_nodes() \
             if n.get_signature() in key_split(best_key)}
-        refited = Pipe(*[nodes_dict[k].estimator for k in key_split(best_key)])
-        refited.store = StoreMem()    # local store erased at each fit
-        self.children = self.children[:1]
-        self.add_child(refited)
-        refited.fit(recursion=True, **Xy)
-        refited_result_set = refited.reduce(store_results=False)
-        result_set = ResultSet(refited_result_set)
-        result = result_set.values()[0]  # There is only one
-        result["key"] = self.get_signature()
-        result["best_params"] = [dict(sig) for sig in key_split(best_key,
-                                                                eval=True)]
-        self.save_state(result_set, name="result_set")
-        #to_refit.bottum_up(store_results=False)
-        # Delete (eventual) about previous refit
-        return self
-
-    def _predict(self, recursion=True, **Xy):
-        """Call transform  with sample_set="test" """
-        refited = self.children[1]
-        pred = refited.top_down(**Xy)
-        # Update current results with refited prediction
-        refited_result = refited.reduce(store_results=False).values()[0]
-        result = self.load_state(name="result_set").values()[0]
-        result.update(refited_result.payload())
-        return pred
+        to_refit = Pipe(*[nodes_dict[k].estimator for k in key_split(best_key)])
+        best_params = [dict(sig) for sig in key_split(best_key, eval=True)]
+        return to_refit, best_params
 
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set

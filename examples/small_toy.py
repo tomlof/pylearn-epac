@@ -7,7 +7,7 @@ Created on Mon Jan 21 19:55:46 2013
 """
 
 from sklearn import datasets
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC as SVM
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
@@ -19,19 +19,16 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 # |
 # SVM Classifier (Estimator)
 from epac import Pipe
-pipe = Pipe(SelectKBest(k=2), SVC())
+pipe = Pipe(SelectKBest(k=2), SVM())
 pipe.run(X=X, y=y)
 
-
 # The downstream data-flow is a keyword arguments (dict) containing X and y.
-# It will pass through each processing node, SelectKBest(k=2) and SVC.
-# The Fit:
-# Each non-leaf (here SelectKBest  node call the fit method, then apply
-# the transformation on the downstream and pass it to the next node. The leaf
-# node (here SVC) do not call the transformation.
-# The predict:
-# Similar sequential tranformation are applied on X, except that the leaf node
-# call the predict method.
+# It will pass through each processing node, SelectKBest(k=2) and SVM.
+# Each node call the "transform" method, that take a dictionnary as input
+# and produces a dictionnary as output. The output is passed  to the next node. 
+
+# The return value of the run is simply agregation of the outputs (dict) of
+# the leaf nodes
 
 ## Parallelization
 ## ===============
@@ -42,15 +39,19 @@ pipe.run(X=X, y=y)
 #        /   \
 # SVM(C=1)  SVM(C=10)   Classifiers (Estimator)
 from epac import Methods
-multi = Methods(SVC(C=1), SVC(C=10))
+multi = Methods(SVM(C=1), SVM(C=10))
 multi.run(X=X, y=y)
 print multi.reduce()
 
+# Reduce format outputs into "ResultSet" which is a dict-like structure
+# which contains the "keys" of the methods that as beeen used.
 
-#        Methods          Methods (Splitter)
-#          /  \
-# SVM(linear)  SVM(rbf)  Classifiers (Estimator)
-svms = Methods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
+
+
+#                         Methods                  Methods (Splitter)
+#          /                        \
+# SVM(l1, C=1)  SVM(l1, C=10)  ..... SVM(l2, C=10) Classifiers (Estimator)
+svms = Methods(*[SVM(loss=loss, C=C) for loss in ("l1", "l2") for C in [1, 10]])
 svms.run(X=X, y=y)
 print svms.reduce()
 
@@ -60,7 +61,7 @@ print svms.reduce()
 # 1    5   10   SelectKBest (Estimator)
 # |    |    |
 # SVM SVM SVM   Classifiers (Estimator)
-anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC()) for k in [1, 2]])
+anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVM()) for k in [1, 2]])
 anovas_svm.run(X=X, y=y)
 print anovas_svm.reduce()
 
@@ -76,7 +77,7 @@ print anovas_svm.reduce()
 #    /   \
 #  LDA  SVM    Classifier (Estimator)
 from epac import CV, Methods
-cv = CV(Methods(LDA(), SVC(kernel="linear")))
+cv = CV(Methods(LDA(), SVM()))
 cv.run(X=X, y=y)
 print cv.reduce()
 
@@ -89,9 +90,9 @@ print cv.reduce()
 # SVM(C=1)  SVM(C=10)   Classifier (Estimator)
 from epac import Pipe, CVBestSearchRefit, Methods
 # CV + Grid search of a simple classifier
-wf = CVBestSearchRefit(Methods(*[SVC(C=C) for C in [1, 10]]))
+wf = CVBestSearchRefit(Methods(SVM(C=1), SVM(C=10)))
 wf.run(X=X, y=y)
-wf.reduce()
+print wf.reduce()
 
 # Feature selection combined with SVM and LDA
 # CVBestSearchRefit
@@ -100,14 +101,18 @@ wf.reduce()
 #            KBest(1)         KBest(5) SelectKBest (Estimator)
 #              |
 #            Methods                   (Splitter)
-#        /     |     \
-#    LDA() SVM(C=1)  SVM(C=10) ...     Classifiers (Estimator)
-pipelines = Methods(*[Pipe(SelectKBest(k=k), Methods(*[LDA()]+[SVC(C=C) for C in [1, 10]])) for k in [1, 5]])
+#        /          \
+#    LDA()          SVM() ...          Classifiers (Estimator)
+pipelines = Methods(*[Pipe(SelectKBest(k=k), Methods(LDA(), SVM())) for k in [1, 5]])
 print [n for n in pipelines.walk_leaves()]
-wf = CVBestSearchRefit(pipelines)
-wf.run(X=X, y=y)
-wf.reduce()
+best_cv = CVBestSearchRefit(pipelines)
+best_cv.run(X=X, y=y)
+best_cv.reduce()
 
+# Put it in an outer CV
+cv = CV(best_cv)
+cv.run(X=X, y=y)
+cv.reduce()
 
 # Perms + Cross-validation of SVM(linear) and SVM(rbf)
 # -------------------------------------
@@ -124,6 +129,6 @@ wf.reduce()
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 
 from epac import Perms, CV, Methods
-perms_cv_svm = Perms(CV(Methods(SVC(kernel="linear"), SVC(kernel="rbf"))))
+perms_cv_svm = Perms(CV(Methods(SVM(kernel="linear"), SVM(kernel="rbf"))))
 perms_cv_svm.run(X=X, y=y)
 perms_cv_svm.reduce()

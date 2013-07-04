@@ -6,7 +6,7 @@ Created on Thu May 23 15:21:35 2013
 """
 
 from sklearn import datasets
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC as SVM
 from sklearn.lda import LDA
 from sklearn.feature_selection import SelectKBest
 X, y = datasets.make_classification(n_samples=12, n_features=10,
@@ -24,11 +24,24 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 #run -i epac/map_reduce/results.py
 #run -i epac/map_reduce/reducers.py
 
+
+import numpy as np
+from epac.workflow.base import BaseNode, key_push, key_split
+from epac.utils import _func_get_args_names, train_test_merge, train_test_split, _dict_suffix_keys
+from epac.utils import _sub_dict, _as_dict
+from epac.map_reduce.results import ResultSet, Result
+from epac.stores import StoreMem
+from epac.configuration import conf
+from epac.map_reduce.reducers import ClassificationReport
+
+
 Xy = dict(X=X, y=y)
 
-from epac import Methods
-self = Methods(SVC(C=1), SVC(C=10))
+from epac import Pipe, CVBestSearchRefit, Methods
+# CV + Grid search of a simple classifier
+self = CVBestSearchRefit(Methods(*[SVM(C=C) for C in [1, 10]]))
 self.run(X=X, y=y)
+self.reduce()
 
 
 from epac import Pipe, CV

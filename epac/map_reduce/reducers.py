@@ -65,8 +65,8 @@ class ClassificationReport(Reducer):
         else:
             inputs = result.keys()
         if len(inputs) != 2:
-            raise KeyError("Need to find exactly two result to compute a score."
-            "Found %i: %s" % (len(inputs), inputs))
+            raise KeyError("Need to find exactly two results to compute a score."
+            " Found %i: %s" % (len(inputs), inputs))
         key_true = [k for k in inputs if k.find(conf.TRUE) != -1][0]
         key_pred = [k for k in inputs if k.find(conf.PREDICTION) != -1][0]
         y_true = result[key_true]

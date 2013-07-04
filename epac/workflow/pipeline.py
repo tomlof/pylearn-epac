@@ -62,6 +62,8 @@ def Pipe(*nodes):
                 curr = LeafEstimator(node)
             else:
                 curr = InternalEstimator(node)
+        else:
+            curr = node
         if not root:
             root = curr
         else:

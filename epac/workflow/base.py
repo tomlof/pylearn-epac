@@ -2,9 +2,8 @@
 Base Workflow node plus keys manipulation utilities.
 
 @author: edouard.duchesnay@cea.fr
-@author: benoit.da_mota@inria.fr
+@author: jinpeng.li@cea.fr
 """
-
 
 import re
 import sys
