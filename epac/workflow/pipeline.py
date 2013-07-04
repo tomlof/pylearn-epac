@@ -57,7 +57,7 @@ def Pipe(*nodes):
     prev = None
     for i in xrange(len(nodes)):
         node = nodes[i]
-        if  not isinstance(node, BaseNode):
+        if not isinstance(node, BaseNode):
             if i == len(nodes) - 1:
                 curr = LeafEstimator(node)
             else:

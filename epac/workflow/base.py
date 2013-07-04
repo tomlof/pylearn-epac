@@ -175,7 +175,7 @@ class BaseNode(object):
 
     def walk_leaves(self):
         """Leaves iterator"""
-        if not self.children:
+        if not self.children or len(self.children) == 0:
             yield self
         else:
             for child in self.children:

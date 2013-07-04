@@ -54,8 +54,6 @@ class InternalEstimator(Estimator):
     Parameters:
         estimator: object that implement fit and transform
 
-    Automatically connect estimator.fit (if exist) and estimator.transform
-
     Example
     -------
     >>> from sklearn import datasets

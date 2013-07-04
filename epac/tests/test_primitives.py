@@ -54,7 +54,7 @@ class TestCV(unittest.TestCase):
         # = With EPAC
         wf = CV(SVC(kernel="linear"), n_folds=n_folds,
                 reducer=ClassificationReport(keep=True))
-        r_epac = wf.fit_predict(X=X, y=y)
+        r_epac = wf.top_down(X=X, y=y)
 
         # = With SKLEARN
         clf = SVC(kernel="linear")
@@ -68,16 +68,16 @@ class TestCV(unittest.TestCase):
             r_sklearn.append(clf.predict(X_test))
 
         # = Comparison
-        comp = np.all(np.asarray(r_epac[0]['pred/test/y']) \
+        comp = np.all(np.asarray(r_epac[0]['y/test/pred']) \
                                 == np.asarray(r_sklearn[0]))
         self.assertTrue(comp, u'Diff CV: EPAC vs sklearn')
 
-        comp = np.all(np.asarray(r_epac[1]['pred/test/y']) \
+        comp = np.all(np.asarray(r_epac[1]['y/test/pred']) \
                                 == np.asarray(r_sklearn[1]))
         self.assertTrue(comp, u'Diff CV: EPAC vs sklearn')
 
         # test reduce
-        r_epac_reduce = wf.reduce().values()[0]['pred/test/y']
+        r_epac_reduce = wf.reduce().values()[0]['y/test/pred']
         comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
         self.assertTrue(comp, u'Diff CV: EPAC reduce')
 
@@ -111,8 +111,11 @@ class TestPerms(unittest.TestCase):
         self.assertTrue(comp, u'Diff Perm: EPAC vs sklearn')
 
         # test reduce
-        r_epac_reduce = [v['pred_te'] for v in wf.reduce().values()]
-        comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
+        r_epac_reduce_0 = wf.reduce().values()[0]['y']
+        r_epac_reduce_1 = wf.reduce().values()[1]['y']
+        comp = np.all(np.asarray(r_epac_reduce_0) == np.asarray(r_sklearn[0]))
+        self.assertTrue(comp, u'Diff Perm: EPAC reduce')
+        comp = np.all(np.asarray(r_epac_reduce_1) == np.asarray(r_sklearn[1]))
         self.assertTrue(comp, u'Diff Perm: EPAC reduce')
 
 
@@ -131,7 +134,6 @@ class TestPerms(unittest.TestCase):
 #        wf = CVBestSearchRefit(methods, n_folds=n_folds_nested)
 #        wf.fit_predict(X=X, y=y)
 #        r_epac = wf.reduce().values()[0]
-#
 #        # - Without EPAC
 #        r_sklearn = dict()
 #        clf = SVC(kernel="linear")
@@ -141,7 +143,6 @@ class TestPerms(unittest.TestCase):
 #        gscv.fit(X, y)
 #        r_sklearn['pred_te'] = gscv.predict(X)
 #        r_sklearn['best_params'] = gscv.best_params_
-#
 #        # - Comparisons
 #        comp = np.all(r_epac['pred_te'] == r_sklearn['pred_te'])
 #        self.assertTrue(comp, u'Diff CVBestSearchRefit: prediction')
@@ -149,7 +150,7 @@ class TestPerms(unittest.TestCase):
 #                       r_sklearn['best_params'][p]
 #        for p in  r_sklearn['best_params']])
 #        self.assertTrue(comp, u'Diff CVBestSearchRefit: best parameters')
-#
+
 #    def test_cvbestsearchrefit_select_k_best(self):
 #        list_C_value = range(2, 10, 1)
 ##        print repr(list_C_value)
