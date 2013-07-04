@@ -117,7 +117,8 @@ class InternalEstimator(Estimator):
         self.estimator = estimator
         self.in_args_fit = _func_get_args_names(self.estimator.fit) \
             if in_args_fit is None else in_args_fit
-        self.in_args_transform = _func_get_args_names(self.estimator.transform) \
+        self.in_args_transform = \
+            _func_get_args_names(self.estimator.transform) \
             if in_args_transform is None else in_args_transform
 
     def transform(self, **Xy):
@@ -132,7 +133,7 @@ class InternalEstimator(Estimator):
             self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out_tr = _as_dict(self.estimator.transform(
-                        **_sub_dict(Xy_train,self.in_args_transform)),
+                        **_sub_dict(Xy_train, self.in_args_transform)),
                         keys=self.in_args_transform)
             Xy_out_te = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
                             self.in_args_transform)),
@@ -148,7 +149,6 @@ class InternalEstimator(Estimator):
         Xy.update(Xy_out)
         return Xy
 
-
     def reduce(self, store_results=True):
         # 1) Build sub-aggregates over children
         children_result_set = [child.reduce(store_results=False) for
@@ -161,8 +161,8 @@ class InternalEstimator(Estimator):
 
 
 class LeafEstimator(Estimator):
-    """Estimator Wrapper: 
-    Automatically connect estimator.fit (if exist) and estimator.predict to 
+    """Estimator Wrapper:
+    Automatically connect estimator.fit (if exist) and estimator.predict to
     BaseNode.transform.
 
     Example
@@ -181,6 +181,13 @@ class LeafEstimator(Estimator):
     >>> leaf_estimator  = LeafEstimator(SVC())
     >>> leaf_estimator.transform(**Xy)
     {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}
+    >>> print leaf_estimator.reduce()
+    None
+    >>> leaf_estimator.top_down(**Xy)
+    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}
+    >>> print leaf_estimator.reduce()
+    ResultSet(
+    [{'key': SVC, 'y': [1 0 0 1 0 0 1 0 1 1 0 1]}])
 
     """
     def __init__(self, estimator, in_args_fit=None, in_args_predict=None,
@@ -215,13 +222,14 @@ class LeafEstimator(Estimator):
         self.in_args_predict = _func_get_args_names(self.estimator.predict) \
             if in_args_predict is None else in_args_predict
         if out_args_predict is None:
-            fit_predict_diff = list(set(self.in_args_fit).difference(self.in_args_predict))
+            fit_predict_diff = list(set(self.in_args_fit).difference(
+                                        self.in_args_predict))
             if len(fit_predict_diff) > 0:
                 self.out_args_predict = fit_predict_diff
             else:
                 self.out_args_predict = self.in_args_predict
         else:
-            self.out_args_predict =  out_args_predict
+            self.out_args_predict = out_args_predict
 
     """Extimator Wrapper: connect fit + predict to transform"""
     def transform(self, **Xy):
@@ -322,7 +330,8 @@ class CVBestSearchRefit(Estimator):
         cv.top_down(**Xy)
         #  Pump-up results
         cv_result_set = cv.reduce(store_results=False)
-        key_val = [(result.key(), result[self.score]) for result in cv_result_set]
+        key_val = [(result.key(), result[self.score]) \
+                for result in cv_result_set]
         mean_cv = np.asarray(zip(*key_val)[1])
         mean_cv_opt = np.max(mean_cv) if self.arg_max else  np.min(mean_cv)
         idx_best = np.where(mean_cv == mean_cv_opt)[0][0]
@@ -339,7 +348,8 @@ class CVBestSearchRefit(Estimator):
         result_set = ResultSet(refited_result_set)
         result = result_set.values()[0]  # There is only one
         result["key"] = self.get_signature()
-        result["best_params"] = [dict(sig) for sig in key_split(best_key, eval=True)]
+        result["best_params"] = [dict(sig) for sig in key_split(best_key,
+                                                                eval=True)]
         self.save_state(result_set, name="result_set")
         #to_refit.bottum_up(store_results=False)
         # Delete (eventual) about previous refit
@@ -354,8 +364,6 @@ class CVBestSearchRefit(Estimator):
         result = self.load_state(name="result_set").values()[0]
         result.update(refited_result.payload())
         return pred
-
-
 
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set
