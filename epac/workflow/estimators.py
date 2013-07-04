@@ -288,6 +288,7 @@ class CVBestSearchRefit(Estimator):
 
     def __init__(self, node, **kwargs):
         super(CVBestSearchRefit, self).__init__(estimator=None)
+        ####?????
         score = kwargs.pop("score") if "score" in kwargs else 'y/test/score_recall_mean'
         arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
         from epac.workflow.splitters import CV
@@ -312,7 +313,6 @@ class CVBestSearchRefit(Estimator):
     def _search_best(self, **Xy):
         # Fit/predict CV grid search
         self.cv.store = StoreMem()  # local store erased at each fit
-        from epac.workflow.splitters import CV
         from epac.workflow.pipeline import Pipe
         self.cv.top_down(**Xy)
         #  Pump-up results

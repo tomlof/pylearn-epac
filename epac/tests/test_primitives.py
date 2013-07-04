@@ -119,37 +119,37 @@ class TestPerms(unittest.TestCase):
         self.assertTrue(comp, u'Diff Perm: EPAC reduce')
 
 
-#class TestCVBestSearchRefit(unittest.TestCase):
-#
-#    def test_cvbestsearchrefit(self):
-#        X, y = datasets.make_classification(n_samples=12, n_features=10,
-#                                            n_informative=2)
-#        n_folds_nested = 2
-#        #random_state = 0
-#        C_values = [.1, 0.5, 1, 2, 5]
-#        kernels = ["linear", "rbf"]
-#        # With EPAC
-#        methods = Methods(*[SVC(C=C, kernel=kernel)
-#            for C in C_values for kernel in kernels])
-#        wf = CVBestSearchRefit(methods, n_folds=n_folds_nested)
-#        wf.fit_predict(X=X, y=y)
-#        r_epac = wf.reduce().values()[0]
-#        # - Without EPAC
-#        r_sklearn = dict()
-#        clf = SVC(kernel="linear")
-#        parameters = {'C': C_values, 'kernel': kernels}
-#        cv_nested = StratifiedKFold(y=y, n_folds=n_folds_nested)
-#        gscv = grid_search.GridSearchCV(clf, parameters, cv=cv_nested)
-#        gscv.fit(X, y)
-#        r_sklearn['pred_te'] = gscv.predict(X)
-#        r_sklearn['best_params'] = gscv.best_params_
-#        # - Comparisons
-#        comp = np.all(r_epac['pred_te'] == r_sklearn['pred_te'])
-#        self.assertTrue(comp, u'Diff CVBestSearchRefit: prediction')
-#        comp = np.all([r_epac['best_params'][0][p] == \
-#                       r_sklearn['best_params'][p]
-#        for p in  r_sklearn['best_params']])
-#        self.assertTrue(comp, u'Diff CVBestSearchRefit: best parameters')
+class TestCVBestSearchRefit(unittest.TestCase):
+
+    def test_cvbestsearchrefit(self):
+        X, y = datasets.make_classification(n_samples=12, n_features=10,
+                                            n_informative=2)
+        n_folds_nested = 2
+        #random_state = 0
+        C_values = [.1, 0.5, 1, 2, 5]
+        kernels = ["linear", "rbf"]
+        # With EPAC
+        methods = Methods(*[SVC(C=C, kernel=kernel)
+            for C in C_values for kernel in kernels])
+        wf = CVBestSearchRefit(methods, n_folds=n_folds_nested)
+        wf.run(X=X, y=y)
+        r_epac = wf.reduce().values()[0]
+        # - Without EPAC
+        r_sklearn = dict()
+        clf = SVC(kernel="linear")
+        parameters = {'C': C_values, 'kernel': kernels}
+        cv_nested = StratifiedKFold(y=y, n_folds=n_folds_nested)
+        gscv = grid_search.GridSearchCV(clf, parameters, cv=cv_nested)
+        gscv.fit(X, y)
+        r_sklearn['pred_te'] = gscv.predict(X)
+        r_sklearn['best_params'] = gscv.best_params_
+        # - Comparisons
+        comp = np.all(r_epac['pred_te'] == r_sklearn['pred_te'])
+        self.assertTrue(comp, u'Diff CVBestSearchRefit: prediction')
+        comp = np.all([r_epac['best_params'][0][p] == \
+                       r_sklearn['best_params'][p]
+        for p in  r_sklearn['best_params']])
+        self.assertTrue(comp, u'Diff CVBestSearchRefit: best parameters')
 
 #    def test_cvbestsearchrefit_select_k_best(self):
 #        list_C_value = range(2, 10, 1)
