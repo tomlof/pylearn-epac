@@ -26,6 +26,11 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 
 Xy = dict(X=X, y=y)
 
+from epac import Methods
+self = Methods(SVC(C=1), SVC(C=10))
+self.run(X=X, y=y)
+
+
 from epac import Pipe, CV
 pipe = Pipe(SelectKBest(k=2), SVC())
 cv = CV(pipe,reducer=None)

@@ -449,6 +449,8 @@ class BaseNode(object):
         """Return children during the top-down exection."""
         return self.children
 
+    run = top_down
+
     @abstractmethod
     def transform(self, **Xy):
         """"""

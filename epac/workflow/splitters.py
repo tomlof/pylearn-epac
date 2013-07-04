@@ -240,6 +240,9 @@ class Methods(BaseNodeSplitter):
             raise ValueError("Some methods are identical, they could not be "
                     "differentiated according to their arguments")
 
+    def transform(self, **Xy):
+        return Xy
+
     def reduce(self, store_results=True):
         # 1) Build sub-aggregates over children
         children_results = [child.reduce(store_results=False) for

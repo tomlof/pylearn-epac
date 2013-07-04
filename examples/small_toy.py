@@ -20,9 +20,7 @@ X, y = datasets.make_classification(n_samples=12, n_features=10,
 # SVM Classifier (Estimator)
 from epac import Pipe
 pipe = Pipe(SelectKBest(k=2), SVC())
-pipe.fit(X=X, y=y)
-pipe.predict(X=X)
-pipe.fit_predict(X=X, y=y)  # Do both
+pipe.run(X=X, y=y)
 
 
 # The downstream data-flow is a keyword arguments (dict) containing X and y.
@@ -45,7 +43,7 @@ pipe.fit_predict(X=X, y=y)  # Do both
 # SVM(C=1)  SVM(C=10)   Classifiers (Estimator)
 from epac import Methods
 multi = Methods(SVC(C=1), SVC(C=10))
-multi.fit_predict(X=X, y=y)
+multi.run(X=X, y=y)
 print multi.reduce()
 
 
@@ -53,7 +51,7 @@ print multi.reduce()
 #          /  \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 svms = Methods(*[SVC(kernel=kernel) for kernel in ("linear", "rbf")])
-svms.fit_predict(X=X, y=y)
+svms.run(X=X, y=y)
 print svms.reduce()
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
@@ -63,7 +61,7 @@ print svms.reduce()
 # |    |    |
 # SVM SVM SVM   Classifiers (Estimator)
 anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC()) for k in [1, 2]])
-anovas_svm.fit_predict(X=X, y=y)
+anovas_svm.run(X=X, y=y)
 print anovas_svm.reduce()
 
 
@@ -79,7 +77,7 @@ print anovas_svm.reduce()
 #  LDA  SVM    Classifier (Estimator)
 from epac import CV, Methods
 cv = CV(Methods(LDA(), SVC(kernel="linear")))
-cv.fit_predict(X=X, y=y)
+cv.run(X=X, y=y)
 print cv.reduce()
 
 
@@ -92,7 +90,7 @@ print cv.reduce()
 from epac import Pipe, CVBestSearchRefit, Methods
 # CV + Grid search of a simple classifier
 wf = CVBestSearchRefit(Methods(*[SVC(C=C) for C in [1, 10]]))
-wf.fit_predict(X=X, y=y)
+wf.run(X=X, y=y)
 wf.reduce()
 
 # Feature selection combined with SVM and LDA
@@ -107,7 +105,7 @@ wf.reduce()
 pipelines = Methods(*[Pipe(SelectKBest(k=k), Methods(*[LDA()]+[SVC(C=C) for C in [1, 10]])) for k in [1, 5]])
 print [n for n in pipelines.walk_leaves()]
 wf = CVBestSearchRefit(pipelines)
-wf.fit_predict(X=X, y=y)
+wf.run(X=X, y=y)
 wf.reduce()
 
 
@@ -127,5 +125,5 @@ wf.reduce()
 
 from epac import Perms, CV, Methods
 perms_cv_svm = Perms(CV(Methods(SVC(kernel="linear"), SVC(kernel="rbf"))))
-perms_cv_svm.fit_predict(X=X, y=y)
+perms_cv_svm.run(X=X, y=y)
 perms_cv_svm.reduce()
