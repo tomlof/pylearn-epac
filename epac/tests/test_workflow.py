@@ -17,6 +17,7 @@ from sklearn.feature_selection import SelectKBest
 from epac import CVBestSearchRefit, Pipe, CV, Perms, Methods
 from epac import ClassificationReport, PvalPerms
 from epac.sklearn_plugins import Permutations
+from epac.configuration import conf
 
 
 class TestPermCV(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestPermCV(unittest.TestCase):
                             reducer=ClassificationReport(keep=True)),
                             n_perms=n_perms, permute="y",
                             random_state=rnd, reducer=None)
-        r_epac = wf.fit_predict(X=X, y=y)
+        r_epac = wf.run(X=X, y=y)
         # = With SKLEARN
         from sklearn.cross_validation import StratifiedKFold
         clf = SVC(kernel="linear")
@@ -52,14 +53,27 @@ class TestPermCV(unittest.TestCase):
                 fold_nb += 1
             perm_nb += 1
 
+        cmp_key = 'y' + conf.SEP + conf.TEST + conf.SEP + conf.PREDICTION
         # Comparison
-        comp = np.all(np.asarray(r_epac) == np.asarray(r_sklearn))
-        self.assertTrue(comp, u'Diff Perm / CV: EPAC vs sklearn')
+        for iperm in range(n_perms):
+            for icv in range(n_folds):
+                comp = np.all(
+                            np.asarray(r_epac[iperm][icv][cmp_key]) ==
+                            np.asarray(r_sklearn[iperm][icv])
+                             )
+                self.assertTrue(comp, u'Diff Perm / CV: EPAC vs sklearn')
 
         # test reduce
-        r_epac_reduce = [v['pred_te'] for v in wf.reduce().values()]
-        comp = np.all(np.asarray(r_epac_reduce) == np.asarray(r_sklearn))
-        self.assertTrue(comp, u'Diff Perm / CV: EPAC reduce')
+        for iperm in range(n_perms):
+            for icv in range(n_folds):
+                ## iperm = 0
+                ## icv = 0
+                comp = np.all(
+                    np.asarray(wf.reduce().values()[iperm][cmp_key][icv])
+                    ==
+                    np.asarray(r_sklearn[iperm][icv])
+                    )
+                self.assertTrue(comp, u'Diff Perm / CV: EPAC reduce')
 
 
 class TestCVBestSearchRefit(unittest.TestCase):

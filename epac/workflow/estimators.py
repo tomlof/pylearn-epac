@@ -307,7 +307,7 @@ class CVBestSearchRefit(Estimator):
         else:
             to_refit, best_params = self._search_best(**Xy_train)
         out = to_refit.top_down(**Xy)
-        out["best_params"] = best_params
+        out[conf.BEST_PARAMS] = best_params
         return out
 
     def _search_best(self, **Xy):
