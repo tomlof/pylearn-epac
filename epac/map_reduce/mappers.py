@@ -75,7 +75,7 @@ class MapperSubtrees(Mapper):
     >>> node_input = NodesInput(tree_root_node.get_key())
     >>> split_node_input = SplitNodesInput(tree_root_node, num_processes=num_processes)
     >>> input_list = split_node_input.split(node_input)
-    >>> mapper = MapperSubtrees(Xy,tree_root_node, store_fs, "fit_predict")
+    >>> mapper = MapperSubtrees(Xy,tree_root_node, store_fs, "transform")
     
     >>> ## Run map processes in parallel
     >>> ## =============================
@@ -102,7 +102,7 @@ class MapperSubtrees(Mapper):
                  Xy,
                  tree_root,
                  store_fs,
-                 function="fit_predict"):
+                 function="transform"):
         """Initialization for the mapper
 
         Parameters
@@ -144,7 +144,7 @@ class MapperSubtrees(Mapper):
                 # print node_root2common
                 # print parent_node
                 func = getattr(node_root2common, self.function)
-                self.Xy = func(recursion=False, **self.Xy)
+                self.Xy = func(**self.Xy)
         # Execute what is specific to each keys
         for curr_key in listkey:
             # curr_key = listkey.__iter__().next()
@@ -163,12 +163,13 @@ class MapperSubtrees(Mapper):
                 node_common2curr = \
                         self.tree_root.get_node(node_common2curr.get_key())
                 func = getattr(node_common2curr, self.function)
-                cpXy = func(recursion=False, **cpXy)
+                cpXy = func(**cpXy)
             curr_node = self.tree_root.get_node(curr_node.get_key())
             # print "Recursively run from root to current node"
             curr_node.store = StoreMem()
-            func = getattr(curr_node, self.function)
-            func(recursion=True, **cpXy)
+            curr_node.run(**cpXy)
+            #func = getattr(curr_node, self.function)
+            #func(recursion=True, **cpXy)
             # print "Save results"
             curr_node.save_node(store=self.store_fs)
 

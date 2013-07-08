@@ -15,13 +15,15 @@ import numpy as np
 from sklearn import datasets
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
+from sklearn.cross_validation import StratifiedKFold
+from sklearn import grid_search
+
 from epac import Pipe, Methods, CV, Perms
 from epac import ClassificationReport, PvalPerms
 from epac import StoreFs
 from epac import CVBestSearchRefit
 from epac.sklearn_plugins import Permutations
-from sklearn.cross_validation import StratifiedKFold
-from sklearn import grid_search
+from epac.configuration import conf
 
 
 class TestWorkFlow(unittest.TestCase):
@@ -48,11 +50,11 @@ class TestWorkFlow(unittest.TestCase):
         import tempfile
         store = StoreFs(dirpath=tempfile.mkdtemp(), clear=True)
         tree_mem.save_tree(store=store)
-        tree_mem.fit_predict(X=X, y=y)
+        tree_mem.run(X=X, y=y)
         res_mem = tree_mem.reduce().values()[0]
         # Reload Tree
         tree_fs_noresults = store.load()
-        tree_fs_noresults.fit_predict(X=X, y=y)
+        tree_fs_noresults.run(X=X, y=y)
         res_fs_noresults = tree_fs_noresults.reduce().values()[0]
         # Save with results
         tree_fs_noresults.save_tree(store=store)
@@ -70,6 +72,7 @@ class TestWorkFlow(unittest.TestCase):
         self.assertTrue(comp)
 
     def test_peristence_perm_cv_parmethods_pipe_vs_sklearn(self):
+        key_y_pred = 'y' + conf.SEP + conf.PREDICTION
         X, y = datasets.make_classification(n_samples=12, n_features=10,
                                             n_informative=2)
         n_folds_nested = 2
@@ -87,7 +90,7 @@ class TestWorkFlow(unittest.TestCase):
         store = StoreFs(tempfile.mktemp())
         wf.save_tree(store=store)
         wf = store.load()
-        wf.fit_predict(X=X, y=y)
+        wf.run(X=X, y=y)
         ## Save results
         wf.save_tree(store=store)
         wf = store.load()
@@ -100,14 +103,15 @@ class TestWorkFlow(unittest.TestCase):
         cv_nested = StratifiedKFold(y=y, n_folds=n_folds_nested)
         gscv = grid_search.GridSearchCV(clf, parameters, cv=cv_nested)
         gscv.fit(X, y)
-        r_sklearn['pred_te'] = gscv.predict(X)
-        r_sklearn['best_params'] = gscv.best_params_
+        r_sklearn[key_y_pred] = gscv.predict(X)
+        r_sklearn[conf.BEST_PARAMS] = gscv.best_params_
+        r_sklearn[conf.BEST_PARAMS]['name'] = 'SVC'
 
         # - Comparisons
-        comp = np.all(r_epac['pred_te'] == r_sklearn['pred_te'])
+        comp = np.all(r_epac[key_y_pred] == r_sklearn[key_y_pred])
         self.assertTrue(comp, u'Diff CVBestSearchRefit: prediction')
-        comp = np.all([r_epac['best_params'][0][p] == r_sklearn['best_params'][p]
-        for p in  r_sklearn['best_params']])
+        comp = np.all([r_epac[conf.BEST_PARAMS][0][p] == r_sklearn[conf.BEST_PARAMS][p]
+        for p in  r_sklearn[conf.BEST_PARAMS]])
         self.assertTrue(comp, u'Diff CVBestSearchRefit: best parameters')
 
 
