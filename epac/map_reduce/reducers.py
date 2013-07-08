@@ -36,7 +36,7 @@ class Reducer(object):
 
 
 class ClassificationReport(Reducer):
-    """Reducer compute classification statistics.
+    """Reducer that computes classification statistics.
 
     select_regexp: srt
       A string to select items (defaults "test"). It must match two items:
@@ -90,27 +90,31 @@ class ClassificationReport(Reducer):
 
 
 class PvalPerms(Reducer):
-    """Reducer that select sub-result(s) according to select_regexp, and
-    reduce the sub-result(s) using the statistics stat"""
-    def __init__(self, select_regexp='mean.*' + Result.SCORE,
+    """Reducer that computes p-values of stattistics.
+
+    select_regexp: srt
+      A string to select staitics (defaults ".*score.+"). on which to compute
+      p-values.
+    """
+    def __init__(self, select_regexp='.*score.+' ,
                  keep=False):
         self.select_regexp = select_regexp
         self.keep = keep
 
     def reduce(self, result):
         if self.select_regexp:
-            select_keys = [key3 for key3 in result
-                if re.search(self.select_regexp, str(key3))]
+            select_keys = [key for key in result
+                if re.search(self.select_regexp, str(key))]
                 #if re.search(self.select_regexp) != -1]
         else:
             select_keys = result.keys()
         out = Result(key=result.key())
-        for key3 in select_keys:
-            out[key3] = result[key3][0]
-            count = np.sum(result[key3][1:] > result[key3][0])
-            pval = float(count) / (len(result[key3]) - 1)
-            #out[Result.concat_key3("count", str(key3))] = count
-            out["pval", key3] = pval
+        for key in select_keys:
+            out[key] = result[key][0]
+            randm_res = np.vstack(result[key][1:])
+            count = np.sum(randm_res > result[key][0], axis=0).astype("float")
+            pval = count / (randm_res.shape[0])
+            out[key_push(key, "pval")] = pval
         if self.keep:
             out.update(result)
         return out
