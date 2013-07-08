@@ -40,7 +40,7 @@ class MapperSubtrees(Mapper):
     >>> import shutil
     >>> from functools import partial
     >>> from multiprocessing import Pool
-    >>>
+    >>> 
     >>> from epac import StoreFs
     >>> from epac.tests.wfexamples2test import WFExample2
     >>> from epac.map_reduce.inputs import NodesInput
@@ -48,7 +48,7 @@ class MapperSubtrees(Mapper):
     >>> from epac.map_reduce.mappers import MapperSubtrees
     >>> from epac.map_reduce.mappers import map_process
     >>> from sklearn import datasets
-
+    
     >>> ## Build dataset
     >>> ## =============
     >>> X, y = datasets.make_classification(n_samples=10,
@@ -56,11 +56,9 @@ class MapperSubtrees(Mapper):
     ...                                     n_informative=5,
     ...                                     random_state=1)
     >>> Xy = {'X':X, 'y':y}
-
     >>> ## Build epac tree and save it on the disk
     >>> ## =======================================
     >>> tree_root_node = WFExample2().get_workflow()
-
     >>> ## Split input into several parts and create mapper
     >>> ## ================================================
     >>> num_processes = 3
@@ -70,28 +68,27 @@ class MapperSubtrees(Mapper):
     >>> mapper = MapperSubtrees(Xy=Xy,
     ...                         tree_root=tree_root_node,
     ...                         function="transform")
-
     >>> ## Run map processes in parallel
     >>> ## =============================
     >>> partial_map_process = partial(map_process,mapper=mapper)
     >>> pool = Pool(processes=num_processes)
     >>> res_tree_root_list = pool.map(partial_map_process, input_list)
-
+    
     >>> ## Merge results from pool
     >>> for each_tree_root in res_tree_root_list:
     ...     tree_root_node.merge_tree_store(each_tree_root)
-
     >>> ## Run map processes in single process
     >>> ## ===================================
     >>> #for input in input_list:
+    >>> #    # input = input_list[0]
     >>> #    mapper.map(input)
-
     >>> ## Run reduce process
     >>> ## ==================
     >>> tree_root_node.reduce()
     ResultSet(
-    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
-     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+    [{'key': SelectKBest/SVC(C=1), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]},
+     {'key': SelectKBest/SVC(C=3), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]}])
+
     '''
     def __init__(self,
                  Xy,
@@ -162,8 +159,7 @@ class MapperSubtrees(Mapper):
             # print "Recursively run from root to current node"
             if self.store_fs:
                 curr_node.store = StoreMem()
-            func = getattr(curr_node, self.function)
-            func(recursion=True, **cpXy)
+            curr_node.run(**cpXy)
             # print "Save results"
             if self.store_fs:
                 curr_node.save_node(store=self.store_fs)
