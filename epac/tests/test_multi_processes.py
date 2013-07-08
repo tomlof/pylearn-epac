@@ -37,6 +37,7 @@ class EpacWorkflowTest(unittest.TestCase):
     def test_examples_local_engine(self):
         list_all_examples = get_wf_example_classes()
         for example in list_all_examples:
+            # example = list_all_examples[0]
             wf = example().get_workflow()
             wf.run(X=self.X, y=self.y)
             local_engine = LocalEngine(tree_root=wf,

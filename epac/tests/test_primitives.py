@@ -116,6 +116,14 @@ class TestPerms(unittest.TestCase):
             comp = np.all(np.asarray(r_epac_reduce) 
                           == np.asarray(r_sklearn[iperm]))
             self.assertTrue(comp, u'Diff Perm: EPAC reduce')
+    
+    def test_perm2(self):
+        from epac.tests.wfexamples2test import WFExample2
+        X, y = datasets.make_classification(n_samples=20, n_features=5,
+                                            n_informative=2)
+        wf = WFExample2().get_workflow()
+        wf.run(X=X, y=y)
+        wf.reduce()
 
 
 class TestCVBestSearchRefit(unittest.TestCase):

@@ -14,6 +14,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.feature_selection import SelectKBest
+from epac import ClassificationReport
 
 from epac import Pipe, CV, Perms, Methods, CVBestSearchRefit, range_log2
 
@@ -92,6 +93,34 @@ class WFExample3(WorkflowExample):
                         n_perms=n_perms,
                         permute="y",
                         random_state=random_state)
+        return wf
+
+
+class WFExample4(WorkflowExample):
+
+    def get_workflow(self):
+        ####################################################################
+        ## EPAC WORKFLOW
+        # -------------------------------------
+        #             Perms                      Perm (Splitter)
+        #         /     |       \
+        #        0      1       2                Samples (Slicer)
+        #        |
+        #       CV                               CV (Splitter)
+        #  /       |       \
+        # 0        1       2                     Folds (Slicer)
+        # |        |       |
+        # Pipeline     Pipeline     Pipeline     Sequence
+        # |
+        # 2                                      SelectKBest (Estimator)
+        # |
+        # Methods
+        # |                     \
+        # SVM(linear,C=1)   SVM(linear,C=10)     Classifiers (Estimator)
+        pipeline = Pipe(SelectKBest(k=2),
+                        Methods(*[SVC(kernel="linear", C=C)
+                        for C in [1, 3]]))
+        wf = CV(pipeline, n_folds=3, reducer=ClassificationReport(keep=True))
         return wf
 
 
