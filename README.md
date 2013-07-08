@@ -104,13 +104,12 @@ anovas_svm.reduce()
 # |    |    |
 # LDA LDA LDA  Classifier (Estimator)
 from epac import CV
-from epac import SummaryStat
 cv_lda = CV(LDA(), n_folds=3)
 cv_lda.run(X=X, y=y)
 cv_lda.reduce()
 ```
 
-- `Permutations(Node, n_perms, y, permute, reducer)`:  Permutation parallelization node.
+- `Perms(Node, n_perms, y, permute, reducer)`:  Permutation parallelization node.
 
 ```python
 # Permutations + Cross-validation
@@ -124,30 +123,22 @@ cv_lda.reduce()
 # 0    1    2                      Folds (Slicer)
 # |    |    |
 # LDA LDA LDA                      Classifier (Estimator)
-from epac import Permutations, CV
-from epac import SummaryStat, PvalPermutations
-perms_cv_lda = Permutations(CV(LDA(), n_folds=3, reducer=SummaryStat()),
+from epac import Perms, CV
+perms_cv_lda = Perms(CV(LDA(), n_folds=3),
                        n_perms=3, permute="y")
 perms_cv_lda.run(X=X, y=y)
-tree.reduce()
+perms_cv_lda.reduce()
 ```
 
 - `CVBestSearchRefit(Node+, n_folds, y, reducer)`:  Cross-validation + grid-search then refit with optimal parameters.
 
 ```python
-from epac import Grid, Pipe, CVBestSearchRefit
+from epac import Methods, Pipe, CVBestSearchRefit
 # CV + Grid search of a simple classifier
-wf = CVBestSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]])
+wf = CVBestSearchRefit(Methods(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]]))
 wf.run(X=X, y=y)
 wf.reduce()
 
-# CV + Grid search of a pipeline with a nested grid search
-wf = CVBestSearchRefit(*[Pipe(SelectKBest(k=k),
-                      Grid(*[SVC(kernel="linear", C=C)\
-                          for C in [.0001, .001, .01, .1, 1, 10]]))
-                for k in [1, 5, 10]])
-wf.run(X=X, y=y)
-wf.reduce()
 ```
 
 
