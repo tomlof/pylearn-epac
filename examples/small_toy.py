@@ -128,7 +128,17 @@ cv.reduce()
 #    /           \
 # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 
+from sklearn.svm import SVC
 from epac import Perms, CV, Methods
-perms_cv_svm = Perms(CV(Methods(SVM(kernel="linear"), SVM(kernel="rbf"))))
+perms_cv_svm = Perms(CV(Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")])))
 perms_cv_svm.run(X=X, y=y)
+perms_cv_svm.reduce()
+
+# Run with soma-workflow for multi-processes
+from epac import SomaWorkflowEngine
+sfw_engine = SomaWorkflowEngine(
+                    tree_root=perms_cv_svm,
+                    num_processes=2,
+                    )
+perms_cv_svm = sfw_engine.run(X=X, y=y)
 perms_cv_svm.reduce()

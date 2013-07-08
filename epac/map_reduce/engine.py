@@ -294,6 +294,7 @@ class SomaWorkflowEngine(LocalEngine):
         Helper.transfer_input_files(wf_id, controller)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
+        controller.delete_workflow(wf_id)
         ## read result tree
         ## ================
         self.tree_root = store.load()

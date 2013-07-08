@@ -56,7 +56,7 @@ def do_all(options):
     ## 3) Run Workflow
     ## ===============
     time_fit_predict = time.time()
-    wf.fit_predict(X=X, y=y)
+    wf.run(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
 

@@ -76,8 +76,8 @@ def do_all(options):
 #    sfw_engine = SomaWorkflowEngine(
 #                        tree_root=wf,
 #                        num_processes=options.n_cores,
-#                        resource_id="ed203246@gabriel",
-#                        login="ed203246")
+#                        resource_id="jl237561@gabriel",
+#                        login="jl237561")
     wf = sfw_engine.run(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
