@@ -40,7 +40,7 @@ class MapperSubtrees(Mapper):
     >>> import shutil
     >>> from functools import partial
     >>> from multiprocessing import Pool
-    >>> 
+    >>>
     >>> from epac import StoreFs
     >>> from epac.tests.wfexamples2test import WFExample2
     >>> from epac.map_reduce.inputs import NodesInput
@@ -48,7 +48,7 @@ class MapperSubtrees(Mapper):
     >>> from epac.map_reduce.mappers import MapperSubtrees
     >>> from epac.map_reduce.mappers import map_process
     >>> from sklearn import datasets
-    
+
     >>> ## Build dataset
     >>> ## =============
     >>> X, y = datasets.make_classification(n_samples=10,
@@ -73,7 +73,7 @@ class MapperSubtrees(Mapper):
     >>> partial_map_process = partial(map_process,mapper=mapper)
     >>> pool = Pool(processes=num_processes)
     >>> res_tree_root_list = pool.map(partial_map_process, input_list)
-    
+
     >>> ## Merge results from pool
     >>> for each_tree_root in res_tree_root_list:
     ...     tree_root_node.merge_tree_store(each_tree_root)

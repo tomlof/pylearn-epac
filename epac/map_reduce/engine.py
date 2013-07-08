@@ -51,7 +51,6 @@ class LocalEngine(Engine):
     -------
 
     >>> from sklearn import datasets
-    >>>
     >>> from epac.map_reduce.engine import LocalEngine
     >>> from epac.tests.wfexamples2test import WFExample2
 
@@ -78,8 +77,8 @@ class LocalEngine(Engine):
     >>> ## ==================
     >>> tree_root_node.reduce()
     ResultSet(
-    [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
-     {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+    [{'key': SelectKBest/SVC(C=1), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]},
+     {'key': SelectKBest/SVC(C=3), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]}])
 
     '''
     tree_root_relative_path = "./epac_tree"
@@ -225,17 +224,16 @@ class SomaWorkflowEngine(LocalEngine):
         >>> ## Build SomaWorkflowEngine and run function for each node
         >>> ## =======================================================
         >>> sfw_engine = SomaWorkflowEngine(tree_root=tree_root_node,
-        ...                                 function_name="fit_predict",
+        ...                                 function_name="trasform",
         ...                                 num_processes=3)
         >>> tree_root_node = sfw_engine.run(**Xy)
-        light mode
 
         >>> ## Run reduce process
         >>> ## ==================
         >>> tree_root_node.reduce()
         ResultSet(
-        [{'key': SelectKBest/SVC(C=1), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.944444444444, 'pval_mean_score_tr': 0.5},
-         {'key': SelectKBest/SVC(C=3), 'mean_score_te': 0.777777777778, 'pval_mean_score_te': 0.0, 'mean_score_tr': 0.896825396825, 'pval_mean_score_tr': 0.5}])
+        [{'key': SelectKBest/SVC(C=1), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]},
+         {'key': SelectKBest/SVC(C=3), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]}])
         '''
         try:
             from soma.workflow.client import Job, Workflow
@@ -308,7 +306,7 @@ class SomaWorkflowEngine(LocalEngine):
         '''
         Example
         -------
-        see the directory of "examples" in epac
+        see the directory of "examples/run_somaworkflow_gui.py" in epac
         '''
         try:
             from soma.workflow.client import Job, Workflow
