@@ -14,12 +14,12 @@ sequential or in parallel:
   to parallel execution of the children.
 
 The execution is based on downstream/upstream data-flow paradigm:
-- The top-down *downstream data-flow* is processed by Nodes from root to leaf nodes.
+- The **run** (top-down) *downstream data-flow* is processed by Nodes from root to leaf nodes.
   Each node is identified by a unique *primary key*, it process the downstream
   data and pass it to its children. The downstream data-flow is a simple python
   dictionary. The final results are stored (*persistence*) by the leaves using a
   *intermediary key*.
-- The bottom-up *upstream data-flow* start from results stored by leaves that 
+- The reduce (bottom-up) *upstream data-flow* start from results stored by leaves that 
   are locally reduced by nodes up to the tree's root. If no collision occurs
   in the upstream between intermediary keys results are simply moved up without
   interactions. If collision occurs, children results with similar intermediary key
@@ -33,16 +33,15 @@ Application programing interface
 --------------------------------
 
 - `Estimator`: is the basic machine-learning building-bloc of the workflow. It is
-   a user-defined object that should implement 4 methods:
+   a user-defined object that should implement 2 methods.
+   When the object is non-leaf estimator, it should implement fit and transform.
+   When the object is leaf estimator, it should implement fit and predict.
   - `fit(<keyword arguments>)`: return `self`.
   - `transform(<keyword arguments>)`: is called only if the estimator is a non-leaf node.
      return an array or a dictionary. In the latter case, the returned dictionary
      is added to the downstream data-flow.
   - `predict(<keyword arguments>)`: is called only if the estimator is a leaf node. It return an 
      array or a dictionary. In the latter the returned dictionary is added to 
-     results.
-  - `score(<keyword arguments>)`: is called only if the estimator is a leaf node. It return an 
-     scalar or a dictionary. In the latter the returned dictionary is added to 
      results.
 - `Node ::= Estimator | Pipe | Methods | CV | Permutations`. The workflow
    is a tree, made of nodes of several types:
@@ -61,7 +60,7 @@ X, y = datasets.make_classification(n_samples=10, n_features=50, n_informative=2
 # SVM Classifier
 from epac import Pipe
 pipe = Pipe(SelectKBest(k=2), SVC(kernel="linear"))
-pipe.fit(X=X, y=y).predict(X=X)
+pipe.run(X=X, y=y)
 ```
 
 
@@ -79,10 +78,7 @@ pipe.fit(X=X, y=y).predict(X=X)
 # LDA  SVM      Classifiers (Estimator)
 from epac import Methods
 multi = Methods(LDA(),  SVC(kernel="linear"))
-multi.fit(X=X, y=y)
-multi.predict(X=X)
-# Do both
-multi.fit_predict(X=X, y=y)
+multi.run(X=X, y=y)
 
 # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
 # No collisions between upstream keys, then no aggregation.
@@ -93,7 +89,7 @@ multi.fit_predict(X=X, y=y)
 # SVM SVM SVM  Classifiers (Estimator)
 anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVC(kernel="linear")) for k in 
     [1, 5, 10]])
-anovas_svm.fit_predict(X=X, y=y)
+anovas_svm.run(X=X, y=y)
 anovas_svm.reduce()
 ```
 
@@ -110,7 +106,7 @@ anovas_svm.reduce()
 from epac import CV
 from epac import SummaryStat
 cv_lda = CV(LDA(), n_folds=3)
-cv_lda.fit_predict(X=X, y=y)
+cv_lda.run(X=X, y=y)
 cv_lda.reduce()
 ```
 
@@ -132,7 +128,7 @@ from epac import Permutations, CV
 from epac import SummaryStat, PvalPermutations
 perms_cv_lda = Permutations(CV(LDA(), n_folds=3, reducer=SummaryStat()),
                        n_perms=3, permute="y")
-perms_cv_lda.fit_predict(X=X, y=y)
+perms_cv_lda.run(X=X, y=y)
 tree.reduce()
 ```
 
@@ -142,7 +138,7 @@ tree.reduce()
 from epac import Grid, Pipe, CVBestSearchRefit
 # CV + Grid search of a simple classifier
 wf = CVBestSearchRefit(*[SVC(kernel="linear", C=C) for C in [.001, 1, 100]])
-wf.fit_predict(X=X, y=y)
+wf.run(X=X, y=y)
 wf.reduce()
 
 # CV + Grid search of a pipeline with a nested grid search
@@ -150,7 +146,7 @@ wf = CVBestSearchRefit(*[Pipe(SelectKBest(k=k),
                       Grid(*[SVC(kernel="linear", C=C)\
                           for C in [.0001, .001, .01, .1, 1, 10]]))
                 for k in [1, 5, 10]])
-wf.fit_predict(X=X, y=y)
+wf.run(X=X, y=y)
 wf.reduce()
 ```
 
