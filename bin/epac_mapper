@@ -44,7 +44,7 @@ if __name__ == "__main__":
     datasets_format = "npz"
     keys = None
     listkey = list()
-    function = "fit_predict"
+    function = "transform"
 
     if options.datasets:
         datasets_filepath = repr(options.datasets)

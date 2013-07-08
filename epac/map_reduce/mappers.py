@@ -33,7 +33,7 @@ class MapperSubtrees(Mapper):
 
     Example
     -------
-    
+
 import tempfile
 import os
 import numpy as np
@@ -82,7 +82,6 @@ mapper = MapperSubtrees(Xy,tree_root_node, store_fs, "transform")
 partial_map_process = partial(map_process,mapper=mapper)
 pool = Pool(processes=num_processes)
 pool.map(partial_map_process, input_list)
-
 
 ## Run map processes in single process
 ## ===================================
