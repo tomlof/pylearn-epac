@@ -9,7 +9,7 @@ Created on Wed Jan 23 13:58:21 2013
 from epac.workflow.pipeline import Pipe
 from epac.workflow.splitters import CV, Perms, Methods
 from epac.workflow.estimators import CVBestSearchRefit, InternalEstimator, LeafEstimator
-from epac.workflow.base import key_pop, key_split
+from epac.workflow.base import BaseNode, key_pop, key_split
 from epac.configuration import conf, debug
 from epac.map_reduce.results import ResultSet, Result
 from epac.utils import train_test_merge, train_test_split, dict_diff, range_log2
@@ -22,7 +22,8 @@ from epac.map_reduce.reducers import ClassificationReport, PvalPerms
 
 from . import sklearn_plugins
 
-__all__ = ['Pipe',
+__all__ = ['BaseNode',
+            'Pipe',
            'CV',
            'Perms',
            'Methods',
