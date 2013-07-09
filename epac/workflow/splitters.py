@@ -209,7 +209,6 @@ class Methods(BaseNodeSplitter):
     """
     def __init__(self, *nodes):
         super(Methods, self).__init__()
-        print repr(nodes)
         for node in nodes:
             node_cp = copy.deepcopy(node)
             node_cp = node_cp if isinstance(node_cp, BaseNode) else \

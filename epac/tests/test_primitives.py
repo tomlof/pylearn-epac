@@ -103,7 +103,7 @@ class TestPerms(unittest.TestCase):
             r_sklearn.append(clf.predict(X))
         key2cmp = 'y' + conf.SEP + conf.PREDICTION
 
-        # = Comparison        
+        # = Comparison
         for iperm in range(n_perms):
             comp = np.all(
                     np.asarray(r_epac[iperm][key2cmp])

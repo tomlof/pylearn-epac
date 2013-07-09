@@ -116,7 +116,7 @@ class InternalEstimator(Estimator):
         """
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
             Xy_train, Xy_test = train_test_split(Xy)
-            self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            res = self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out_tr = _as_dict(self.estimator.transform(
                         **_sub_dict(Xy_train, self.in_args_transform)),
@@ -126,7 +126,7 @@ class InternalEstimator(Estimator):
                             keys=self.in_args_transform)
             Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
-            self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            res = self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out = _as_dict(self.estimator.transform(**_sub_dict(Xy,
                                                  self.in_args_transform)),
@@ -228,7 +228,7 @@ class LeafEstimator(Estimator):
             Xy_train, Xy_test = train_test_split(Xy)
             Xy_out = dict()
             # Train fit
-            self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            res = self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # Train predict
             Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
                                                  self.in_args_predict)),
@@ -249,7 +249,7 @@ class LeafEstimator(Estimator):
                 suffix=conf.SEP + conf.TEST + conf.SEP + conf.TRUE)
             Xy_out.update(Xy_out_true)
         else:
-            self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            res = self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
             Xy_out = _as_dict(self.estimator.predict(**_sub_dict(Xy,
                                                  self.in_args_predict)),
