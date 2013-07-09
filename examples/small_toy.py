@@ -4,6 +4,7 @@ Created on Mon Jan 21 19:55:46 2013
 
 @author: edouard.duchesnay@cea.fr
 @author: benoit.da_mota@inria.fr
+@author: jinpeng.li@cea.fr
 """
 
 from sklearn import datasets
@@ -133,6 +134,7 @@ from epac import Perms, CV, Methods
 perms_cv_svm = Perms(CV(Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")])))
 perms_cv_svm.run(X=X, y=y)
 perms_cv_svm.reduce()
+
 
 # Run with soma-workflow for multi-processes
 from epac import SomaWorkflowEngine
