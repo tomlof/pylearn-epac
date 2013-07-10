@@ -28,6 +28,19 @@ The execution is based on downstream/upstream data-flow paradigm:
   statistics (average over CV-folds, compute p-values over permutations) or will
   refit a model using the best arguments.
 
+Installation
+============
+
+Dependencies
+------------
+
+scikit-learn: **epac** depends on scikit-learn which is a manchine learning libary. To use **epac**,
+scikit-learn should be installed on your computer. Please goto http://scikit-learn.org/ 
+to install **epac**.
+ 
+  
+
+
 
 Application programing interface
 --------------------------------
