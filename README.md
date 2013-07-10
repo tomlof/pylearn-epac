@@ -31,15 +31,23 @@ The execution is based on downstream/upstream data-flow paradigm:
 Installation
 ============
 
-Dependencies
+epac depends on scikit-learn and soma-workflow (optionally run on hpc).
+epac has been tested on python 2.7 so that we recommand that run epac on python 2.7
+or its latest version, but not python 3.0.
+
+Install dependencies
 ------------
-
-scikit-learn: **epac** depends on scikit-learn which is a manchine learning libary. To use **epac**,
+* scikit-learn: **epac** depends on scikit-learn which is a manchine learning libary. To use **epac**,
 scikit-learn should be installed on your computer. Please goto http://scikit-learn.org/ 
-to install **epac**.
- 
-  
+to install **scikit-learn**.
 
+* soma-workflow: you can install soma-workflow so that epac can run on the hpc (torque/pbs).
+To install soma-workflow, please goto http://brainvisa.info/soma/soma-workflow 
+for documentation, and https://pypi.python.org/pypi/soma-workflow for installation.
+
+epac installation
+-----------------
+* 
 
 
 Application programing interface
