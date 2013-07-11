@@ -350,12 +350,10 @@ class RowSlicer(Slicer):
                 Xy[k].shape[0] != self.n:
                 data_keys.remove(k)
         for data_key in data_keys:  # slice input data
-            print 'Slicing', data_key
             dat = Xy.pop(data_key)
             if isinstance(self.slices, dict):
                 Xy[conf.KW_SPLIT_TRAIN_TEST] = True
                 for sample_set in self.slices:
-                    print sample_set, 'slice index:', self.slices[sample_set]
                     if len(dat.shape) == 2:                  
                         Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set], :]
                     else:
