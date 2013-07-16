@@ -28,7 +28,7 @@ class Mapper(object):
 
 
 class MapperSubtrees(Mapper):
-    '''The mapper runs function (usually as "fit_predict") for NodesInput
+    '''The mapper runs function (usually as "transform") for NodesInput
     which is a dictionary of nodes.
 
     Example

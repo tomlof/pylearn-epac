@@ -20,7 +20,7 @@ from epac.map_reduce.engine import SomaWorkflowEngine, LocalEngine
 
 from epac.map_reduce.reducers import ClassificationReport, PvalPerms
 
-from . import sklearn_plugins
+import sklearn_plugins
 
 __all__ = ['Pipe',
            'CV',
