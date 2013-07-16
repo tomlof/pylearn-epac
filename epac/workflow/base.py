@@ -527,7 +527,7 @@ class BaseNode(object):
         >>> ## Build Tree and compute results
         >>> ## ==============================
         >>> tree_root_node = WFExample1().get_workflow()
-        >>> tree_root_node.fit_predict(**Xy)
+        >>> tree_root_node.run(**Xy)
         [array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0]), array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0])]
         >>> if tree_root_node.store:
         ...     print repr(tree_root_node.store.dict)

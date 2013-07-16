@@ -364,6 +364,10 @@ class SomaWorkflowEngine(LocalEngine):
 
     @staticmethod
     def load_from_gui(soma_workflow_dirpath):
+        '''
+        Result tree can be loaded from the working directory
+        (soma_workflow_dirpath).
+        '''
         store = StoreFs(dirpath=os.path.join(
             soma_workflow_dirpath,
             LocalEngine.tree_root_relative_path))

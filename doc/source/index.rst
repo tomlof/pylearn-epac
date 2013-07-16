@@ -15,6 +15,7 @@ Contents
 .. toctree::
 
    examples.rst
+   api.rst
 
 
 Main Features

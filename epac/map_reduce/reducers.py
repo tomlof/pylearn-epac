@@ -46,7 +46,8 @@ class ClassificationReport(Reducer):
       Should other items be kept (False) into summarized results.
       (default False)
 
-    Example:
+    Example
+    -------
     >>> from epac import ClassificationReport
     >>> reducer = ClassificationReport()
     >>> reducer.reduce({'key': "SVC", 'y/test/pred': [0, 1, 1, 1], 'y/test/true': [0, 0, 1, 1]})
