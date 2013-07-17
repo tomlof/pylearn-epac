@@ -44,7 +44,7 @@ or as leaf node (terminal node)
 
 - fit and predict, e.g. *SVM()*
 
-For example, we want to build a machine learning process as ``{X, y} -> SelectKBest(k=2) -> SVM -> y``. Without using epac, we can write below codes to implement these processes. 
+For example, we want to build a sequential machine learning process as ``{X, y} -> SelectKBest(k=2) -> SVM -> y``. Without using epac, we can write below codes to implement these processes. 
 
 :: 
 
@@ -106,7 +106,8 @@ In this section, ``Methods`` will be described to run several classifiers in par
      {'key': LinearSVC(C=10), 'y/true': [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.], 'y/pred': [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.]}])
 
 
-In these codes, ``Methods`` set the input of dictionary ``{X=X, y=y}`` to ``SVM(C=1)`` and to ``SVM(C=10)`` respectively. ``multi.reduce()`` outputs into "ResultSet" which is a dict-like structure which contains the "keys" of the methods that as been used. In epac, **run** means the top-down process, and **reduce** means bottom-up process.
+In these codes, ``Methods`` set the input of dictionary ``{X=X, y=y}`` to ``SVM(C=1)`` and to ``SVM(C=10)`` respectively. ``multi.reduce()`` outputs into "ResultSet" which is a dict-like structure which contains the "keys" of the methods that as been used. In epac, **run** means the top-down process, and **reduce** means bottom-up process. For this moment, the **reduce** process returen only the collection of results from classifiers. We will show more meaningful examples using **reduce** later.  A more complicated ``Methods`` example using two arguments is shown as below.
+
  
 ::    
     
@@ -124,47 +125,100 @@ In these codes, ``Methods`` set the input of dictionary ``{X=X, y=y}`` to ``SVM(
      {'key': LinearSVC(loss=l2,C=10), 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]}])
 
 
+
+This example illustrates how to iterate two argument arrays using epac. We can computes all the results from all the combinations. In the next section, we will show how to combine ``Pipe`` and ``Methods``.
+
+Pipe and Methods Combination
+----------------------------
+
+
+An example is shown in this section to combine ``Methods`` and ``Pipe``.  
+
 ::
  
-    # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
-    #    Methods    Methods (Splitter)
-    #  /   |   \
-    # 1    5   10   SelectKBest (Estimator)
-    # |    |    |
-    # SVM SVM SVM   Classifiers (Estimator)
-    anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVM()) for k in [1, 2]])
-    anovas_svm.run(X=X, y=y)
-    print anovas_svm.reduce()
+    >>> # Parallelize sequential Pipeline: Anova(k best selection) + SVM.
+    >>> #    Methods    Methods (Splitter)
+    >>> #  /   |   \
+    >>> # 1    5   10   SelectKBest (Estimator)
+    >>> # |    |    |
+    >>> # SVM SVM SVM   Classifiers (Estimator)
+    >>> anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVM()) for k in [1, 5, 10]])
+    >>> anovas_svm.run(X=X, y=y)
+    [{'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  1.,  1.])}, {'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  1.,  1.])}, {'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}]
+    >>> print anovas_svm.reduce()
+    ResultSet(
+    [{'key': SelectKBest(k=1)/LinearSVC, 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 1.  0.  1.  1.  0.  0.  1.  0.  0.  0.  1.  1.]},
+     {'key': SelectKBest(k=5)/LinearSVC, 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  1.  1.]},
+     {'key': SelectKBest(k=10)/LinearSVC, 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}])
+
+Therefore, two basic units have been presented in this section. You can start to construct your own epac for many machine learning processes. 
+In the next section, we will introduce reducers, for instance, Cross-validation.
+
+Cross-validation
+================
+
+In this section, we will introduce the cross-validation as codes below.
+
+::
     
-    
-    # Cross-validation
-    # ----------------
-    # CV of LDA
-    #      CV                 (Splitter)
-    #  /   |   \
-    # 0    1    2  Folds      (Slicer)
-    # |    |
-    #   Methods               (Splitter)
-    #    /   \
-    #  LDA  SVM    Classifier (Estimator)
-    from epac import CV, Methods
-    cv = CV(Methods(LDA(), SVM()))
-    cv.run(X=X, y=y)
-    print cv.reduce()
-    
-    
-    # Model selection using CV
-    # ------------------------
-    # CVBestSearchRefit
-    #      Methods       (Splitter)
-    #      /    \
-    # SVM(C=1)  SVM(C=10)   Classifier (Estimator)
+    >>> # Cross-validation
+    >>> # ----------------
+    >>> # CV of LDA
+    >>> #      CV                 (Splitter)
+    >>> #  /   |   \
+    >>> # 0    1    2  Folds      (Slicer)
+    >>> # |    |
+    >>> #   Methods               (Splitter)
+    >>> #    /   \
+    >>> #  LDA  SVM    Classifier (Estimator)
+    >>> from epac import CV, Methods
+    >>> cv = CV(Methods(LDA(), SVM()))
+    >>> cv.run(X=X, y=y)
+    [[{'y/test/pred': array([ 0.,  0.,  1.]), 'y/train/pred': array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), 'y/test/true': array([ 0.,  1.,  0.])}, {'y/test/pred': array([ 0.,  0.,  1.]), 'y/train/pred': array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), 'y/test/true': array([ 0.,  1.,  0.])}], [{'y/test/pred': array([ 1.,  1.,  1.]), 'y/train/pred': array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), 'y/test/true': array([ 1.,  0.,  1.])}, {'y/test/pred': array([ 0.,  1.,  1.]), 'y/train/pred': array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), 'y/test/true': array([ 1.,  0.,  1.])}], [{'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 1.,  0.])}, {'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 1.,  0.])}], [{'y/test/pred': array([ 0.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}, {'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}], [{'y/test/pred': array([ 0.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}, {'y/test/pred': array([ 1.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}]]
+    >>> print cv.reduce()
+    ResultSet(
+    [{'key': LDA, 'y/test/score_accuray': 0.666666666667, 'y/test/score_precision': [ 0.66666667  0.66666667], 'y/test/score_recall': [ 0.66666667  0.66666667], 'y/test/score_f1': [ 0.66666667  0.66666667], 'y/test/score_recall_mean': 0.666666666667},
+     {'key': LinearSVC, 'y/test/score_accuray': 0.416666666667, 'y/test/score_precision': [ 0.42857143  0.4       ], 'y/test/score_recall': [ 0.5         0.33333333], 'y/test/score_f1': [ 0.46153846  0.36363636], 'y/test/score_recall_mean': 0.416666666667}])
+
+
+``cv.run(X=X, y=y)`` run the top-down process so that we get all the results, and ``cv.reduce()`` compute different scores, accuracies, etc. For instance, ``y/test/score_precision`` denotes the precision on the test part for the prediction on *y*.
+
+Model Selection  using Cross-validation
+=============================================
+
+We have several classifiers and we need to select the best classifier using the cross-validation. 
+
+ 
+::
+
+    >>> # Model selection using CV
+    >>> # ------------------------
+    >>> # CVBestSearchRefit
+    >>> #      Methods       (Splitter)
+    >>> #      /    \
+    >>> # SVM(C=1)  SVM(C=10)   Classifier (Estimator)
+    >>> from epac import Pipe, CVBestSearchRefit, Methods
+    >>> # CV + Grid search of a simple classifier
+    >>> wf = CVBestSearchRefit(Methods(SVM(C=1), SVM(C=10)))
+    >>> wf.run(X=X, y=y)
+    {'best_params': [{'C': 1, 'name': 'LinearSVC'}], 'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}
+    >>> print wf.reduce()
+    ResultSet(
+    [{'key': CVBestSearchRefit, 'best_params': [{'C': 1, 'name': 'LinearSVC'}], 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}]) 
+
+This example shows how to select model from several classifiers. ``wf.run(X=X, y=y)`` and ``wf.reduce()`` return the same results which are the best parameters and its prediction on ``y`` vector.  
+
+::
+
     from epac import Pipe, CVBestSearchRefit, Methods
     # CV + Grid search of a simple classifier
     wf = CVBestSearchRefit(Methods(SVM(C=1), SVM(C=10)))
     wf.run(X=X, y=y)
     print wf.reduce()
-    
+
+
+
+ 
     # Feature selection combined with SVM and LDA
     # CVBestSearchRefit
     #                     Methods          (Splitter)
