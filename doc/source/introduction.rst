@@ -1,44 +1,11 @@
-.. _index: 
+.. _introduction:
 
-================================
-Welcome to epac's documentation!
-================================
-
-Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow builder.
-
-- Easily building machine learning workflow that can be executed in sequential or in parallel.
-- Run epac tree in parallel on local multi-core machine or on HPC.
-- Design your own machine learning algorithm as a plug-in node in epac tree.
-
-Introduction
-============
-
-.. toctree::
-
-   introduction.rst
-
-Tutorials
-=========
-
-.. toctree::
-
-   tutorials.rst
-
-Reference Material
+Building epac tree
 ==================
 
-.. toctree::
+Easily building machine learning workflow that can be executed in sequential or in parallel.
 
-   api.rst
-   glossary.rst
-
-
-Main Features
-=============
-
-- Easily building machine learning workflow that can be executed in sequential or in parallel.
-
-To quick start with eapc, here is a simple example to do an embarrassing machine learning computing: 
+To quick start with eapc, here is a simple example to do an embarrassing machine learning computing:
 permutation, cross-validation, and LDA classification.
 We will introduce more details and examples in :doc:`examples.rst`.
 
@@ -72,7 +39,10 @@ We will introduce more details and examples in :doc:`examples.rst`.
    #   2: Permutations (computing p values)
    perms_cv_lda.reduce()
 
-- Run epac tree in parallel on local multi-core machine or on HPC (using DRMAA).
+Run in parallel
+===============
+
+Run epac tree in parallel on local multi-core machine or on HPC (using DRMAA).
 
 ::
 
@@ -83,7 +53,7 @@ We will introduce more details and examples in :doc:`examples.rst`.
                        num_processes=2)
    perms_cv_svm = sfw_engine.run(X=X, y=y)
    perms_cv_svm.reduce()
-  
+
    # Run epac tree using soma-workflow which can be run on HPC (using DRMAA).
    from epac import SomaWorkflowEngine
    sfw_engine = SomaWorkflowEngine(
@@ -93,20 +63,13 @@ We will introduce more details and examples in :doc:`examples.rst`.
    perms_cv_svm.reduce()
 
 
-- Design your own machine learning algorithm as a plug-in in epac tree.
+Design your own plug-in
+=======================
+
+Design your own machine learning algorithm as a plug-in in epac tree.
 
 ::
 
   Todo......
 
-.. toctree::
-   :maxdepth: 2
-
-Indices and tables
-==================
-
-* :ref:`glossary`
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
