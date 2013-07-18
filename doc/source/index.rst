@@ -6,7 +6,7 @@ Welcome to epac's documentation!
 
 Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow builder.
 
-- Easily building machine learning workflow that can be executed in sequential or in parallel.
+- Easily building machine learning workflow.
 - Run epac tree in parallel on local multi-core machine or on HPC.
 - Design your own machine learning algorithm as a plug-in node in epac tree.
 
