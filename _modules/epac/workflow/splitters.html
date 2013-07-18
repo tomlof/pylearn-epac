@@ -1,0 +1,452 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.workflow.splitters &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.workflow.splitters</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Spliters divide the work to do into several parallel sub-tasks.</span>
+<span class="sd">They are of two types data spliters (CV, Perms) or tasks</span>
+<span class="sd">splitter (Methods, Grid).</span>
+
+
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">@author: benoit.da_mota@inria.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c">## Abreviations</span>
+<span class="c">## tr: train</span>
+<span class="c">## te: test</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">from</span> <span class="nn">epac.workflow.base</span> <span class="kn">import</span> <span class="n">BaseNode</span><span class="p">,</span> <span class="n">key_push</span><span class="p">,</span> <span class="n">key_pop</span>
+<span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">LeafEstimator</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.results</span> <span class="kn">import</span> <span class="n">Result</span><span class="p">,</span> <span class="n">ResultSet</span>
+<span class="kn">from</span> <span class="nn">epac.utils</span> <span class="kn">import</span> <span class="n">_list_indices</span><span class="p">,</span> <span class="n">dict_diff</span><span class="p">,</span> <span class="n">_sub_dict</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.reducers</span> <span class="kn">import</span> <span class="n">ClassificationReport</span><span class="p">,</span> <span class="n">PvalPerms</span>
+<span class="kn">from</span> <span class="nn">epac.configuration</span> <span class="kn">import</span> <span class="n">conf</span>
+
+<span class="c">## ======================================================================== ##</span>
+<span class="c">## ==                                                                    == ##</span>
+<span class="c">## == Parallelization nodes</span>
+<span class="c">## ==</span>
+<span class="c">## ======================================================================== ##</span>
+
+
+<span class="c"># -------------------------------- #</span>
+<span class="c"># -- Splitter                   -- #</span>
+<span class="c"># -------------------------------- #</span>
+
+<div class="viewcode-block" id="BaseNodeSplitter"><a class="viewcode-back" href="../../../api/workflow/splitters.html#epac.workflow.splitters.BaseNodeSplitter">[docs]</a><span class="k">class</span> <span class="nc">BaseNodeSplitter</span><span class="p">(</span><span class="n">BaseNode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Splitters are are non leaf node (degree &gt;= 1) with children.</span>
+<span class="sd">    They split the downstream data-flow to their children.</span>
+<span class="sd">    They agregate upstream data-flow from their children.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BaseNodeSplitter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># Terminaison (leaf) node return results</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_state</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;results&quot;</span><span class="p">)</span>
+        <span class="c"># 1) Build sub-aggregates over children</span>
+        <span class="n">children_results</span> <span class="o">=</span> <span class="p">[</span><span class="n">child</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">for</span>
+            <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+        <span class="n">result_set</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="o">*</span><span class="n">children_results</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">reducer</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">result_set</span>
+        <span class="c"># Group by key, without consideration of the fold/permutation number</span>
+        <span class="c"># which is the head of the key</span>
+        <span class="c"># use OrderedDict to preserve runing order</span>
+        <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">result_set</span><span class="p">:</span>
+            <span class="c"># remove the head of the key</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">key_tail</span> <span class="o">=</span> <span class="n">key_pop</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key_tail</span>
+            <span class="n">key_tail</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">key_tail</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+                <span class="n">groups</span><span class="p">[</span><span class="n">key_tail</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">key_tail</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="c"># For each key, stack results</span>
+        <span class="n">reduced</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="n">result_stacked</span> <span class="o">=</span> <span class="n">Result</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="o">*</span><span class="n">groups</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            <span class="n">reduced</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reducer</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">result_stacked</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">reduced</span>
+
+</div>
+<div class="viewcode-block" id="CV"><a class="viewcode-back" href="../../../api/workflow/splitters.html#epac.workflow.splitters.CV">[docs]</a><span class="k">class</span> <span class="nc">CV</span><span class="p">(</span><span class="n">BaseNodeSplitter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Cross-validation parallelization.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    node: Node | Estimator</span>
+<span class="sd">        Estimator: should implement fit/predict/score function</span>
+<span class="sd">        Node: Pipe | Par*</span>
+
+<span class="sd">    n_folds: int</span>
+<span class="sd">        Number of folds. (Default 5)</span>
+
+<span class="sd">    cv_type: string</span>
+<span class="sd">        Values: &quot;stratified&quot;, &quot;random&quot;, &quot;loo&quot;. Default &quot;stratified&quot;.</span>
+
+<span class="sd">    random_state : int or RandomState</span>
+<span class="sd">        Pseudo-random number generator state used for random sampling.</span>
+
+<span class="sd">    reducer: Reducer</span>
+<span class="sd">        A Reducer should inmplement the reduce(node, key2, val) method.</span>
+<span class="sd">        Default ClassificationReport() with default arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">n_folds</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">cv_type</span><span class="o">=</span><span class="s">&quot;stratified&quot;</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="n">ClassificationReport</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CV</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span> <span class="o">=</span> <span class="n">n_folds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">random_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_type</span> <span class="o">=</span> <span class="n">cv_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reducer</span> <span class="o">=</span> <span class="n">reducer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span> <span class="o">=</span> <span class="n">RowSlicer</span><span class="p">(</span><span class="n">signature_name</span><span class="o">=</span><span class="s">&quot;CV&quot;</span><span class="p">,</span> <span class="n">nb</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">apply_on</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">VirtualList</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">n_folds</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="n">subtree</span> <span class="o">=</span> <span class="n">node</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">BaseNode</span><span class="p">)</span> <span class="k">else</span> <span class="n">LeafEstimator</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">subtree</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">move_to_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">set_nb</span><span class="p">(</span><span class="n">nb</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;_sclices&quot;</span><span class="p">):</span>
+            <span class="n">cpt</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">train</span><span class="p">,</span> <span class="n">test</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cpt</span> <span class="o">==</span> <span class="n">nb</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">cpt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">set_sclices</span><span class="p">({</span><span class="n">conf</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span> <span class="n">train</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">TEST</span><span class="p">:</span> <span class="n">test</span><span class="p">})</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="c"># Set the slicing</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="s">&quot;y&quot;</span> <span class="ow">in</span> <span class="n">Xy</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;&quot;y&quot; should be provided&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_type</span> <span class="o">==</span> <span class="s">&quot;stratified&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;&quot;n_folds&quot; should be set&#39;</span><span class="p">)</span>
+            <span class="kn">from</span> <span class="nn">sklearn.cross_validation</span> <span class="kn">import</span> <span class="n">StratifiedKFold</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span> <span class="o">=</span> <span class="n">StratifiedKFold</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">Xy</span><span class="p">[</span><span class="s">&quot;y&quot;</span><span class="p">],</span> <span class="n">n_folds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_type</span> <span class="o">==</span> <span class="s">&quot;random&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;&quot;n_folds&quot; should be set&#39;</span><span class="p">)</span>
+            <span class="kn">from</span> <span class="nn">sklearn.cross_validation</span> <span class="kn">import</span> <span class="n">KFold</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">Xy</span><span class="p">[</span><span class="s">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_folds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span><span class="p">,</span>
+                           <span class="n">random_state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_type</span> <span class="o">==</span> <span class="s">&quot;loo&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">sklearn.cross_validation</span> <span class="kn">import</span> <span class="n">LeaveOneOut</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span> <span class="o">=</span> <span class="n">LeaveOneOut</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">Xy</span><span class="p">[</span><span class="s">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">Xy</span>
+
+    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">n_folds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_folds</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Perms"><a class="viewcode-back" href="../../../api/workflow/splitters.html#epac.workflow.splitters.Perms">[docs]</a><span class="k">class</span> <span class="nc">Perms</span><span class="p">(</span><span class="n">BaseNodeSplitter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Permutation parallelization.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    node: Node | Estimator</span>
+<span class="sd">        Estimator: should implement fit/predict/score function</span>
+<span class="sd">        Node: Pipe | Par*</span>
+
+<span class="sd">    n_perms: int</span>
+<span class="sd">        Number permutations.</span>
+
+<span class="sd">    reducer: Reducer</span>
+<span class="sd">        A Reducer should inmplement the reduce(key2, val) method.</span>
+
+<span class="sd">    permute: string</span>
+<span class="sd">        The name of the data to be permuted (default &quot;y&quot;).</span>
+
+<span class="sd">    random_state : int or RandomState</span>
+<span class="sd">        Pseudo-random number generator state used for random sampling.</span>
+
+<span class="sd">    reducer: Reducer</span>
+<span class="sd">        A Reducer should inmplement the reduce(key2, val) method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">n_perms</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">permute</span><span class="o">=</span><span class="s">&quot;y&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">reducer</span><span class="o">=</span><span class="n">PvalPerms</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Perms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_perms</span> <span class="o">=</span> <span class="n">n_perms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">permute</span> <span class="o">=</span> <span class="n">permute</span>  <span class="c"># the name of the bloc to be permuted</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">random_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reducer</span> <span class="o">=</span> <span class="n">reducer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span> <span class="o">=</span> <span class="n">RowSlicer</span><span class="p">(</span><span class="n">signature_name</span><span class="o">=</span><span class="s">&quot;Perm&quot;</span><span class="p">,</span> <span class="n">nb</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">apply_on</span><span class="o">=</span><span class="n">permute</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">VirtualList</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">n_perms</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="n">subtree</span> <span class="o">=</span> <span class="n">node</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">BaseNode</span><span class="p">)</span> <span class="k">else</span> <span class="n">LeafEstimator</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">subtree</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">move_to_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">set_nb</span><span class="p">(</span><span class="n">nb</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;_sclices&quot;</span><span class="p">):</span>
+            <span class="n">cpt</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cpt</span> <span class="o">==</span> <span class="n">nb</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">cpt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span><span class="o">.</span><span class="n">set_sclices</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slicer</span>
+
+    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">n_perms</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_perms</span><span class="p">,</span> <span class="n">permute</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">permute</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="c"># Set the slicing</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="s">&quot;y&quot;</span> <span class="ow">in</span> <span class="n">Xy</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;&quot;y&quot; should be provided&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">epac.sklearn_plugins</span> <span class="kn">import</span> <span class="n">Permutations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sclices</span> <span class="o">=</span> <span class="n">Permutations</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">Xy</span><span class="p">[</span><span class="s">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_perms</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_perms</span><span class="p">,</span>
+                                <span class="n">random_state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Xy</span>
+
+</div>
+<div class="viewcode-block" id="Methods"><a class="viewcode-back" href="../../../api/workflow/splitters.html#epac.workflow.splitters.Methods">[docs]</a><span class="k">class</span> <span class="nc">Methods</span><span class="p">(</span><span class="n">BaseNodeSplitter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Parallelization is based on several runs of different methods</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">nodes</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Methods</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+            <span class="n">node_cp</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="n">node_cp</span> <span class="o">=</span> <span class="n">node_cp</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_cp</span><span class="p">,</span> <span class="n">BaseNode</span><span class="p">)</span> <span class="k">else</span> \
+                <span class="n">LeafEstimator</span><span class="p">(</span><span class="n">node_cp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">node_cp</span><span class="p">)</span>
+        <span class="n">curr_nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span>
+        <span class="n">leaves_key</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">walk_leaves</span><span class="p">()]</span>
+        <span class="n">curr_nodes_key</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">curr_nodes</span><span class="p">]</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">leaves_key</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">leaves_key</span><span class="p">))</span> <span class="ow">and</span> <span class="n">curr_nodes</span><span class="p">:</span>
+            <span class="n">curr_nodes_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">curr_nodes</span><span class="p">]</span>
+            <span class="n">curr_nodes_next</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">curr_nodes_key</span><span class="p">):</span>
+                <span class="n">collision_indices</span> <span class="o">=</span> <span class="n">_list_indices</span><span class="p">(</span><span class="n">curr_nodes_key</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collision_indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c"># no collision for this cls</span>
+                    <span class="k">continue</span>
+                <span class="n">diff_arg_keys</span> <span class="o">=</span> <span class="n">dict_diff</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">curr_nodes_state</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span>
+                                            <span class="ow">in</span> <span class="n">collision_indices</span><span class="p">])</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">curr_node_idx</span> <span class="ow">in</span> <span class="n">collision_indices</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">diff_arg_keys</span><span class="p">:</span>
+                        <span class="n">curr_nodes</span><span class="p">[</span><span class="n">curr_node_idx</span><span class="p">]</span><span class="o">.</span><span class="n">signature_args</span> <span class="o">=</span> \
+                            <span class="n">_sub_dict</span><span class="p">(</span><span class="n">curr_nodes_state</span><span class="p">[</span><span class="n">curr_node_idx</span><span class="p">],</span>
+                                      <span class="n">diff_arg_keys</span><span class="p">)</span>
+                    <span class="n">curr_nodes_next</span> <span class="o">+=</span> <span class="n">curr_nodes</span><span class="p">[</span><span class="n">curr_node_idx</span><span class="p">]</span><span class="o">.</span><span class="n">children</span>
+            <span class="n">curr_nodes</span> <span class="o">=</span> <span class="n">curr_nodes_next</span>
+            <span class="n">curr_nodes_key</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">curr_nodes</span><span class="p">]</span>
+            <span class="n">leaves_key</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">walk_leaves</span><span class="p">()]</span>
+        <span class="n">leaves_key</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">walk_leaves</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">leaves_key</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">leaves_key</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Some methods are identical, they could not be &quot;</span>
+                    <span class="s">&quot;differentiated according to their arguments&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Xy</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># 1) Build sub-aggregates over children</span>
+        <span class="n">children_results</span> <span class="o">=</span> <span class="p">[</span><span class="n">child</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">for</span>
+            <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="o">*</span><span class="n">children_results</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">results</span>
+
+<span class="c"># -------------------------------- #</span>
+<span class="c"># -- Slicers                    -- #</span>
+<span class="c"># -------------------------------- #</span>
+
+</div>
+<span class="k">class</span> <span class="nc">VirtualList</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> index out of range&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">move_to_child</span><span class="p">(</span><span class="n">nb</span><span class="o">=</span><span class="n">i</span><span class="p">)</span>
+        <span class="c">#return self.parent.move_to_child(i, self.slicer)</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Iterate over leaves&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">o</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">Slicer</span><span class="p">(</span><span class="n">BaseNode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Slicers are Splitters&#39; children, they re-sclice the downstream blocs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signature_name</span><span class="p">,</span> <span class="n">nb</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Slicer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signature_name</span> <span class="o">=</span> <span class="n">signature_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">nb</span><span class="o">=</span><span class="n">nb</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_nb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">[</span><span class="s">&quot;nb&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nb</span>
+
+    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">slices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_signature</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nb</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Overload the base name method: use self.signature_name&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature_name</span> <span class="o">+</span> \
+            <span class="s">&quot;(nb=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">[</span><span class="s">&quot;nb&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="s">&quot;)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_signature_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;overried get_signature_args to return a copy&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key_push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_signature</span><span class="p">(),</span> <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">results</span>
+
+
+<span class="k">class</span> <span class="nc">RowSlicer</span><span class="p">(</span><span class="n">Slicer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Row-wise reslicing of the downstream blocs.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name: string</span>
+
+<span class="sd">    apply_on: string or list of strings</span>
+<span class="sd">        The name(s) of the downstream blocs to be rescliced. If</span>
+<span class="sd">        None, all downstream blocs are rescliced.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signature_name</span><span class="p">,</span> <span class="n">nb</span><span class="p">,</span> <span class="n">apply_on</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">RowSlicer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">signature_name</span><span class="p">,</span> <span class="n">nb</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slices</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c"># the dimension of that array in ds should respect</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_on</span> <span class="o">=</span> <span class="n">apply_on</span>
+
+    <span class="k">def</span> <span class="nf">set_sclices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slices</span><span class="p">):</span>
+        <span class="c"># convert as a list if required</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slices</span> <span class="o">=</span>\
+                <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">slices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slices</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">slices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">slices</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">slices</span> <span class="o">=</span> \
+                <span class="n">slices</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="k">else</span> <span class="n">slices</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Slicing hasn&#39;t been initialized. &quot;</span>
+            <span class="s">&quot;Slicers constructors such as CV or Perm should be called &quot;</span>
+            <span class="s">&quot;with a sample. Ex.: CV(..., y=y), Perm(..., y=y)&quot;</span><span class="p">)</span>
+        <span class="n">data_keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_on</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_on</span> <span class="k">else</span> <span class="n">Xy</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="c"># filter out non-array or array with wrong dimension</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">data_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">Xy</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="s">&quot;shape&quot;</span><span class="p">)</span> <span class="ow">or</span> \
+                <span class="n">Xy</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">:</span>
+                <span class="n">data_keys</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">data_key</span> <span class="ow">in</span> <span class="n">data_keys</span><span class="p">:</span>  <span class="c"># slice input data</span>
+            <span class="n">dat</span> <span class="o">=</span> <span class="n">Xy</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">data_key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">Xy</span><span class="p">[</span><span class="n">conf</span><span class="o">.</span><span class="n">KW_SPLIT_TRAIN_TEST</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">for</span> <span class="n">sample_set</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">:</span>
+                    <span class="n">Xy</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">data_key</span><span class="p">,</span> <span class="n">sample_set</span><span class="p">)]</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">[</span><span class="n">sample_set</span><span class="p">]]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">Xy</span><span class="p">[</span><span class="n">data_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dat</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">slices</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">Xy</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

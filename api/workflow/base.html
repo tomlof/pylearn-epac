@@ -1,0 +1,279 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.worklfow.base &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.worklfow.estimators" href="estimators.html" />
+    <link rel="prev" title="epac.map_reduce.split_input" href="../map_reduce/split_input.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="estimators.html" title="epac.worklfow.estimators"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../map_reduce/split_input.html" title="epac.map_reduce.split_input"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-epac.workflow.base">
+<span id="epac-worklfow-base"></span><span id="epac-workflow-base"></span><h1><tt class="xref py py-mod docutils literal"><span class="pre">epac.worklfow.base</span></tt><a class="headerlink" href="#module-epac.workflow.base" title="Permalink to this headline">¶</a></h1>
+<p>Base Workflow node plus keys manipulation utilities.</p>
+<p>&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.workflow.base.BaseNode">
+<em class="property">class </em><tt class="descclassname">epac.workflow.base.</tt><tt class="descname">BaseNode</tt><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>WorkFlow Node base abstract class</p>
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.get_node">
+<tt class="descname">get_node</tt><big>(</big><em>key=None</em>, <em>regexp=None</em>, <em>stop_first_match=False</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.get_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.get_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a node given a key or a list of nodes given regexp</p>
+<p>key: str</p>
+<dl class="docutils">
+<dt>regexp: str</dt>
+<dd>string with wild-cards: &#8220;*&#8221; to allow several matches.</dd>
+</dl>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Grid</span><span class="p">,</span> <span class="n">Pipe</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">Grid</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">),</span> <span class="n">SVC</span><span class="p">())</span>         <span class="o">...</span>     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">]]),</span> <span class="n">n_folds</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go"># List all leaves keys</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">wf</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">print</span> <span class="n">n</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
+<span class="gp">...</span>
+<span class="go">CV/CV(nb=0)/Grid/SelectKBest(k=1)/SVC</span>
+<span class="go">CV/CV(nb=0)/Grid/SelectKBest(k=5)/SVC</span>
+<span class="go">CV/CV(nb=1)/Grid/SelectKBest(k=1)/SVC</span>
+<span class="go">CV/CV(nb=1)/Grid/SelectKBest(k=5)/SVC</span>
+<span class="go"># Get a single node using excat key match</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s">&quot;CV/CV(nb=0)/Grid/SelectKBest(k=1)&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
+<span class="go">&#39;CV/CV(nb=0)/Grid/SelectKBest(k=1)&#39;</span>
+<span class="go"># Get several nodes using wild cards</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">wf</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">regexp</span><span class="o">=</span><span class="s">&quot;CV/*&quot;</span><span class="p">):</span>
+<span class="gp">... </span>        <span class="k">print</span> <span class="n">n</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
+<span class="gp">...</span>
+<span class="go">CV/CV(nb=0)</span>
+<span class="go">CV/CV(nb=1)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">wf</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">regexp</span><span class="o">=</span><span class="s">&quot;*CV/CV(*)/*/*/SVC&quot;</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">print</span> <span class="n">n</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
+<span class="gp">...</span>
+<span class="go">CV/CV(nb=0)/Grid/SelectKBest(k=1)/SVC</span>
+<span class="go">CV/CV(nb=0)/Grid/SelectKBest(k=5)/SVC</span>
+<span class="go">CV/CV(nb=1)/Grid/SelectKBest(k=1)/SVC</span>
+<span class="go">CV/CV(nb=1)/Grid/SelectKBest(k=5)/SVC</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.get_path_from_node">
+<tt class="descname">get_path_from_node</tt><big>(</big><em>node</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.get_path_from_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.get_path_from_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get path iterator from node to self.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Perms</span><span class="p">,</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Pipe</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">root</span> <span class="o">=</span> <span class="n">Perms</span><span class="p">(</span><span class="n">CV</span><span class="p">(</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">Methods</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">SVC</span><span class="p">()))))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">leaf</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">get_leftmost_leaf</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">leaf</span>
+<span class="go">Perms/Perm(nb=0)/CV/CV(nb=0)/SelectKBest/Methods/LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">node</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">node</span>
+<span class="go">Perms/Perm(nb=2)/CV</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">get_signature</span><span class="p">()</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">leaf</span><span class="o">.</span><span class="n">get_path_from_node</span><span class="p">(</span><span class="n">node</span><span class="o">=</span><span class="n">node</span><span class="p">)]</span>
+<span class="go">[&#39;CV&#39;, &#39;CV(nb=0)&#39;, &#39;SelectKBest&#39;, &#39;Methods&#39;, &#39;LDA&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">get_signature</span><span class="p">()</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">leaf</span><span class="o">.</span><span class="n">get_path_from_root</span><span class="p">()]</span>
+<span class="go">[&#39;Perms&#39;, &#39;Perm(nb=2)&#39;, &#39;CV&#39;, &#39;CV(nb=0)&#39;, &#39;SelectKBest&#39;, &#39;Methods&#39;, &#39;LDA&#39;]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.get_key">
+<tt class="descname">get_key</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.get_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.get_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return primary  key.</p>
+<p>Primary key is a unique identifier of a node in the tree, it is
+used to store leaf outputs at the end of the downstream flow.
+Intermediate key identify upstream results.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.get_signature">
+<tt class="descname">get_signature</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.get_signature"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.get_signature" title="Permalink to this definition">¶</a></dt>
+<dd><p>The signature of the current Node, used to build the key.</p>
+<p>By default primary and intermediate signatures are identical.
+Aggregation behavior of results during up-stream can be controled here:
+Redefine this method to create key collision and aggregation when nb=2.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.top_down">
+<tt class="descname">top_down</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.top_down"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.top_down" title="Permalink to this definition">¶</a></dt>
+<dd><p>Top-down data processing method</p>
+<p>This method does nothing more that recursively call
+parent/children func_name. Most of time, it should be re-defined.</p>
+<dl class="docutils">
+<dt>func_name: str</dt>
+<dd>the name of the function to be called</dd>
+<dt>recursion: boolean</dt>
+<dd>if True recursively call parent/children func_name. If the
+current node is the root of the tree call the children.
+This way the whole tree is executed.
+If it is a leaf, then recursively call the parent before
+being executed. This a pipeline made of the path from the
+leaf to the root is executed.</dd>
+<dt><a href="#id1"><span class="problematic" id="id2">**</span></a>Xy: dict</dt>
+<dd>the keyword dictionnary of data-flow</dd>
+</dl>
+<p>A dictionnary of processed data</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.workflow.base.BaseNode.merge_tree_store">
+<tt class="descname">merge_tree_store</tt><big>(</big><em>another_tree_root</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/base.html#BaseNode.merge_tree_store"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.base.BaseNode.merge_tree_store" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merge all the stores from another_tree_root</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X&#39;</span><span class="p">:</span><span class="n">X</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span><span class="n">y</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Build Tree and compute results</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ==============================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">WFExample1</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">[array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0]), array([1, 0, 1, 0, 1, 1, 1, 0, 0, 0])]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">tree_root_node</span><span class="o">.</span><span class="n">store</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">print</span> <span class="nb">repr</span><span class="p">(</span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">store</span><span class="o">.</span><span class="n">dict</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">{&#39;Methods/SVC(C=1)/result_set&#39;: ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SVC(C=1), &#39;score_te&#39;: 1.0, &#39;score_tr&#39;: 1.0, &#39;true_te&#39;: [1 0 1 0 1 1 1 0 0 0], &#39;pred_te&#39;: [1 0 1 0 1 1 1 0 0 0]}]), &#39;Methods/SVC(C=3)/result_set&#39;: ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SVC(C=3), &#39;score_te&#39;: 1.0, &#39;score_tr&#39;: 1.0, &#39;true_te&#39;: [1 0 1 0 1 1 1 0 0 0], &#39;pred_te&#39;: [1 0 1 0 1 1 1 0 0 0]}])}</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build another tree to copy results in store</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ===========================================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node2</span> <span class="o">=</span> <span class="n">WFExample1</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">tree_root_node2</span><span class="o">.</span><span class="n">store</span>
+<span class="go">None</span>
+<span class="gp">&gt;&gt;&gt; </span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node2</span><span class="o">.</span><span class="n">merge_tree_store</span><span class="p">(</span><span class="n">tree_root_node</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">tree_root_node2</span><span class="o">.</span><span class="n">store</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">print</span> <span class="nb">repr</span><span class="p">(</span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">store</span><span class="o">.</span><span class="n">dict</span><span class="p">)</span>
+<span class="gp">... </span>
+<span class="go">{&#39;Methods/SVC(C=1)/result_set&#39;: ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SVC(C=1), &#39;score_te&#39;: 1.0, &#39;score_tr&#39;: 1.0, &#39;true_te&#39;: [1 0 1 0 1 1 1 0 0 0], &#39;pred_te&#39;: [1 0 1 0 1 1 1 0 0 0]}]), &#39;Methods/SVC(C=3)/result_set&#39;: ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SVC(C=3), &#39;score_te&#39;: 1.0, &#39;score_tr&#39;: 1.0, &#39;true_te&#39;: [1 0 1 0 1 1 1 0 0 0], &#39;pred_te&#39;: [1 0 1 0 1 1 1 0 0 0]}])}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../map_reduce/split_input.html"
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.split_input</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="estimators.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.estimators</span></tt></a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/workflow/base.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="estimators.html" title="epac.worklfow.estimators"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../map_reduce/split_input.html" title="epac.map_reduce.split_input"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

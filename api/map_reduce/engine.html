@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.engine &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.map_reduce.mappers" href="mappers.html" />
+    <link rel="prev" title="epac.map_reduce.inputs" href="inputs.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mappers.html" title="epac.map_reduce.mappers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="inputs.html" title="epac.map_reduce.inputs"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-epac.map_reduce.engine">
+<span id="epac-map-reduce-engine"></span><span id="map-reduce-engine-module"></span><h1><a class="reference internal" href="#module-epac.map_reduce.engine" title="epac.map_reduce.engine"><tt class="xref py py-mod docutils literal"><span class="pre">epac.map_reduce.engine</span></tt></a><a class="headerlink" href="#module-epac.map_reduce.engine" title="Permalink to this headline">¶</a></h1>
+<p>Created on Mon Jun 17 11:09:30 2013</p>
+<p>&#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.map_reduce.engine.LocalEngine">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">LocalEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#LocalEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.LocalEngine" title="Permalink to this definition">¶</a></dt>
+<dd><p>LocalEninge run function for each node of epac tree in parallel</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.engine</span> <span class="kn">import</span> <span class="n">LocalEngine</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample2</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X&#39;</span><span class="p">:</span><span class="n">X</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span><span class="n">y</span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build epac tree</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ===============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">WFExample2</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build LocalEngine</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">local_engine</span> <span class="o">=</span> <span class="n">LocalEngine</span><span class="p">(</span><span class="n">tree_root_node</span><span class="p">,</span>
+<span class="gp">... </span>                           <span class="n">function_name</span><span class="o">=</span><span class="s">&quot;transform&quot;</span><span class="p">,</span>
+<span class="gp">... </span>                           <span class="n">num_processes</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">local_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Run reduce process</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ==================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SelectKBest/SVC(C=1), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]},</span>
+<span class="go"> {&#39;key&#39;: SelectKBest/SVC(C=3), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]}])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="epac.map_reduce.engine.SomaWorkflowEngine">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">SomaWorkflowEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em>, <em>resource_id=''</em>, <em>login=''</em>, <em>pw=''</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using soma-workflow to run epac tree in parallel</p>
+<dl class="method">
+<dt id="epac.map_reduce.engine.SomaWorkflowEngine.run">
+<tt class="descname">run</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run soma-workflow without gui</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.engine</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample2</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X&#39;</span><span class="p">:</span><span class="n">X</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span><span class="n">y</span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build epac tree</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ===============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">WFExample2</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build SomaWorkflowEngine and run function for each node</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =======================================================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sfw_engine</span> <span class="o">=</span> <span class="n">SomaWorkflowEngine</span><span class="p">(</span><span class="n">tree_root</span><span class="o">=</span><span class="n">tree_root_node</span><span class="p">,</span>
+<span class="gp">... </span>                                <span class="n">function_name</span><span class="o">=</span><span class="s">&quot;trasform&quot;</span><span class="p">,</span>
+<span class="gp">... </span>                                <span class="n">num_processes</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">sfw_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Run reduce process</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ==================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SelectKBest/SVC(C=1), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]},</span>
+<span class="go"> {&#39;key&#39;: SelectKBest/SVC(C=3), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]}])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.map_reduce.engine.SomaWorkflowEngine.export_to_gui">
+<tt class="descname">export_to_gui</tt><big>(</big><em>soma_workflow_dirpath</em>, <em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.export_to_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.export_to_gui" title="Permalink to this definition">¶</a></dt>
+<dd><p>see the directory of &#8220;examples/run_somaworkflow_gui.py&#8221; in epac</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="epac.map_reduce.engine.SomaWorkflowEngine.load_from_gui">
+<em class="property">static </em><tt class="descname">load_from_gui</tt><big>(</big><em>soma_workflow_dirpath</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.load_from_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.load_from_gui" title="Permalink to this definition">¶</a></dt>
+<dd><p>Result tree can be loaded from the working directory
+(soma_workflow_dirpath).</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="inputs.html"
+                        title="previous chapter"><tt class="docutils literal docutils literal"><span class="pre">epac.map_reduce.inputs</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mappers.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.mappers</span></tt></a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/map_reduce/engine.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="mappers.html" title="epac.map_reduce.mappers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="inputs.html" title="epac.map_reduce.inputs"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

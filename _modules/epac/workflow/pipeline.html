@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.workflow.pipeline &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.workflow.pipeline</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Define &quot;Pipeline&quot;: the primitive to build sequential execution of tasks.</span>
+
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">@author: benoit.da_mota@inria.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c">## Abreviations</span>
+<span class="c">## tr: train</span>
+<span class="c">## te: test</span>
+
+<span class="kn">from</span> <span class="nn">epac.workflow.base</span> <span class="kn">import</span> <span class="n">BaseNode</span>
+<span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">LeafEstimator</span><span class="p">,</span> <span class="n">InternalEstimator</span>
+
+<span class="c">## ======================================================================== ##</span>
+<span class="c">## ==                                                                    == ##</span>
+<span class="c">## == Pipelineuential nodes</span>
+<span class="c">## ==</span>
+<span class="c">## ======================================================================== ##</span>
+
+
+<div class="viewcode-block" id="Pipe"><a class="viewcode-back" href="../../../api/workflow/pipeline.html#epac.workflow.pipeline.Pipe">[docs]</a><span class="k">def</span> <span class="nf">Pipe</span><span class="p">(</span><span class="o">*</span><span class="n">nodes</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pipelineuential execution of Nodes.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    task [, task]*</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from epac import Pipe</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn import datasets</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.svm import SVC</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.feature_selection import SelectKBest</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; X, y = datasets.make_classification(n_samples=12,</span>
+<span class="sd">    ...                                     n_features=10,</span>
+<span class="sd">    ...                                     n_informative=2,</span>
+<span class="sd">    ...                                     random_state=1)</span>
+<span class="sd">    &gt;&gt;&gt; pipe = Pipe(SelectKBest(k=2), SVC())</span>
+<span class="sd">    &gt;&gt;&gt; pipe.transform(X=X, y=y)</span>
+<span class="sd">    {&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), &#39;X&#39;: array([[-0.34385368,  0.75623409],</span>
+<span class="sd">           [ 0.19829972, -1.16389861],</span>
+<span class="sd">           [-0.74715829,  0.86977629],</span>
+<span class="sd">           [ 1.13162939,  0.90876519],</span>
+<span class="sd">           [ 0.23009474, -0.68017257],</span>
+<span class="sd">           [ 0.16003707, -1.55458039],</span>
+<span class="sd">           [ 0.40349164,  1.38791468],</span>
+<span class="sd">           [-1.11731035,  0.23476552],</span>
+<span class="sd">           [ 1.19891788,  0.0888684 ],</span>
+<span class="sd">           [-0.75439794, -0.90039992],</span>
+<span class="sd">           [ 0.12015895,  2.05996541],</span>
+<span class="sd">           [-0.20889423,  2.05313908]])}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">prev</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)):</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="n">nodes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">BaseNode</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">curr</span> <span class="o">=</span> <span class="n">LeafEstimator</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">curr</span> <span class="o">=</span> <span class="n">InternalEstimator</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">curr</span> <span class="o">=</span> <span class="n">node</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">root</span><span class="p">:</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">curr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prev</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">curr</span><span class="p">)</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="n">curr</span>
+    <span class="k">return</span> <span class="n">root</span>
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

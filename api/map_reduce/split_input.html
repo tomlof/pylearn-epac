@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.split_input &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-epac.map_reduce.split_input">
+<span id="epac-map-reduce-split-input"></span><span id="map-reduce-split-input-module"></span><h1><a class="reference internal" href="#module-epac.map_reduce.split_input" title="epac.map_reduce.split_input"><tt class="xref py py-mod docutils literal"><span class="pre">epac.map_reduce.split_input</span></tt></a><a class="headerlink" href="#module-epac.map_reduce.split_input" title="Permalink to this headline">¶</a></h1>
+<p>Created on Wed Jun 26 17:26:09 2013</p>
+<p>&#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.map_reduce.split_input.SplitNodesInput">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.split_input.</tt><tt class="descname">SplitNodesInput</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Split NodesInput into a list of epac.map_reduce.NodesInput</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.inputs</span> <span class="kn">import</span> <span class="n">NodesInput</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.split_input</span> <span class="kn">import</span> <span class="n">SplitNodesInput</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">WFExample2</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">nodes_input</span> <span class="o">=</span> <span class="n">NodesInput</span><span class="p">(</span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">get_key</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">split_node_input</span> <span class="o">=</span> <span class="n">SplitNodesInput</span><span class="p">(</span><span class="n">tree_root_node</span><span class="p">,</span> <span class="n">num_processes</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">input_list</span> <span class="o">=</span> <span class="n">split_node_input</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">nodes_input</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="nb">repr</span><span class="p">(</span><span class="n">input_list</span><span class="p">)</span>
+<span class="go">[{&#39;Perms/Perm(nb=0)&#39;: &#39;Perms/Perm(nb=0)&#39;}, {&#39;Perms/Perm(nb=1)&#39;: &#39;Perms/Perm(nb=1)&#39;}, {&#39;Perms/Perm(nb=2)&#39;: &#39;Perms/Perm(nb=2)&#39;}]</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="epac.map_reduce.split_input.SplitNodesInput.__init__">
+<tt class="descname">__init__</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>num_processes: integer
+Building a list of num_processes node_inputs.
+if num_processes is equal to -1, num_processes is set to #CPU</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.map_reduce.split_input.SplitNodesInput.split">
+<tt class="descname">split</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>nodes_input: epac.map_reduce.NodesInput</p>
+<p>list of epac.map_reduce.NodesInput in terms of self.num_processes.
+The length of this list is equal to self.num_processes</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/map_reduce/split_input.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

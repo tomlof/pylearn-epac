@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Building epac tree &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="index.html" />
+    <link rel="next" title="Building Dataset" href="tutorials.html" />
+    <link rel="prev" title="Welcome to epac’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorials.html" title="Building Dataset"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to epac’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="building-epac-tree">
+<span id="introduction"></span><h1>Building epac tree<a class="headerlink" href="#building-epac-tree" title="Permalink to this headline">¶</a></h1>
+<p>Easily building machine learning workflow that can be executed in sequential or in parallel.</p>
+<p>To quick start with eapc, here is a simple example to do an embarrassing machine learning computing:
+permutation, cross-validation, and LDA classification.
+We will introduce more details and examples in <tt class="xref doc docutils literal"><span class="pre">examples.rst</span></tt>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                                 <span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="c"># Permutations + Cross-validation</span>
+<span class="c"># ----------------------------------</span>
+<span class="c">#           Permutations           Permutations (Splitter)</span>
+<span class="c">#         /     |       \</span>
+<span class="c">#        0      1        2         Samples (Slicer)</span>
+<span class="c">#       |</span>
+<span class="c">#     CV                           CV (Splitter)</span>
+<span class="c">#  /   |   \</span>
+<span class="c"># 0    1    2                      Folds (Slicer)</span>
+<span class="c"># |    |    |</span>
+<span class="c"># LDA LDA LDA                      Classifier (Estimator)</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Perms</span><span class="p">,</span> <span class="n">CV</span>
+<span class="n">perms_cv_lda</span> <span class="o">=</span> <span class="n">Perms</span><span class="p">(</span><span class="n">CV</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">n_folds</span><span class="o">=</span><span class="mi">3</span><span class="p">),</span>
+                       <span class="n">n_perms</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">permute</span><span class="o">=</span><span class="s">&quot;y&quot;</span><span class="p">)</span>
+<span class="c"># Run: Top-down process</span>
+<span class="c">#   1: Permutations (shuffling X and y)</span>
+<span class="c">#   2: CV (Splitting X and y into training and test parts)</span>
+<span class="c">#   3: LDA (Classifilication process)</span>
+<span class="n">perms_cv_lda</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="c"># Reduce: Bottom-up process</span>
+<span class="c">#   1: CV (computing recognition scores from its leaves)</span>
+<span class="c">#   2: Permutations (computing p values)</span>
+<span class="n">perms_cv_lda</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="run-in-parallel">
+<h1>Run in parallel<a class="headerlink" href="#run-in-parallel" title="Permalink to this headline">¶</a></h1>
+<p>Run epac tree in parallel on local multi-core machine or on HPC (using DRMAA).</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># Run epac tree on a multi-core machine</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
+<span class="n">sfw_engine</span> <span class="o">=</span> <span class="n">SomaWorkflowEngine</span><span class="p">(</span>
+                    <span class="n">tree_root</span><span class="o">=</span><span class="n">perms_cv_svm</span><span class="p">,</span>
+                    <span class="n">num_processes</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">sfw_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Run epac tree using soma-workflow which can be run on HPC (using DRMAA).</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
+<span class="n">sfw_engine</span> <span class="o">=</span> <span class="n">SomaWorkflowEngine</span><span class="p">(</span>
+                    <span class="n">tree_root</span><span class="o">=</span><span class="n">perms_cv_svm</span><span class="p">,</span>
+                    <span class="n">num_processes</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">sfw_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="design-your-own-plug-in">
+<h1>Design your own plug-in<a class="headerlink" href="#design-your-own-plug-in" title="Permalink to this headline">¶</a></h1>
+<p>Design your own machine learning algorithm as a plug-in in epac tree.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">Todo</span><span class="o">......</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Building epac tree</a></li>
+<li><a class="reference internal" href="#run-in-parallel">Run in parallel</a></li>
+<li><a class="reference internal" href="#design-your-own-plug-in">Design your own plug-in</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to epac&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="tutorials.html"
+                        title="next chapter">Building Dataset</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/introduction.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorials.html" title="Building Dataset"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to epac’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

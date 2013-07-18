@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.results &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="prev" title="epac.map_reduce.reducers" href="reducers.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reducers.html" title="epac.map_reduce.reducers"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="epac-map-reduce-results">
+<span id="map-reduce-results-module"></span><h1><a class="reference internal" href="#module-epac.map_reduce.results" title="epac.map_reduce.results"><tt class="xref py py-mod docutils literal"><span class="pre">epac.map_reduce.results</span></tt></a><a class="headerlink" href="#epac-map-reduce-results" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-epac.map_reduce.results"></span><p>Created on Fri May 17 16:37:54 2013</p>
+<p>&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.map_reduce.results.ResultSet">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.results.</tt><tt class="descname">ResultSet</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/results.html#ResultSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.results.ResultSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>ResultSet is a set of Result</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Result</span><span class="p">,</span> <span class="n">ResultSet</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r1</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=1)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r2</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=2)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r3</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=3)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r4</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=4)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set1</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set2</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="n">r3</span><span class="p">,</span> <span class="n">r4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set3</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="n">set1</span><span class="p">,</span> <span class="n">set2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set3</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=5)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="epac.map_reduce.results.Result">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.results.</tt><tt class="descname">Result</tt><big>(</big><em>key=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/results.html#Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.results.Result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Result is a record with a &#8220;key&#8221;, and a &#8220;payload&#8221;.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Result</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r1</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="s">&#39;SVC(C=1)&#39;</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r2</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s">&#39;SVC(C=10)&#39;</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r1</span><span class="p">[</span><span class="s">&quot;foo&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;bar&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r1</span><span class="p">[</span><span class="n">Result</span><span class="o">.</span><span class="n">SCORE</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+</pre></div>
+</div>
+<dl class="classmethod">
+<dt id="epac.map_reduce.results.Result.stack">
+<em class="property">classmethod </em><tt class="descname">stack</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/results.html#Result.stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.results.Result.stack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stack results arguments, test that all results have the same key.</p>
+<blockquote>
+<div>Example</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Result</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r1</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s">&#39;SVC(C=1)&#39;</span><span class="p">,</span> <span class="n">score_te</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">score_tr</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r2</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s">&#39;SVC(C=1)&#39;</span><span class="p">,</span> <span class="n">score_te</span><span class="o">=.</span><span class="mi">25</span><span class="p">,</span> <span class="n">score_tr</span><span class="o">=.</span><span class="mi">75</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">Result</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">)</span>
+<span class="go">{&#39;key&#39;: SVC(C=1), &#39;score_te&#39;: [0.5, 0.25], &#39;score_tr&#39;: [1, 0.75]}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="reducers.html"
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.reducers</span></tt></a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/map_reduce/results.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reducers.html" title="epac.map_reduce.reducers"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

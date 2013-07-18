@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Introduction &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="index.html" />
+    <link rel="next" title="Building Dataset" href="tutorials.html" />
+    <link rel="prev" title="Building epac tree" href="introduction.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorials.html" title="Building Dataset"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Building epac tree"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="introduction">
+<span id="installation"></span><h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>epac depends on scikit-learn and soma-workflow (optionally run on hpc and torque/pbs has been tested).
+epac has been tested on python 2.7 so that we recommand that run epac on python 2.7
+or its latest version, but not with python 3.0.
+In this section, we will present how to install epac on ubuntu and manually on the other platforms.</p>
+</div>
+<div class="section" id="ubuntu">
+<h1>Ubuntu<a class="headerlink" href="#ubuntu" title="Permalink to this headline">¶</a></h1>
+<p>First of all, you need to install some softwares for epac:</p>
+<div class="highlight-guess"><div class="highlight"><pre><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python</span><span class="o">-</span><span class="n">pip</span>
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">python</span><span class="o">-</span><span class="n">setuptools</span> <span class="n">python</span><span class="o">-</span><span class="n">dev</span> <span class="n">build</span><span class="o">-</span><span class="n">essential</span> <span class="n">libatlas</span><span class="o">-</span><span class="n">dev</span> <span class="n">python</span><span class="o">-</span><span class="n">numpy</span> <span class="n">python</span><span class="o">-</span><span class="n">scipy</span> <span class="n">python</span><span class="o">-</span><span class="n">matplotlib</span> <span class="n">ipython</span> <span class="n">ipython</span><span class="o">-</span><span class="n">notebook</span> <span class="n">python</span><span class="o">-</span><span class="n">pandas</span> <span class="n">python</span><span class="o">-</span><span class="n">sympy</span> <span class="n">python</span><span class="o">-</span><span class="n">nose</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">user</span> <span class="n">scikit</span><span class="o">-</span><span class="n">learn</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">user</span> <span class="n">soma</span><span class="o">-</span><span class="n">workflow</span>
+</pre></div>
+</div>
+<p>Secondly, epac can be downloaded from github and you can run installation script for your local user.</p>
+<div class="highlight-guess"><div class="highlight"><pre><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="o">:</span><span class="c1">//github.com/neurospin/pylearn-epac.git</span>
+<span class="n">cd</span> <span class="n">pylearn</span><span class="o">-</span><span class="n">epac</span>
+<span class="n">python</span> <span class="n">setup</span><span class="p">.</span><span class="n">py</span> <span class="n">install</span> <span class="o">--</span><span class="n">user</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="other-platforms">
+<h1>Other platforms<a class="headerlink" href="#other-platforms" title="Permalink to this headline">¶</a></h1>
+<p>On the other platforms which support python, you can manually install epac according to your system configuration.</p>
+<p><strong>scikit-learn</strong>: epac depends on scikit-learn which is a manchine learning libary. To use epac, scikit-learn should be installed on your computer. Please goto <a class="reference external" href="http://scikit-learn.org/">http://scikit-learn.org/</a> to install scikit-learn.</p>
+<p><strong>soma-workflow</strong> (optionally): you can install soma-workflow so that epac can run on the hpc (torque/pbs). To install soma-workflow, please goto <a class="reference external" href="http://brainvisa.info/soma/soma-workflow">http://brainvisa.info/soma/soma-workflow</a> for documentation, and <a class="reference external" href="https://pypi.python.org/pypi/soma-workflow">https://pypi.python.org/pypi/soma-workflow</a> for installation.</p>
+<p><strong>epac</strong>: download epac from github to <tt class="docutils literal"><span class="pre">$EPACDIR</span></tt> and set enviroment variable <tt class="docutils literal"><span class="pre">$PYTHONPATH</span></tt> that contains <tt class="docutils literal"><span class="pre">$EPACDIR</span></tt> (epac directory), and <tt class="docutils literal"><span class="pre">$PATH</span></tt> contains $EPACDIR/bin</p>
+<div class="highlight-guess"><div class="highlight"><pre><span class="n">EPACDIR</span><span class="o">=</span><span class="n">epac</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="o">:</span><span class="c1">//github.com/neurospin/pylearn-epac.git $EPACDIR</span>
+<span class="n">export</span> <span class="n">PYTHONPATH</span><span class="o">=</span><span class="err">$</span><span class="n">EPACDIR</span><span class="o">:</span><span class="err">$</span><span class="n">PYTHONPATH</span>
+<span class="n">export</span> <span class="n">PATH</span><span class="o">=</span><span class="err">$</span><span class="n">EPACDIR</span><span class="o">/</span><span class="n">bin</span><span class="o">:</span><span class="err">$</span><span class="n">PATH</span>
+</pre></div>
+</div>
+<p>Now, you can start to use epac for machine learning.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Introduction</a></li>
+<li><a class="reference internal" href="#ubuntu">Ubuntu</a></li>
+<li><a class="reference internal" href="#other-platforms">Other platforms</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="introduction.html"
+                        title="previous chapter">Building epac tree</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="tutorials.html"
+                        title="next chapter">Building Dataset</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/installation.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tutorials.html" title="Building Dataset"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Building epac tree"
+             >previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

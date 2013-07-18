@@ -1,0 +1,431 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.workflow.estimators &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.workflow.estimators</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Estimator wrap ML procedure into EPAC Node. To be EPAC compatible, one should</span>
+<span class="sd">inherit from BaseNode and implement the &quot;transform&quot; method.</span>
+
+<span class="sd">InternalEstimator and LeafEstimator aim to provide automatic wrapper to objects</span>
+<span class="sd">that implement fit and predict methods.</span>
+
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">@author: jinpeng.li@cea.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c">## Abreviations</span>
+<span class="c">## tr: train</span>
+<span class="c">## te: test</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">epac.workflow.base</span> <span class="kn">import</span> <span class="n">BaseNode</span><span class="p">,</span> <span class="n">key_push</span><span class="p">,</span> <span class="n">key_split</span>
+<span class="kn">from</span> <span class="nn">epac.utils</span> <span class="kn">import</span> <span class="n">_func_get_args_names</span><span class="p">,</span> <span class="n">train_test_merge</span><span class="p">,</span> <span class="n">train_test_split</span><span class="p">,</span> <span class="n">_dict_suffix_keys</span>
+<span class="kn">from</span> <span class="nn">epac.utils</span> <span class="kn">import</span> <span class="n">_sub_dict</span><span class="p">,</span> <span class="n">_as_dict</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.results</span> <span class="kn">import</span> <span class="n">ResultSet</span><span class="p">,</span> <span class="n">Result</span>
+<span class="kn">from</span> <span class="nn">epac.stores</span> <span class="kn">import</span> <span class="n">StoreMem</span>
+<span class="kn">from</span> <span class="nn">epac.configuration</span> <span class="kn">import</span> <span class="n">conf</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.reducers</span> <span class="kn">import</span> <span class="n">ClassificationReport</span>
+
+
+<span class="c">## ================================= ##</span>
+<span class="c">## == Wrapper node for estimators == ##</span>
+<span class="c">## ================================= ##</span>
+<span class="k">class</span> <span class="nc">Estimator</span><span class="p">(</span><span class="n">BaseNode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Node that wrap estimators&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Estimator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span> <span class="o">=</span> <span class="n">estimator</span>
+
+    <span class="k">def</span> <span class="nf">get_signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Overload the base name method&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">args_str</span> <span class="o">=</span> <span class="s">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature_args</span><span class="p">])</span>
+            <span class="n">args_str</span> <span class="o">=</span> <span class="s">&quot;(&quot;</span> <span class="o">+</span> <span class="n">args_str</span> <span class="o">+</span> <span class="s">&quot;)&quot;</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span> <span class="o">+</span> <span class="n">args_str</span>
+
+    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">__dict__</span>
+
+
+<div class="viewcode-block" id="InternalEstimator"><a class="viewcode-back" href="../../../api/workflow/estimators.html#epac.workflow.estimators.InternalEstimator">[docs]</a><span class="k">class</span> <span class="nc">InternalEstimator</span><span class="p">(</span><span class="n">Estimator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimator Wrapper: Automatically connect estimator.fit and</span>
+<span class="sd">    estimator.transform to BaseNode.transform.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        estimator: object that implement fit and transform</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn import datasets</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.svm import SVC</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.lda import LDA</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.feature_selection import SelectKBest</span>
+<span class="sd">    &gt;&gt;&gt; from epac.workflow.estimators import InternalEstimator</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; X, y = datasets.make_classification(n_samples=12,</span>
+<span class="sd">    ...                                     n_features=10,</span>
+<span class="sd">    ...                                     n_informative=2,</span>
+<span class="sd">    ...                                     random_state=1)</span>
+<span class="sd">    &gt;&gt;&gt; Xy = dict(X=X, y=y)</span>
+<span class="sd">    &gt;&gt;&gt; internal_estimator  = InternalEstimator(SelectKBest(k=2))</span>
+<span class="sd">    &gt;&gt;&gt; internal_estimator.transform(**Xy)</span>
+<span class="sd">    {&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), &#39;X&#39;: array([[-0.34385368,  0.75623409],</span>
+<span class="sd">           [ 0.19829972, -1.16389861],</span>
+<span class="sd">           [-0.74715829,  0.86977629],</span>
+<span class="sd">           [ 1.13162939,  0.90876519],</span>
+<span class="sd">           [ 0.23009474, -0.68017257],</span>
+<span class="sd">           [ 0.16003707, -1.55458039],</span>
+<span class="sd">           [ 0.40349164,  1.38791468],</span>
+<span class="sd">           [-1.11731035,  0.23476552],</span>
+<span class="sd">           [ 1.19891788,  0.0888684 ],</span>
+<span class="sd">           [-0.75439794, -0.90039992],</span>
+<span class="sd">           [ 0.12015895,  2.05996541],</span>
+<span class="sd">           [-0.20889423,  2.05313908]])}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">in_args_fit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">in_args_transform</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        estimator: any class contains fit and transform functions</span>
+<span class="sd">            any class implements fit and transform</span>
+
+<span class="sd">        in_args_fit: list of strings</span>
+<span class="sd">            names of input arguments of the fit method. If missing discover</span>
+<span class="sd">            discover it automatically.</span>
+
+<span class="sd">        in_args_transform: list of strings</span>
+<span class="sd">            names of input arguments of the tranform method. If missing,</span>
+<span class="sd">            discover it automatically.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">estimator</span><span class="p">,</span> <span class="s">&quot;fit&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> \
+            <span class="nb">hasattr</span><span class="p">(</span><span class="n">estimator</span><span class="p">,</span> <span class="s">&quot;transform&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;estimator should implement fit and transform&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">InternalEstimator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span> <span class="o">=</span> <span class="n">_func_get_args_names</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">in_args_fit</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">in_args_fit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span> <span class="o">=</span> \
+            <span class="n">_func_get_args_names</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">in_args_transform</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">in_args_transform</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        Xy: dictionary</span>
+<span class="sd">            parameters for fit and transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">conf</span><span class="o">.</span><span class="n">KW_SPLIT_TRAIN_TEST</span> <span class="ow">in</span> <span class="n">Xy</span><span class="p">:</span>
+            <span class="n">Xy_train</span><span class="p">,</span> <span class="n">Xy_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">Xy</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span><span class="p">))</span>
+            <span class="c"># catch args_transform in ds, transform, store output in a dict</span>
+            <span class="n">Xy_out_tr</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span>
+                        <span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)),</span>
+                        <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)</span>
+            <span class="n">Xy_out_te</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_test</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)),</span>
+                            <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)</span>
+            <span class="n">Xy_out</span> <span class="o">=</span> <span class="n">train_test_merge</span><span class="p">(</span><span class="n">Xy_out_tr</span><span class="p">,</span> <span class="n">Xy_out_te</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span><span class="p">))</span>
+            <span class="c"># catch args_transform in ds, transform, store output in a dict</span>
+            <span class="n">Xy_out</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)),</span>
+                           <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">in_args_transform</span><span class="p">)</span>
+        <span class="c"># update ds with transformed values</span>
+        <span class="n">Xy</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Xy_out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Xy</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># 1) Build sub-aggregates over children</span>
+        <span class="n">children_result_set</span> <span class="o">=</span> <span class="p">[</span><span class="n">child</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">for</span>
+            <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+        <span class="n">result_set</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="o">*</span><span class="n">children_result_set</span><span class="p">)</span>
+        <span class="c"># Append node signature in the keys</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">result_set</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key_push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_signature</span><span class="p">(),</span> <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">result_set</span>
+
+</div>
+<div class="viewcode-block" id="LeafEstimator"><a class="viewcode-back" href="../../../api/workflow/estimators.html#epac.workflow.estimators.LeafEstimator">[docs]</a><span class="k">class</span> <span class="nc">LeafEstimator</span><span class="p">(</span><span class="n">Estimator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimator Wrapper:</span>
+<span class="sd">    Automatically connect estimator.fit (if exist) and estimator.predict to</span>
+<span class="sd">    BaseNode.transform.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn import datasets</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.svm import SVC</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.lda import LDA</span>
+<span class="sd">    &gt;&gt;&gt; from sklearn.feature_selection import SelectKBest</span>
+<span class="sd">    &gt;&gt;&gt; from epac.workflow.estimators import LeafEstimator</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; X, y = datasets.make_classification(n_samples=12,</span>
+<span class="sd">    ...                                     n_features=10,</span>
+<span class="sd">    ...                                     n_informative=2,</span>
+<span class="sd">    ...                                     random_state=1)</span>
+<span class="sd">    &gt;&gt;&gt; Xy = dict(X=X, y=y)</span>
+<span class="sd">    &gt;&gt;&gt; leaf_estimator  = LeafEstimator(SVC())</span>
+<span class="sd">    &gt;&gt;&gt; leaf_estimator.transform(**Xy)</span>
+<span class="sd">    {&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}</span>
+<span class="sd">    &gt;&gt;&gt; print leaf_estimator.reduce()</span>
+<span class="sd">    None</span>
+<span class="sd">    &gt;&gt;&gt; leaf_estimator.top_down(**Xy)</span>
+<span class="sd">    {&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}</span>
+<span class="sd">    &gt;&gt;&gt; print leaf_estimator.reduce()</span>
+<span class="sd">    ResultSet(</span>
+<span class="sd">    [{&#39;key&#39;: SVC, &#39;y&#39;: [1 0 0 1 0 0 1 0 1 1 0 1]}])</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="LeafEstimator.__init__"><a class="viewcode-back" href="../../../api/workflow/estimators.html#epac.workflow.estimators.LeafEstimator.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">in_args_fit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">in_args_predict</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">out_args_predict</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        estimator: any class contains fit and predict functions </span>
+<span class="sd">            any class implements fit and predict</span>
+
+<span class="sd">        in_args_fit: list of strings</span>
+<span class="sd">            names of input arguments of the fit method. If missing discover</span>
+<span class="sd">            discover it automatically.</span>
+
+<span class="sd">        in_args_predict: list of strings</span>
+<span class="sd">            names of input arguments of the predict method. If missing,</span>
+<span class="sd">            discover it automatically.</span>
+
+<span class="sd">        out_args_predict: list of strings</span>
+<span class="sd">            names of output arguments of the predict method. If missing,</span>
+<span class="sd">            discover it automatically by self.in_args_fit - in_args_predict.</span>
+<span class="sd">            If not differences (such with PCA with fit(X) and predict(X))</span>
+<span class="sd">            use in_args_predict.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">estimator</span><span class="p">,</span> <span class="s">&quot;fit&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> \
+            <span class="nb">hasattr</span><span class="p">(</span><span class="n">estimator</span><span class="p">,</span> <span class="s">&quot;predict&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;estimator should implement fit and predict&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LeafEstimator</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span> <span class="o">=</span> <span class="n">_func_get_args_names</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">in_args_fit</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">in_args_fit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span> <span class="o">=</span> <span class="n">_func_get_args_names</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">in_args_predict</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">in_args_predict</span>
+        <span class="k">if</span> <span class="n">out_args_predict</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">fit_predict_diff</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span><span class="p">)</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fit_predict_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span> <span class="o">=</span> <span class="n">fit_predict_diff</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span> <span class="o">=</span> <span class="n">out_args_predict</span>
+</div>
+    <span class="sd">&quot;&quot;&quot;Extimator Wrapper: connect fit + predict to transform&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="LeafEstimator.transform"><a class="viewcode-back" href="../../../api/workflow/estimators.html#epac.workflow.estimators.LeafEstimator.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameter</span>
+<span class="sd">        ---------</span>
+<span class="sd">        Xy: dictionary</span>
+<span class="sd">            parameters for fit and transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">conf</span><span class="o">.</span><span class="n">KW_SPLIT_TRAIN_TEST</span> <span class="ow">in</span> <span class="n">Xy</span><span class="p">:</span>
+            <span class="n">Xy_train</span><span class="p">,</span> <span class="n">Xy_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">Xy</span><span class="p">)</span>
+            <span class="n">Xy_out</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+            <span class="c"># Train fit</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span><span class="p">))</span>
+            <span class="c"># Train predict</span>
+            <span class="n">Xy_out_tr</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_train</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span><span class="p">)),</span>
+                           <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span><span class="p">)</span>
+            <span class="n">Xy_out_tr</span> <span class="o">=</span> <span class="n">_dict_suffix_keys</span><span class="p">(</span><span class="n">Xy_out_tr</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">TRAIN</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">PREDICTION</span><span class="p">)</span>
+            <span class="n">Xy_out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Xy_out_tr</span><span class="p">)</span>
+            <span class="c"># Test predict</span>
+            <span class="n">Xy_out_te</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_test</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span><span class="p">)),</span>
+                           <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span><span class="p">)</span>
+            <span class="n">Xy_out_te</span> <span class="o">=</span> <span class="n">_dict_suffix_keys</span><span class="p">(</span><span class="n">Xy_out_te</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">TEST</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">PREDICTION</span><span class="p">)</span>
+            <span class="n">Xy_out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Xy_out_te</span><span class="p">)</span>
+            <span class="c">## True test</span>
+            <span class="n">Xy_test_true</span> <span class="o">=</span> <span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy_test</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span><span class="p">)</span>
+            <span class="n">Xy_out_true</span> <span class="o">=</span> <span class="n">_dict_suffix_keys</span><span class="p">(</span><span class="n">Xy_test_true</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">TEST</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">TRUE</span><span class="p">)</span>
+            <span class="n">Xy_out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Xy_out_true</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_args_fit</span><span class="p">))</span>
+            <span class="c"># catch args_transform in ds, transform, store output in a dict</span>
+            <span class="n">Xy_out</span> <span class="o">=</span> <span class="n">_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="o">**</span><span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">in_args_predict</span><span class="p">)),</span>
+                           <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span><span class="p">)</span>
+            <span class="n">Xy_out</span> <span class="o">=</span> <span class="n">_dict_suffix_keys</span><span class="p">(</span><span class="n">Xy_out</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">PREDICTION</span><span class="p">)</span>
+            <span class="c">## True test</span>
+            <span class="n">Xy_true</span> <span class="o">=</span> <span class="n">_sub_dict</span><span class="p">(</span><span class="n">Xy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_args_predict</span><span class="p">)</span>
+            <span class="n">Xy_out_true</span> <span class="o">=</span> <span class="n">_dict_suffix_keys</span><span class="p">(</span><span class="n">Xy_true</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span> <span class="o">+</span> <span class="n">conf</span><span class="o">.</span><span class="n">TRUE</span><span class="p">)</span>
+            <span class="n">Xy_out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Xy_out_true</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Xy_out</span>
+</div>
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_state</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;result_set&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="CVBestSearchRefit"><a class="viewcode-back" href="../../../api/workflow/estimators.html#epac.workflow.estimators.CVBestSearchRefit">[docs]</a><span class="k">class</span> <span class="nc">CVBestSearchRefit</span><span class="p">(</span><span class="n">Estimator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Cross-validation + grid-search then refit with optimals parameters.</span>
+
+<span class="sd">    Average results over first axis, then find the arguments that maximize or</span>
+<span class="sd">    minimise a &quot;score&quot; over other axis.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    See CV parameters, plus other parameters:</span>
+
+<span class="sd">    score: string</span>
+<span class="sd">        the score name to be optimized (default &quot;mean_score_te&quot;).</span>
+
+<span class="sd">    arg_max: boolean</span>
+<span class="sd">        True/False take parameters that maximize/minimize the score. Default</span>
+<span class="sd">        is True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CVBestSearchRefit</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">estimator</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="c">####?????</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;score&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="s">&quot;score&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="s">&#39;y/test/score_recall_mean&#39;</span>
+        <span class="n">arg_max</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;arg_max&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="s">&quot;arg_max&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="bp">True</span>
+        <span class="kn">from</span> <span class="nn">epac.workflow.splitters</span> <span class="kn">import</span> <span class="n">CV</span>
+        <span class="c">#methods = Methods(*tasks)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">node</span><span class="o">=</span><span class="n">node</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="n">ClassificationReport</span><span class="p">(</span><span class="n">keep</span><span class="o">=</span><span class="bp">False</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="n">score</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">arg_max</span> <span class="o">=</span> <span class="n">arg_max</span>
+
+    <span class="k">def</span> <span class="nf">get_signature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="n">Xy_train</span><span class="p">,</span> <span class="n">Xy_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">Xy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">Xy_train</span> <span class="ow">is</span> <span class="n">Xy_test</span><span class="p">:</span>            
+            <span class="n">to_refit</span><span class="p">,</span> <span class="n">best_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_best</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">to_refit</span><span class="p">,</span> <span class="n">best_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_best</span><span class="p">(</span><span class="o">**</span><span class="n">Xy_train</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">to_refit</span><span class="o">.</span><span class="n">top_down</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">conf</span><span class="o">.</span><span class="n">BEST_PARAMS</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_params</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_search_best</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
+        <span class="c"># Fit/predict CV grid search</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">StoreMem</span><span class="p">()</span>  <span class="c"># local store erased at each fit</span>
+        <span class="kn">from</span> <span class="nn">epac.workflow.pipeline</span> <span class="kn">import</span> <span class="n">Pipe</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">top_down</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+        <span class="c">#  Pump-up results</span>
+        <span class="n">cv_result_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">key_val</span> <span class="o">=</span> <span class="p">[(</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">(),</span> <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">])</span> \
+                <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">cv_result_set</span><span class="p">]</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">key_val</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">scores_opt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">arg_max</span> <span class="k">else</span>  <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+        <span class="n">idx_best</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">scores</span> <span class="o">==</span> <span class="n">scores_opt</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">best_key</span> <span class="o">=</span> <span class="n">key_val</span><span class="p">[</span><span class="n">idx_best</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c"># Find nodes that match the best</span>
+        <span class="n">nodes_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">n</span><span class="o">.</span><span class="n">get_signature</span><span class="p">():</span> <span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv</span><span class="o">.</span><span class="n">walk_true_nodes</span><span class="p">()</span> \
+            <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get_signature</span><span class="p">()</span> <span class="ow">in</span> <span class="n">key_split</span><span class="p">(</span><span class="n">best_key</span><span class="p">)}</span>
+        <span class="n">to_refit</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">nodes_dict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">estimator</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">key_split</span><span class="p">(</span><span class="n">best_key</span><span class="p">)])</span>
+        <span class="n">best_params</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span> <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="n">key_split</span><span class="p">(</span><span class="n">best_key</span><span class="p">,</span> <span class="nb">eval</span><span class="o">=</span><span class="bp">True</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">to_refit</span><span class="p">,</span> <span class="n">best_params</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># Terminaison (leaf) node return result_set</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_state</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;result_set&quot;</span><span class="p">)</span>
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

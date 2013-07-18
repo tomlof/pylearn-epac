@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.worklfow.splitters &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="prev" title="epac.worklfow.pipeline" href="pipeline.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="pipeline.html" title="epac.worklfow.pipeline"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="epac-worklfow-splitters">
+<span id="epac-workflow-splitters"></span><h1><tt class="xref py py-mod docutils literal"><span class="pre">epac.worklfow.splitters</span></tt><a class="headerlink" href="#epac-worklfow-splitters" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-epac.workflow.splitters"></span><p>Spliters divide the work to do into several parallel sub-tasks.
+They are of two types data spliters (CV, Perms) or tasks
+splitter (Methods, Grid).</p>
+<p>&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.workflow.splitters.BaseNodeSplitter">
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">BaseNodeSplitter</tt><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#BaseNodeSplitter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.BaseNodeSplitter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splitters are are non leaf node (degree &gt;= 1) with children.
+They split the downstream data-flow to their children.
+They agregate upstream data-flow from their children.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="epac.workflow.splitters.Methods">
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Methods</tt><big>(</big><em>*nodes</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#Methods"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Methods" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallelization is based on several runs of different methods</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="epac.workflow.splitters.CV">
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">CV</tt><big>(</big><em>node</em>, <em>n_folds=5</em>, <em>random_state=None</em>, <em>cv_type='stratified'</em>, <em>reducer=&lt;epac.map_reduce.reducers.ClassificationReport object at 0x3659150&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#CV"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.CV" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cross-validation parallelization.</p>
+<dl class="docutils">
+<dt>node: Node | Estimator</dt>
+<dd>Estimator: should implement fit/predict/score function
+Node: Pipe | Par*</dd>
+<dt>n_folds: int</dt>
+<dd>Number of folds. (Default 5)</dd>
+<dt>cv_type: string</dt>
+<dd>Values: &#8220;stratified&#8221;, &#8220;random&#8221;, &#8220;loo&#8221;. Default &#8220;stratified&#8221;.</dd>
+<dt>random_state <span class="classifier-delimiter">:</span> <span class="classifier">int or RandomState</span></dt>
+<dd>Pseudo-random number generator state used for random sampling.</dd>
+<dt>reducer: Reducer</dt>
+<dd>A Reducer should inmplement the reduce(node, key2, val) method.
+Default ClassificationReport() with default arguments.</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="epac.workflow.splitters.Perms">
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Perms</tt><big>(</big><em>node</em>, <em>n_perms=100</em>, <em>permute='y'</em>, <em>random_state=None</em>, <em>reducer=&lt;epac.map_reduce.reducers.PvalPerms object at 0x36591d0&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#Perms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Perms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Permutation parallelization.</p>
+<dl class="docutils">
+<dt>node: Node | Estimator</dt>
+<dd>Estimator: should implement fit/predict/score function
+Node: Pipe | Par*</dd>
+<dt>n_perms: int</dt>
+<dd>Number permutations.</dd>
+<dt>reducer: Reducer</dt>
+<dd>A Reducer should inmplement the reduce(key2, val) method.</dd>
+<dt>permute: string</dt>
+<dd>The name of the data to be permuted (default &#8220;y&#8221;).</dd>
+<dt>random_state <span class="classifier-delimiter">:</span> <span class="classifier">int or RandomState</span></dt>
+<dd>Pseudo-random number generator state used for random sampling.</dd>
+<dt>reducer: Reducer</dt>
+<dd>A Reducer should inmplement the reduce(key2, val) method.</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="pipeline.html"
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.pipeline</span></tt></a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/workflow/splitters.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="pipeline.html" title="epac.worklfow.pipeline"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

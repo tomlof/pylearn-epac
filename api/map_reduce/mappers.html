@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.mappers &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.map_reduce.reducers" href="reducers.html" />
+    <link rel="prev" title="epac.map_reduce.engine" href="engine.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reducers.html" title="epac.map_reduce.reducers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="engine.html" title="epac.map_reduce.engine"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="epac-map-reduce-mappers">
+<span id="map-reduce-mappers-module"></span><h1><a class="reference internal" href="#module-epac.map_reduce.mappers" title="epac.map_reduce.mappers"><tt class="xref py py-mod docutils literal"><span class="pre">epac.map_reduce.mappers</span></tt></a><a class="headerlink" href="#epac-map-reduce-mappers" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-epac.map_reduce.mappers"></span><p>Created on Thu Jun 13 11:12:28 2013</p>
+<p>&#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
+&#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
+<dl class="class">
+<dt id="epac.map_reduce.mappers.MapperSubtrees">
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.mappers.</tt><tt class="descname">MapperSubtrees</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees" title="Permalink to this definition">¶</a></dt>
+<dd><p>The mapper runs function (usually as &#8220;transform&#8221;) for NodesInput
+which is a dictionary of nodes.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">Pool</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">StoreFs</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.inputs</span> <span class="kn">import</span> <span class="n">NodesInput</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.split_input</span> <span class="kn">import</span> <span class="n">SplitNodesInput</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.mappers</span> <span class="kn">import</span> <span class="n">MapperSubtrees</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.mappers</span> <span class="kn">import</span> <span class="n">map_process</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Build dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X&#39;</span><span class="p">:</span><span class="n">X</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span><span class="n">y</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Build epac tree and save it on the disk</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =======================================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">WFExample2</span><span class="p">()</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Split input into several parts and create mapper</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ================================================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">num_processes</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">node_input</span> <span class="o">=</span> <span class="n">NodesInput</span><span class="p">(</span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">get_key</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">split_node_input</span> <span class="o">=</span> <span class="n">SplitNodesInput</span><span class="p">(</span><span class="n">tree_root_node</span><span class="p">,</span> <span class="n">num_processes</span><span class="o">=</span><span class="n">num_processes</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">input_list</span> <span class="o">=</span> <span class="n">split_node_input</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">node_input</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mapper</span> <span class="o">=</span> <span class="n">MapperSubtrees</span><span class="p">(</span><span class="n">Xy</span><span class="o">=</span><span class="n">Xy</span><span class="p">,</span>
+<span class="gp">... </span>                        <span class="n">tree_root</span><span class="o">=</span><span class="n">tree_root_node</span><span class="p">,</span>
+<span class="gp">... </span>                        <span class="n">function</span><span class="o">=</span><span class="s">&quot;transform&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Run map processes in parallel</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## =============================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">partial_map_process</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">map_process</span><span class="p">,</span><span class="n">mapper</span><span class="o">=</span><span class="n">mapper</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">num_processes</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res_tree_root_list</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">partial_map_process</span><span class="p">,</span> <span class="n">input_list</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Merge results from pool</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">each_tree_root</span> <span class="ow">in</span> <span class="n">res_tree_root_list</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">tree_root_node</span><span class="o">.</span><span class="n">merge_tree_store</span><span class="p">(</span><span class="n">each_tree_root</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Run map processes in single process</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ===================================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#for input in input_list:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    # input = input_list[0]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    mapper.map(input)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## Run reduce process</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ==================</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SelectKBest/SVC(C=1), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]},</span>
+<span class="go"> {&#39;key&#39;: SelectKBest/SVC(C=3), &#39;y/test/score_recall_mean/pval&#39;: [ 0.], &#39;y/test/score_recall/pval&#39;: [ 0.  0.], &#39;y/test/score_accuray&#39;: 0.8, &#39;y/test/score_f1/pval&#39;: [ 0.  0.], &#39;y/test/score_precision/pval&#39;: [ 0.  0.], &#39;y/test/score_precision&#39;: [ 0.8  0.8], &#39;y/test/score_recall&#39;: [ 0.8  0.8], &#39;y/test/score_f1&#39;: [ 0.8  0.8], &#39;y/test/score_recall_mean&#39;: 0.8, &#39;y/test/score_accuray/pval&#39;: [ 0.]}])</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="epac.map_reduce.mappers.MapperSubtrees.__init__">
+<tt class="descname">__init__</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialization for the mapper</p>
+<p>Xy:X matrix and y vertor</p>
+<dl class="docutils">
+<dt>tree_root: epac.BaseNode</dt>
+<dd>the root node of the epac tree</dd>
+<dt>store_fs:</dt>
+<dd>where the node want to save</dd>
+<dt>function:</dt>
+<dd>function of node</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="epac.map_reduce.mappers.MapperSubtrees.map">
+<tt class="descname">map</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees.map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run self.function for each sub_tree of map_input</p>
+<p>nodes_input: epac.map_reduce.inputs.NodesInput</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="engine.html"
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.engine</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="reducers.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.reducers</span></tt></a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/map_reduce/mappers.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reducers.html" title="epac.map_reduce.reducers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="engine.html" title="epac.map_reduce.engine"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

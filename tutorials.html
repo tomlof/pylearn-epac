@@ -1,0 +1,371 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Building Dataset &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="index.html" />
+    <link rel="next" title="API Documentation" href="api.html" />
+    <link rel="prev" title="Building epac tree" href="introduction.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Building epac tree"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="building-dataset">
+<span id="tutorials"></span><h1>Building Dataset<a class="headerlink" href="#building-dataset" title="Permalink to this headline">¶</a></h1>
+<p>In this section, we start with small examples to understand how to use epac libary. The source code of this tutorial is avaible in <strong>./pylearn-epac/examples/small_toy.py</strong></p>
+<p>In order to build the epac tree, we first need a dataset. Let&#8217;s build <em>X</em> matrix (samples) and <em>y</em> vector (labels) as below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">LinearSVC</span> <span class="k">as</span> <span class="n">SVM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In the next section, we can use <em>X</em> and <em>y</em> to run machine learning algorithm.</p>
+</div>
+<div class="section" id="basic-units-pipe-and-methods">
+<h1>Basic units: Pipe and Methods<a class="headerlink" href="#basic-units-pipe-and-methods" title="Permalink to this headline">¶</a></h1>
+<p>In epac, there are two very basic elements, <em>Pipe</em> (sequential pipeline) and <em>Methods</em> (parallel methods). <em>Pipe</em> is used for running a sequence of nodes while <em>Methods</em> is designed for parallelly run sequences of nodes.</p>
+<div class="section" id="pipe">
+<h2>Pipe<a class="headerlink" href="#pipe" title="Permalink to this headline">¶</a></h2>
+<p>Now, we first introduce <em>Pipe</em>, which executes a sequential of BaseNode. These nodes should implement</p>
+<p>either as non-leaf node (non-termianl node),</p>
+<ul class="simple">
+<li>fit and transform, e.g. <em>SelectKBest(k=2)</em></li>
+</ul>
+<p>or as leaf node (terminal node)</p>
+<ul class="simple">
+<li>fit and predict, e.g. <em>SVM()</em></li>
+</ul>
+<p>For example, we want to build a sequential machine learning process as <tt class="docutils literal"><span class="pre">{X,</span> <span class="pre">y}</span> <span class="pre">-&gt;</span> <span class="pre">SelectKBest(k=2)</span> <span class="pre">-&gt;</span> <span class="pre">SVM</span> <span class="pre">-&gt;</span> <span class="pre">y</span></tt>. Without using epac, we can write below codes to implement these processes.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># without epac</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 0. build two processes</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_k_best</span> <span class="o">=</span> <span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">svm</span> <span class="o">=</span> <span class="n">SVM</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 1. fit model from X and y</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_k_best</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># select features from X</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tr_X</span> <span class="o">=</span> <span class="n">select_k_best</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 2. fit model from output of select_k_best</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">svm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">tr_X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># predict results from output of select_k_best</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">svm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">tr_X</span><span class="p">)</span>
+<span class="go">array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  1.,  1.])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">y</span>
+<span class="go">[ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]</span>
+</pre></div>
+</div>
+<p>You can find that the output of <tt class="docutils literal"><span class="pre">SelectKBest(k=2)</span></tt> becomes the input of <tt class="docutils literal"><span class="pre">SVM()</span></tt>. It is a sequential process. Using epac, the codes are much more simple as shown below. After building epac tree, we can call <em>run</em> which is a top-down process. The input <em>X</em> and <em>y</em> will pass from <em>SelectKBest</em> to SVM. The output of <em>SelectKBest</em> will become the input of <em>SVM</em> automatically. All the input and output are a dictionary. For example, we want to run</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Build sequential Pipeline</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># -------------------------</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 2  SelectKBest (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM Classifier (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Pipe</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">SVM</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">{&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  1.,  1.])}</span>
+</pre></div>
+</div>
+<p>The downstream data-flow is a keyword arguments (dict) containing <em>X</em> and <em>y</em>. It will pass through each processing node, <em>SelectKBest(k=2)</em> and <em>SVM</em>. Each non-terminal node call fit and transform, that take a dictionnary as input and produces a dictionnary as output. The output is passed to the next node till terminal node. The return value of the run is simply agregation of the outputs (dict) of the leaf nodes (terminal nodes). Here <tt class="docutils literal"><span class="pre">y/true</span></tt> means the labels in original dataset while <tt class="docutils literal"><span class="pre">y/pred</span></tt> means the prediction from pipe. <tt class="docutils literal"><span class="pre">y/true</span></tt> and <tt class="docutils literal"><span class="pre">y/pred</span></tt> are use for the reducing step. In the next section, we will present parallel <tt class="docutils literal"><span class="pre">Methods</span></tt>.</p>
+</div>
+<div class="section" id="methods">
+<h2>Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
+<p>In this section, <tt class="docutils literal"><span class="pre">Methods</span></tt> will be described to run several classifiers in parallel as below codes. It will make copy of the input <tt class="docutils literal"><span class="pre">{X=X,</span> <span class="pre">y=y}</span></tt>, and then pass it into the children nodes respectively.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">## Parallelization</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">## ===============</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># Multi-classifiers</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># -----------------</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#         Methods       Methods (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#        /   \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM(C=1)  SVM(C=10)   Classifiers (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">multi</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">multi</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">[{&#39;y/true&#39;: array([ 0.,  0.,  1.,  1.,  1.,  1.,  0.,  0.,  0.,  1.,  1.,  0.]), &#39;y/pred&#39;: array([ 0.,  0.,  1.,  1.,  1.,  1.,  0.,  0.,  0.,  1.,  1.,  0.])}, {&#39;y/true&#39;: array([ 0.,  0.,  1.,  1.,  1.,  1.,  0.,  0.,  0.,  1.,  1.,  0.]), &#39;y/pred&#39;: array([ 0.,  0.,  1.,  1.,  1.,  1.,  0.,  0.,  0.,  1.,  1.,  0.])}]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">multi</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: LinearSVC(C=1), &#39;y/true&#39;: [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.], &#39;y/pred&#39;: [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.]},</span>
+<span class="go"> {&#39;key&#39;: LinearSVC(C=10), &#39;y/true&#39;: [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.], &#39;y/pred&#39;: [ 0.  0.  1.  1.  1.  1.  0.  0.  0.  1.  1.  0.]}])</span>
+</pre></div>
+</div>
+<p>In these codes, <tt class="docutils literal"><span class="pre">Methods</span></tt> set the input of dictionary <tt class="docutils literal"><span class="pre">{X=X,</span> <span class="pre">y=y}</span></tt> to <tt class="docutils literal"><span class="pre">SVM(C=1)</span></tt> and to <tt class="docutils literal"><span class="pre">SVM(C=10)</span></tt> respectively. <tt class="docutils literal"><span class="pre">multi.reduce()</span></tt> outputs into &#8220;ResultSet&#8221; which is a dict-like structure which contains the &#8220;keys&#8221; of the methods that as been used. In epac, <strong>run</strong> means the top-down process, and <strong>reduce</strong> means bottom-up process. For this moment, the <strong>reduce</strong> process returen only the collection of results from classifiers. We will show more meaningful examples using <strong>reduce</strong> later.  A more complicated <tt class="docutils literal"><span class="pre">Methods</span></tt> example using two arguments is shown as below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c">#                         Methods                  Methods (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#          /                        \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM(l1, C=1)  SVM(l1, C=10)  ..... SVM(l2, C=10) Classifiers (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">svms</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">SVM</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">)</span> <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;l1&quot;</span><span class="p">,</span> <span class="s">&quot;l2&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">C</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">svms</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">[{&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">svms</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: LinearSVC(loss=l1,C=1), &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]},</span>
+<span class="go"> {&#39;key&#39;: LinearSVC(loss=l1,C=10), &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]},</span>
+<span class="go"> {&#39;key&#39;: LinearSVC(loss=l2,C=1), &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]},</span>
+<span class="go"> {&#39;key&#39;: LinearSVC(loss=l2,C=10), &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]}])</span>
+</pre></div>
+</div>
+<p>This example illustrates how to iterate two argument arrays using epac. We can computes all the results from all the combinations. In the next section, we will show how to combine <tt class="docutils literal"><span class="pre">Pipe</span></tt> and <tt class="docutils literal"><span class="pre">Methods</span></tt>.</p>
+</div>
+<div class="section" id="pipe-and-methods-combination">
+<h2>Pipe and Methods Combination<a class="headerlink" href="#pipe-and-methods-combination" title="Permalink to this headline">¶</a></h2>
+<p>An example is shown in this section to combine <tt class="docutils literal"><span class="pre">Methods</span></tt> and <tt class="docutils literal"><span class="pre">Pipe</span></tt>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Parallelize sequential Pipeline: Anova(k best selection) + SVM.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    Methods    Methods (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#  /   |   \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 1    5   10   SelectKBest (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># |    |    |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM SVM SVM   Classifiers (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">anovas_svm</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">),</span> <span class="n">SVM</span><span class="p">())</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">anovas_svm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">[{&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  1.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  1.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">anovas_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: SelectKBest(k=1)/LinearSVC, &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 1.  0.  1.  1.  0.  0.  1.  0.  0.  0.  1.  1.]},</span>
+<span class="go"> {&#39;key&#39;: SelectKBest(k=5)/LinearSVC, &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  1.  1.]},</span>
+<span class="go"> {&#39;key&#39;: SelectKBest(k=10)/LinearSVC, &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}])</span>
+</pre></div>
+</div>
+<p>Therefore, two basic units have been presented in this section. You can start to construct your own epac for many machine learning processes.
+In the next section, we will introduce reducers, for instance, Cross-validation.</p>
+</div>
+</div>
+<div class="section" id="cross-validation">
+<h1>Cross-validation<a class="headerlink" href="#cross-validation" title="Permalink to this headline">¶</a></h1>
+<p>In this section, we will introduce the cross-validation as codes below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Cross-validation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># ----------------</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># CV of LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#      CV                 (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#  /   |   \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># 0    1    2  Folds      (Slicer)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># |    |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#   Methods               (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    /   \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#  LDA  SVM    Classifier (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">SVM</span><span class="p">()))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">[[{&#39;y/test/pred&#39;: array([ 0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.])}], [{&#39;y/test/pred&#39;: array([ 1.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), &#39;y/test/true&#39;: array([ 1.,  0.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), &#39;y/test/true&#39;: array([ 1.,  0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 0.,  0.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.])}], [{&#39;y/test/pred&#39;: array([ 0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  0.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}, {&#39;y/test/pred&#39;: array([ 1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: LDA, &#39;y/test/score_precision&#39;: [ 0.66666667  0.66666667], &#39;y/test/score_recall&#39;: [ 0.66666667  0.66666667], &#39;y/test/score_accuracy&#39;: 0.666666666667, &#39;y/test/score_f1&#39;: [ 0.66666667  0.66666667], &#39;y/test/score_recall_mean&#39;: 0.666666666667},</span>
+<span class="go"> {&#39;key&#39;: LinearSVC, &#39;y/test/score_precision&#39;: [ 0.42857143  0.4       ], &#39;y/test/score_recall&#39;: [ 0.5         0.33333333], &#39;y/test/score_accuracy&#39;: 0.416666666667, &#39;y/test/score_f1&#39;: [ 0.46153846  0.36363636], &#39;y/test/score_recall_mean&#39;: 0.416666666667}])</span>
+</pre></div>
+</div>
+<p><tt class="docutils literal"><span class="pre">cv.run(X=X,</span> <span class="pre">y=y)</span></tt> run the top-down process so that we get all the results, and <tt class="docutils literal"><span class="pre">cv.reduce()</span></tt> compute different scores, accuracies, etc. For instance, <tt class="docutils literal"><span class="pre">y/test/score_precision</span></tt> denotes the precision on the test part for the prediction on <em>y</em>.</p>
+</div>
+<div class="section" id="model-selection-using-cross-validation">
+<h1>Model Selection using Cross-validation<a class="headerlink" href="#model-selection-using-cross-validation" title="Permalink to this headline">¶</a></h1>
+<p>We have several classifiers and we need to select the best classifier using the cross-validation.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Model selection using CV</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># ------------------------</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># CVBestSearchRefit</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#      Methods       (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#      /    \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM(C=1)  SVM(C=10)   Classifier (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Pipe</span><span class="p">,</span> <span class="n">CVBestSearchRefit</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># CV + Grid search of a simple classifier</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span> <span class="o">=</span> <span class="n">CVBestSearchRefit</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">10</span><span class="p">)))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">{&#39;best_params&#39;: [{&#39;C&#39;: 1, &#39;name&#39;: &#39;LinearSVC&#39;}], &#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">wf</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: CVBestSearchRefit, &#39;best_params&#39;: [{&#39;C&#39;: 1, &#39;name&#39;: &#39;LinearSVC&#39;}], &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}])</span>
+</pre></div>
+</div>
+<p>This example shows how to select model from several classifiers. <tt class="docutils literal"><span class="pre">wf.run(X=X,</span> <span class="pre">y=y)</span></tt> and <tt class="docutils literal"><span class="pre">wf.reduce()</span></tt> return the same results which are the best parameters and its prediction on <tt class="docutils literal"><span class="pre">y</span></tt> vector. A more complicated example, which select model from <tt class="docutils literal"><span class="pre">SelectKBest</span> <span class="pre">-&gt;</span> <span class="pre">LDA()</span></tt> and <tt class="docutils literal"><span class="pre">SelectKBest</span> <span class="pre">-&gt;</span> <span class="pre">SVM()</span></tt>,  is shown as below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Feature selection combined with SVM and LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># CVBestSearchRefit</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#                     Methods          (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#               /              \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#            KBest(1)         KBest(5) SelectKBest (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#              |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#            Methods                   (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#        /          \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    LDA()          SVM() ...          Classifiers (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipelines</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">),</span> <span class="n">Methods</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">SVM</span><span class="p">()))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">pipelines</span><span class="o">.</span><span class="n">walk_leaves</span><span class="p">()]</span>
+<span class="go">[Methods/SelectKBest(k=1)/Methods/LDA, Methods/SelectKBest(k=1)/Methods/LinearSVC, Methods/SelectKBest(k=5)/Methods/LDA, Methods/SelectKBest(k=5)/Methods/LinearSVC]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">best_cv</span> <span class="o">=</span> <span class="n">CVBestSearchRefit</span><span class="p">(</span><span class="n">pipelines</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">best_cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">{&#39;best_params&#39;: [{&#39;k&#39;: 1, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  1.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">best_cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: CVBestSearchRefit, &#39;best_params&#39;: [{&#39;k&#39;: 1, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 1.  0.  1.  1.  0.  0.  1.  0.  0.  0.  1.  1.]}])</span>
+</pre></div>
+</div>
+<p>We can use epac like playing &#8220;lego&#8221;. <tt class="docutils literal"><span class="pre">best_cv</span></tt> can be put in cross-validation as shown below.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Put it in an outer CV</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">best_cv</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">[{&#39;best_params&#39;: [{&#39;k&#39;: 5, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/test/pred&#39;: array([ 0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.])}, {&#39;best_params&#39;: [{&#39;k&#39;: 5, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/test/pred&#39;: array([ 0.,  0.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.]), &#39;y/test/true&#39;: array([ 1.,  0.,  1.])}, {&#39;best_params&#39;: [{&#39;k&#39;: 1, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LinearSVC&#39;}], &#39;y/test/pred&#39;: array([ 0.,  1.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  1.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.])}, {&#39;best_params&#39;: [{&#39;k&#39;: 5, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/test/pred&#39;: array([ 1.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}, {&#39;best_params&#39;: [{&#39;k&#39;: 5, &#39;name&#39;: &#39;SelectKBest&#39;}, {&#39;name&#39;: &#39;LDA&#39;}], &#39;y/test/pred&#39;: array([ 1.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.])}]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: CVBestSearchRefit, &#39;y/test/score_precision&#39;: [ 0.25  0.  ], &#39;y/test/score_recall&#39;: [ 0.33333333  0.        ], &#39;y/test/score_accuracy&#39;: 0.166666666667, &#39;y/test/score_f1&#39;: [ 0.28571429  0.        ], &#39;y/test/score_recall_mean&#39;: 0.166666666667}])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-in-parallel">
+<h1>Running in Parallel<a class="headerlink" href="#running-in-parallel" title="Permalink to this headline">¶</a></h1>
+<p>In order to take advantage of multi-cores machine, epac can be run in parallel. We can first create a epac tree as below</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Perms + Cross-validation of SVM(linear) and SVM(rbf)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># -------------------------------------</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#           Perms        Perm (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#      /     |       \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#     0      1       2   Samples (Slicer)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#            |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#           CV           CV (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#       /   |   \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#      0    1    2       Folds (Slicer)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#           |</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#        Methods         Methods (Splitter)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c">#    /           \</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># SVM(linear)  SVM(rbf)  Classifiers (Estimator)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Perms</span><span class="p">,</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">Perms</span><span class="p">(</span><span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s">&quot;linear&quot;</span><span class="p">),</span> <span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s">&quot;rbf&quot;</span><span class="p">)])))</span>
+</pre></div>
+</div>
+<p>You can use multi-processes to take advantage of multi-cores machine so that machine learning can be run more faster.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Without multi-processes</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># perms_cv_svm.run(X=X, y=y)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># perms_cv_svm.reduce()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c"># With multi-processes</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">LocalEngine</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">local_engine</span> <span class="o">=</span> <span class="n">LocalEngine</span><span class="p">(</span><span class="n">tree_root</span><span class="o">=</span><span class="n">perms_cv_svm</span><span class="p">,</span> <span class="n">num_processes</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">local_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can run your algorithms even on HPC on which DRMAA has been installed.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="c"># Run with soma-workflow for multi-processes</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sfw_engine</span> <span class="o">=</span> <span class="n">SomaWorkflowEngine</span><span class="p">(</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">tree_root</span><span class="o">=</span><span class="n">perms_cv_svm</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">num_processes</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">resource_id</span><span class="o">=</span><span class="s">&quot;jl237561@gabriel&quot;</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">login</span><span class="o">=</span><span class="s">&quot;jl237561&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">sfw_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Building Dataset</a></li>
+<li><a class="reference internal" href="#basic-units-pipe-and-methods">Basic units: Pipe and Methods</a><ul>
+<li><a class="reference internal" href="#pipe">Pipe</a></li>
+<li><a class="reference internal" href="#methods">Methods</a></li>
+<li><a class="reference internal" href="#pipe-and-methods-combination">Pipe and Methods Combination</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cross-validation">Cross-validation</a></li>
+<li><a class="reference internal" href="#model-selection-using-cross-validation">Model Selection using Cross-validation</a></li>
+<li><a class="reference internal" href="#running-in-parallel">Running in Parallel</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="introduction.html"
+                        title="previous chapter">Building epac tree</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="api.html"
+                        title="next chapter">API Documentation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/tutorials.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Building epac tree"
+             >previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Examples &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to epac’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to epac’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="examples">
+<span id="id1"></span><h1>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
+<p>In this section, we are going to show several small examples to understand epac.
+In order to build the epac tree, we first need to build X matrix (samples)
+and y vector (labels) for machine learning.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">LinearSVC</span> <span class="k">as</span> <span class="n">SVM</span>
+<span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In epac, there are two very basic elements, <em>Pipe</em> (sequential pipeline) and <em>Methods</em> (parallel methods).
+<em>Pipe</em> is used for running a sequence of nodes while <em>Method</em> is designed for parallelly run sequences of nodes.</p>
+<p>Now, we first introduce <em>Pipe</em>, which executes a sequential of BaseNode. These nodes should implement</p>
+<p>either as non-leaf node,</p>
+<ul class="simple">
+<li>fit and transform, e.g. <em>SelectKBest(k=2)</em></li>
+</ul>
+<p>or as leaf node</p>
+<ul class="simple">
+<li>fit and predict, e.g. <em>SVM()</em></li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># Build sequential Pipeline</span>
+<span class="c"># -------------------------</span>
+<span class="c"># 2  SelectKBest (Estimator)</span>
+<span class="c"># |</span>
+<span class="c"># SVM Classifier (Estimator)</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Pipe</span>
+<span class="n">pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">SVM</span><span class="p">())</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+
+<span class="c"># The downstream data-flow is a keyword arguments (dict) containing X and y.</span>
+<span class="c"># It will pass through each processing node, SelectKBest(k=2) and SVM.</span>
+<span class="c"># Each node call the &quot;transform&quot; method, that take a dictionnary as input</span>
+<span class="c"># and produces a dictionnary as output. The output is passed  to the next node.</span>
+
+<span class="c"># The return value of the run is simply agregation of the outputs (dict) of</span>
+<span class="c"># the leaf nodes</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">## Parallelization</span>
+<span class="c">## ===============</span>
+
+<span class="c"># Multi-classifiers</span>
+<span class="c"># -----------------</span>
+<span class="c">#         Methods       Methods (Splitter)</span>
+<span class="c">#        /   \</span>
+<span class="c"># SVM(C=1)  SVM(C=10)   Classifiers (Estimator)</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Methods</span>
+<span class="n">multi</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+<span class="n">multi</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">multi</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Reduce format outputs into &quot;ResultSet&quot; which is a dict-like structure</span>
+<span class="c"># which contains the &quot;keys&quot; of the methods that as beeen used.</span>
+</pre></div>
+</div>
+<p>In epac, <strong>run</strong> means the top-down process, and <strong>reduce</strong> means bottom-up process.
+All the input is defined as dictionary, for example &#8220;X=X, y=y&#8221; in pipe.run(X=X, y=y).</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#                         Methods                  Methods (Splitter)</span>
+<span class="c">#          /                        \</span>
+<span class="c"># SVM(l1, C=1)  SVM(l1, C=10)  ..... SVM(l2, C=10) Classifiers (Estimator)</span>
+<span class="n">svms</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">SVM</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">)</span> <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;l1&quot;</span><span class="p">,</span> <span class="s">&quot;l2&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">C</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">]])</span>
+<span class="n">svms</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">svms</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Parallelize sequential Pipeline: Anova(k best selection) + SVM.</span>
+<span class="c">#    Methods    Methods (Splitter)</span>
+<span class="c">#  /   |   \</span>
+<span class="c"># 1    5   10   SelectKBest (Estimator)</span>
+<span class="c"># |    |    |</span>
+<span class="c"># SVM SVM SVM   Classifiers (Estimator)</span>
+<span class="n">anovas_svm</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">),</span> <span class="n">SVM</span><span class="p">())</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
+<span class="n">anovas_svm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">anovas_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+
+<span class="c"># Cross-validation</span>
+<span class="c"># ----------------</span>
+<span class="c"># CV of LDA</span>
+<span class="c">#      CV                 (Splitter)</span>
+<span class="c">#  /   |   \</span>
+<span class="c"># 0    1    2  Folds      (Slicer)</span>
+<span class="c"># |    |</span>
+<span class="c">#   Methods               (Splitter)</span>
+<span class="c">#    /   \</span>
+<span class="c">#  LDA  SVM    Classifier (Estimator)</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">SVM</span><span class="p">()))</span>
+<span class="n">cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+
+<span class="c"># Model selection using CV</span>
+<span class="c"># ------------------------</span>
+<span class="c"># CVBestSearchRefit</span>
+<span class="c">#      Methods       (Splitter)</span>
+<span class="c">#      /    \</span>
+<span class="c"># SVM(C=1)  SVM(C=10)   Classifier (Estimator)</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Pipe</span><span class="p">,</span> <span class="n">CVBestSearchRefit</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="c"># CV + Grid search of a simple classifier</span>
+<span class="n">wf</span> <span class="o">=</span> <span class="n">CVBestSearchRefit</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">SVM</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mi">10</span><span class="p">)))</span>
+<span class="n">wf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">wf</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Feature selection combined with SVM and LDA</span>
+<span class="c"># CVBestSearchRefit</span>
+<span class="c">#                     Methods          (Splitter)</span>
+<span class="c">#               /              \</span>
+<span class="c">#            KBest(1)         KBest(5) SelectKBest (Estimator)</span>
+<span class="c">#              |</span>
+<span class="c">#            Methods                   (Splitter)</span>
+<span class="c">#        /          \</span>
+<span class="c">#    LDA()          SVM() ...          Classifiers (Estimator)</span>
+<span class="n">pipelines</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">),</span> <span class="n">Methods</span><span class="p">(</span><span class="n">LDA</span><span class="p">(),</span> <span class="n">SVM</span><span class="p">()))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">]])</span>
+<span class="k">print</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">pipelines</span><span class="o">.</span><span class="n">walk_leaves</span><span class="p">()]</span>
+<span class="n">best_cv</span> <span class="o">=</span> <span class="n">CVBestSearchRefit</span><span class="p">(</span><span class="n">pipelines</span><span class="p">)</span>
+<span class="n">best_cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">best_cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Put it in an outer CV</span>
+<span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">best_cv</span><span class="p">)</span>
+<span class="n">cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+<span class="c"># Perms + Cross-validation of SVM(linear) and SVM(rbf)</span>
+<span class="c"># -------------------------------------</span>
+<span class="c">#           Perms        Perm (Splitter)</span>
+<span class="c">#      /     |       \</span>
+<span class="c">#     0      1       2   Samples (Slicer)</span>
+<span class="c">#            |</span>
+<span class="c">#           CV           CV (Splitter)</span>
+<span class="c">#       /   |   \</span>
+<span class="c">#      0    1    2       Folds (Slicer)</span>
+<span class="c">#           |</span>
+<span class="c">#        Methods         Methods (Splitter)</span>
+<span class="c">#    /           \</span>
+<span class="c"># SVM(linear)  SVM(rbf)  Classifiers (Estimator)</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Perms</span><span class="p">,</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">Perms</span><span class="p">(</span><span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s">&quot;linear&quot;</span><span class="p">),</span> <span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s">&quot;rbf&quot;</span><span class="p">)])))</span>
+<span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+
+
+<span class="c"># Run with soma-workflow for multi-processes</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
+<span class="n">sfw_engine</span> <span class="o">=</span> <span class="n">SomaWorkflowEngine</span><span class="p">(</span>
+                    <span class="n">tree_root</span><span class="o">=</span><span class="n">perms_cv_svm</span><span class="p">,</span>
+                    <span class="n">num_processes</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                    <span class="p">)</span>
+<span class="n">perms_cv_svm</span> <span class="o">=</span> <span class="n">sfw_engine</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="n">perms_cv_svm</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to epac&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/examples.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to epac’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>
