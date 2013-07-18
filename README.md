@@ -4,16 +4,38 @@ epac
 Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow
 builder.
 
-Visit documentation of epac:
+You can build a big machine workflow :
 
-http://neurospin.github.io/pylearn-epac/
+```
 
-Main Features
--------------
+    Permutation (Perm) + Cross-validation of SVM(linear) and SVM(rbf)
+    -----------------------------------------------------------------
+              Perms        Perm (Splitter)
+         /     |       \
+        0      1       2   Samples (Slicer)
+               |
+              CV           CV (Splitter)
+          /   |   \
+         0    1    2       Folds (Slicer)
+              |
+           Methods         Methods (Splitter)
+       /           \
+    SVM(linear)  SVM(rbf)  Classifiers (Estimator)
 
-- Easily build machine learning workflow that can be executed in
-sequential or in parallel.
-- Design your own machine learning algorithm as a plug-in in epac tree.
+```
+
+using very simple codes :
+
+
+```python
+    from sklearn.svm import SVC
+    from epac import Perms, CV, Methods
+    perms_cv_svm = Perms(CV(Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")])))
+```
+
+Visit epac documentation
+http://neurospin.github.io/pylearn-epac
+
 
 Installation
 ------------
