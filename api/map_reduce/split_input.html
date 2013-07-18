@@ -8,8 +8,8 @@
     
     <title>epac.map_reduce.split_input &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,10 +20,13 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" /> 
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.worklfow.base" href="../workflow/base.html" />
+    <link rel="prev" title="epac.map_reduce.results" href="results.html" /> 
   </head>
   <body>
     <div class="related">
@@ -35,7 +38,14 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+        <li class="right" >
+          <a href="../workflow/base.html" title="epac.worklfow.base"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="results.html" title="epac.map_reduce.results"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" accesskey="U">API Documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -52,7 +62,7 @@
 &#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.map_reduce.split_input.SplitNodesInput">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.split_input.</tt><tt class="descname">SplitNodesInput</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.split_input.</tt><tt class="descname">SplitNodesInput</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/split_input.html#SplitNodesInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput" title="Permalink to this definition">¶</a></dt>
 <dd><p>Split NodesInput into a list of epac.map_reduce.NodesInput</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.tests.wfexamples2test</span> <span class="kn">import</span> <span class="n">WFExample2</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.inputs</span> <span class="kn">import</span> <span class="n">NodesInput</span>
@@ -67,7 +77,7 @@
 </div>
 <dl class="method">
 <dt id="epac.map_reduce.split_input.SplitNodesInput.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.__init__" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">__init__</tt><big>(</big><em>tree_root_node</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/split_input.html#SplitNodesInput.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>num_processes: integer
 Building a list of num_processes node_inputs.
 if num_processes is equal to -1, num_processes is set to #CPU</p>
@@ -75,7 +85,7 @@ if num_processes is equal to -1, num_processes is set to #CPU</p>
 
 <dl class="method">
 <dt id="epac.map_reduce.split_input.SplitNodesInput.split">
-<tt class="descname">split</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/split_input.html#SplitNodesInput.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.split" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">split</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/split_input.html#SplitNodesInput.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.split_input.SplitNodesInput.split" title="Permalink to this definition">¶</a></dt>
 <dd><p>nodes_input: epac.map_reduce.NodesInput</p>
 <p>list of epac.map_reduce.NodesInput in terms of self.num_processes.
 The length of this list is equal to self.num_processes</p>
@@ -91,9 +101,15 @@ The length of this list is equal to self.num_processes</p>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="results.html"
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.map_reduce.results</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../workflow/base.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.base</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/map_reduce/split_input.txt"
+    <li><a href="../../sources/api/map_reduce/split_input.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -122,7 +138,14 @@ The length of this list is equal to self.num_processes</p>
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li> 
+        <li class="right" >
+          <a href="../workflow/base.html" title="epac.worklfow.base"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="results.html" title="epac.map_reduce.results"
+             >previous</a> |</li>
+        <li><a href="../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../api.html" >API Documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

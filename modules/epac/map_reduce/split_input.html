@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.split_input &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.map_reduce.split_input</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Wed Jun 26 17:26:09 2013</span>
+
+<span class="sd">@author: jinpeng.li@cea.fr</span>
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">@author: benoit.da_mota@inria.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">epac.map_reduce.exports</span> <span class="kn">import</span> <span class="n">export_nodes2num_processes</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.inputs</span> <span class="kn">import</span> <span class="n">NodesInput</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+
+
+<span class="k">class</span> <span class="nc">SplitInput</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">map_input</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">map_input</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span>
+
+
+<div class="viewcode-block" id="SplitNodesInput"><a class="viewcode-back" href="../../../api/map_reduce/split_input.html#epac.map_reduce.split_input.SplitNodesInput">[docs]</a><span class="k">class</span> <span class="nc">SplitNodesInput</span><span class="p">(</span><span class="n">SplitInput</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Split NodesInput into a list of epac.map_reduce.NodesInput</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    &gt;&gt;&gt; from epac.tests.wfexamples2test import WFExample2</span>
+<span class="sd">    &gt;&gt;&gt; from epac.map_reduce.inputs import NodesInput</span>
+<span class="sd">    &gt;&gt;&gt; from epac.map_reduce.split_input import SplitNodesInput</span>
+<span class="sd">    &gt;&gt;&gt; tree_root_node = WFExample2().get_workflow()</span>
+<span class="sd">    &gt;&gt;&gt; nodes_input = NodesInput(tree_root_node.get_key())</span>
+<span class="sd">    &gt;&gt;&gt; split_node_input = SplitNodesInput(tree_root_node, num_processes=3)</span>
+<span class="sd">    &gt;&gt;&gt; input_list = split_node_input.split(nodes_input)</span>
+<span class="sd">    &gt;&gt;&gt; print repr(input_list)</span>
+<span class="sd">    [{&#39;Perms/Perm(nb=0)&#39;: &#39;Perms/Perm(nb=0)&#39;}, {&#39;Perms/Perm(nb=1)&#39;: &#39;Perms/Perm(nb=1)&#39;}, {&#39;Perms/Perm(nb=2)&#39;: &#39;Perms/Perm(nb=2)&#39;}]</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="SplitNodesInput.__init__"><a class="viewcode-back" href="../../../api/map_reduce/split_input.html#epac.map_reduce.split_input.SplitNodesInput.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tree_root_node</span><span class="p">,</span> <span class="n">num_processes</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        num_processes: integer</span>
+<span class="sd">        Building a list of num_processes node_inputs.</span>
+<span class="sd">        if num_processes is equal to -1, num_processes is set to #CPU</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SplitNodesInput</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tree_root_node</span> <span class="o">=</span> <span class="n">tree_root_node</span>
+        <span class="k">if</span> <span class="n">num_processes</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_processes</span> <span class="o">=</span> <span class="n">num_processes</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_processes</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="SplitNodesInput.split"><a class="viewcode-back" href="../../../api/map_reduce/split_input.html#epac.map_reduce.split_input.SplitNodesInput.split">[docs]</a>    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodes_input</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        nodes_input: epac.map_reduce.NodesInput</span>
+
+<span class="sd">        Return Value</span>
+<span class="sd">        ------------</span>
+<span class="sd">        list of epac.map_reduce.NodesInput in terms of self.num_processes.</span>
+<span class="sd">        The length of this list is equal to self.num_processes</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">dict_nodes_input</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">nodes_input</span><span class="p">:</span>
+            <span class="n">dict_out</span> <span class="o">=</span> <span class="n">export_nodes2num_processes</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tree_root_node</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">nodes_input</span><span class="p">[</span><span class="n">key</span><span class="p">]),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">num_processes</span><span class="p">)</span>
+            <span class="c">## print &quot;dict_out=&quot; + repr(dict_out)</span>
+            <span class="c">## Convert dict_out to dict of NodesInput</span>
+            <span class="k">for</span> <span class="n">key_dict_out</span> <span class="ow">in</span> <span class="n">dict_out</span><span class="p">:</span>
+                <span class="n">list_of_node_key</span> <span class="o">=</span> <span class="n">dict_out</span><span class="p">[</span><span class="n">key_dict_out</span><span class="p">]</span>
+                <span class="c"># print &quot;list_of_node_key=&quot; + repr(list_of_node_key)</span>
+                <span class="k">for</span> <span class="n">each_node_key</span> <span class="ow">in</span> <span class="n">list_of_node_key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">key_dict_out</span> <span class="ow">in</span> <span class="n">dict_nodes_input</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                        <span class="n">dict_nodes_input</span><span class="p">[</span><span class="n">key_dict_out</span><span class="p">]</span> <span class="o">=</span> \
+                                <span class="n">NodesInput</span><span class="p">(</span><span class="n">each_node_key</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">dict_nodes_input</span><span class="p">[</span><span class="n">key_dict_out</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">each_node_key</span><span class="p">)</span>
+            <span class="c"># print &quot;dict_nodes_input=&quot; + repr(dict_nodes_input)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dict_nodes_input</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dict_nodes_input</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dict_nodes_input</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_list</span>
+</div></div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

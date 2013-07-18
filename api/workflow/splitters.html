@@ -8,8 +8,8 @@
     
     <title>epac.worklfow.splitters &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,11 +20,12 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
     <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.errors" href="../errors.html" />
     <link rel="prev" title="epac.worklfow.pipeline" href="pipeline.html" /> 
   </head>
   <body>
@@ -37,6 +38,9 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="../errors.html" title="epac.errors"
+             accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="pipeline.html" title="epac.worklfow.pipeline"
              accesskey="P">previous</a> |</li>
@@ -59,7 +63,7 @@ splitter (Methods, Grid).</p>
 &#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.workflow.splitters.BaseNodeSplitter">
-<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">BaseNodeSplitter</tt><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#BaseNodeSplitter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.BaseNodeSplitter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">BaseNodeSplitter</tt><a class="reference internal" href="../../modules/epac/workflow/splitters.html#BaseNodeSplitter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.BaseNodeSplitter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Splitters are are non leaf node (degree &gt;= 1) with children.
 They split the downstream data-flow to their children.
 They agregate upstream data-flow from their children.</p>
@@ -67,13 +71,13 @@ They agregate upstream data-flow from their children.</p>
 
 <dl class="class">
 <dt id="epac.workflow.splitters.Methods">
-<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Methods</tt><big>(</big><em>*nodes</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#Methods"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Methods" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Methods</tt><big>(</big><em>*nodes</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/splitters.html#Methods"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Methods" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parallelization is based on several runs of different methods</p>
 </dd></dl>
 
 <dl class="class">
 <dt id="epac.workflow.splitters.CV">
-<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">CV</tt><big>(</big><em>node</em>, <em>n_folds=5</em>, <em>random_state=None</em>, <em>cv_type='stratified'</em>, <em>reducer=&lt;epac.map_reduce.reducers.ClassificationReport object at 0x3659150&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#CV"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.CV" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">CV</tt><big>(</big><em>node</em>, <em>n_folds=5</em>, <em>random_state=None</em>, <em>cv_type='stratified'</em>, <em>reducer=&lt;epac.map_reduce.reducers.ClassificationReport object at 0x45319d0&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/splitters.html#CV"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.CV" title="Permalink to this definition">¶</a></dt>
 <dd><p>Cross-validation parallelization.</p>
 <dl class="docutils">
 <dt>node: Node | Estimator</dt>
@@ -93,7 +97,7 @@ Default ClassificationReport() with default arguments.</dd>
 
 <dl class="class">
 <dt id="epac.workflow.splitters.Perms">
-<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Perms</tt><big>(</big><em>node</em>, <em>n_perms=100</em>, <em>permute='y'</em>, <em>random_state=None</em>, <em>reducer=&lt;epac.map_reduce.reducers.PvalPerms object at 0x36591d0&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/splitters.html#Perms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Perms" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.splitters.</tt><tt class="descname">Perms</tt><big>(</big><em>node</em>, <em>n_perms=100</em>, <em>permute='y'</em>, <em>random_state=None</em>, <em>reducer=&lt;epac.map_reduce.reducers.PvalPerms object at 0x4531a50&gt;</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/splitters.html#Perms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.splitters.Perms" title="Permalink to this definition">¶</a></dt>
 <dd><p>Permutation parallelization.</p>
 <dl class="docutils">
 <dt>node: Node | Estimator</dt>
@@ -122,10 +126,13 @@ Node: Pipe | Par*</dd>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="pipeline.html"
-                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.pipeline</span></tt></a></p>
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.worklfow.pipeline</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../errors.html"
+                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">epac.errors</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/workflow/splitters.txt"
+    <li><a href="../../sources/api/workflow/splitters.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -154,6 +161,9 @@ Node: Pipe | Par*</dd>
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="../errors.html" title="epac.errors"
+             >next</a> |</li>
         <li class="right" >
           <a href="pipeline.html" title="epac.worklfow.pipeline"
              >previous</a> |</li>

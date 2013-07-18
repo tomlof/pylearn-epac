@@ -8,8 +8,8 @@
     
     <title>epac.map_reduce.engine &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,9 +20,9 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
     <link rel="up" title="API Documentation" href="../../api.html" />
     <link rel="next" title="epac.map_reduce.mappers" href="mappers.html" />
@@ -62,7 +62,7 @@
 &#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.map_reduce.engine.LocalEngine">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">LocalEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#LocalEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.LocalEngine" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">LocalEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/engine.html#LocalEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.LocalEngine" title="Permalink to this definition">¶</a></dt>
 <dd><p>LocalEninge run function for each node of epac tree in parallel</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.engine</span> <span class="kn">import</span> <span class="n">LocalEngine</span>
@@ -103,11 +103,11 @@
 
 <dl class="class">
 <dt id="epac.map_reduce.engine.SomaWorkflowEngine">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">SomaWorkflowEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em>, <em>resource_id=''</em>, <em>login=''</em>, <em>pw=''</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.engine.</tt><tt class="descname">SomaWorkflowEngine</tt><big>(</big><em>tree_root</em>, <em>function_name='transform'</em>, <em>num_processes=-1</em>, <em>resource_id=''</em>, <em>login=''</em>, <em>pw=''</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/engine.html#SomaWorkflowEngine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using soma-workflow to run epac tree in parallel</p>
 <dl class="method">
 <dt id="epac.map_reduce.engine.SomaWorkflowEngine.run">
-<tt class="descname">run</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.run" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">run</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/engine.html#SomaWorkflowEngine.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.run" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run soma-workflow without gui</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.map_reduce.engine</span> <span class="kn">import</span> <span class="n">SomaWorkflowEngine</span>
@@ -148,13 +148,13 @@
 
 <dl class="method">
 <dt id="epac.map_reduce.engine.SomaWorkflowEngine.export_to_gui">
-<tt class="descname">export_to_gui</tt><big>(</big><em>soma_workflow_dirpath</em>, <em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.export_to_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.export_to_gui" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">export_to_gui</tt><big>(</big><em>soma_workflow_dirpath</em>, <em>**Xy</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/engine.html#SomaWorkflowEngine.export_to_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.export_to_gui" title="Permalink to this definition">¶</a></dt>
 <dd><p>see the directory of &#8220;examples/run_somaworkflow_gui.py&#8221; in epac</p>
 </dd></dl>
 
 <dl class="staticmethod">
 <dt id="epac.map_reduce.engine.SomaWorkflowEngine.load_from_gui">
-<em class="property">static </em><tt class="descname">load_from_gui</tt><big>(</big><em>soma_workflow_dirpath</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/engine.html#SomaWorkflowEngine.load_from_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.load_from_gui" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><tt class="descname">load_from_gui</tt><big>(</big><em>soma_workflow_dirpath</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/engine.html#SomaWorkflowEngine.load_from_gui"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.engine.SomaWorkflowEngine.load_from_gui" title="Permalink to this definition">¶</a></dt>
 <dd><p>Result tree can be loaded from the working directory
 (soma_workflow_dirpath).</p>
 </dd></dl>
@@ -177,7 +177,7 @@
                         title="next chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.mappers</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/map_reduce/engine.txt"
+    <li><a href="../../sources/api/map_reduce/engine.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">

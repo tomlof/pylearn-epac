@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.reducers &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.map_reduce.reducers</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Thu Mar 14 16:12:26 2013</span>
+
+<span class="sd">Reducers for EPAC</span>
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.results</span> <span class="kn">import</span> <span class="n">Result</span>
+<span class="kn">from</span> <span class="nn">epac.configuration</span> <span class="kn">import</span> <span class="n">conf</span>
+<span class="kn">from</span> <span class="nn">epac.workflow.base</span> <span class="kn">import</span> <span class="n">key_push</span><span class="p">,</span> <span class="n">key_pop</span>
+<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">precision_recall_fscore_support</span><span class="p">,</span> <span class="n">accuracy_score</span>
+
+<span class="c">## ======================================================================== ##</span>
+<span class="c">## == Reducers                                                           == ##</span>
+<span class="c">## ======================================================================== ##</span>
+
+
+<div class="viewcode-block" id="Reducer"><a class="viewcode-back" href="../../../api/map_reduce/reducers.html#epac.map_reduce.reducers.Reducer">[docs]</a><span class="k">class</span> <span class="nc">Reducer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Reducer abstract class, called within the reduce method to process</span>
+<span class="sd">    up-stream data flow of Result.</span>
+
+<span class="sd">    Inherited classes should implement reduce(result).&quot;&quot;&quot;</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reduce abstract method</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+
+<span class="sd">        result: (dict)</span>
+<span class="sd">            A result</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+</div>
+<div class="viewcode-block" id="ClassificationReport"><a class="viewcode-back" href="../../../api/map_reduce/reducers.html#epac.map_reduce.reducers.ClassificationReport">[docs]</a><span class="k">class</span> <span class="nc">ClassificationReport</span><span class="p">(</span><span class="n">Reducer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reducer that computes classification statistics.</span>
+
+<span class="sd">    select_regexp: srt</span>
+<span class="sd">      A string to select items (defaults &quot;test&quot;). It must match two items:</span>
+<span class="sd">      &quot;true/test&quot; and &quot;pred/test&quot;.</span>
+
+<span class="sd">    keep: boolean</span>
+<span class="sd">      Should other items be kept (False) into summarized results.</span>
+<span class="sd">      (default False)</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from epac import ClassificationReport</span>
+<span class="sd">    &gt;&gt;&gt; reducer = ClassificationReport()</span>
+<span class="sd">    &gt;&gt;&gt; reducer.reduce({&#39;key&#39;: &quot;SVC&quot;, &#39;y/test/pred&#39;: [0, 1, 1, 1], &#39;y/test/true&#39;: [0, 0, 1, 1]})</span>
+<span class="sd">    {&#39;key&#39;: SVC, &#39;y/test/score_accuray&#39;: 0.75, &#39;y/test/score_precision&#39;: [ 1.          0.66666667], &#39;y/test/score_recall&#39;: [ 0.5  1. ], &#39;y/test/score_f1&#39;: [ 0.66666667  0.8       ], &#39;y/test/score_recall_mean&#39;: 0.75}</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">select_regexp</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">TEST</span><span class="p">,</span>
+                 <span class="n">keep</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span> <span class="o">=</span> <span class="n">select_regexp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keep</span> <span class="o">=</span> <span class="n">keep</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span><span class="p">:</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">key3</span> <span class="k">for</span> <span class="n">key3</span> <span class="ow">in</span> <span class="n">result</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">key3</span><span class="p">))]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s">&quot;Need to find exactly two results to compute a score.&quot;</span>
+            <span class="s">&quot; Found </span><span class="si">%i</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">),</span> <span class="n">inputs</span><span class="p">))</span>
+        <span class="n">key_true</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">inputs</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">TRUE</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">key_pred</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">inputs</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">PREDICTION</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">y_true</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">key_true</span><span class="p">]</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">key_pred</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>  <span class="c"># If list of arrays (CV, LOO, etc.) concatenate them</span>
+            <span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">])</span>
+        <span class="n">p</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">f1</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">precision_recall_fscore_support</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">key_pop</span><span class="p">(</span><span class="n">key_pred</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">SCORE_PRECISION</span><span class="p">)]</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">SCORE_RECALL</span><span class="p">)]</span> <span class="o">=</span> <span class="n">r</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">SCORE_RECALL_MEAN</span><span class="p">)]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">SCORE_F1</span><span class="p">)]</span> <span class="o">=</span> <span class="n">f1</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conf</span><span class="o">.</span><span class="n">SCORE_ACCURACY</span><span class="p">)]</span> <span class="o">=</span> <span class="n">accuracy_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+</div>
+<div class="viewcode-block" id="PvalPerms"><a class="viewcode-back" href="../../../api/map_reduce/reducers.html#epac.map_reduce.reducers.PvalPerms">[docs]</a><span class="k">class</span> <span class="nc">PvalPerms</span><span class="p">(</span><span class="n">Reducer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reducer that computes p-values of stattistics.</span>
+
+<span class="sd">    select_regexp: srt</span>
+<span class="sd">      A string to select staitics (defaults &quot;.*score.+&quot;). on which to compute</span>
+<span class="sd">      p-values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">select_regexp</span><span class="o">=</span><span class="s">&#39;.*score.+&#39;</span> <span class="p">,</span>
+                 <span class="n">keep</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span> <span class="o">=</span> <span class="n">select_regexp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keep</span> <span class="o">=</span> <span class="n">keep</span>
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span><span class="p">:</span>
+            <span class="n">select_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">result</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">select_regexp</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))]</span>
+                <span class="c">#if re.search(self.select_regexp) != -1]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">select_keys</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">select_keys</span><span class="p">:</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">randm_res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">randm_res</span> <span class="o">&gt;</span> <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&quot;float&quot;</span><span class="p">)</span>
+            <span class="n">pval</span> <span class="o">=</span> <span class="n">count</span> <span class="o">/</span> <span class="p">(</span><span class="n">randm_res</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">key_push</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s">&quot;pval&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">pval</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

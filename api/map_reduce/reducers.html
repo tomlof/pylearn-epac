@@ -8,8 +8,8 @@
     
     <title>epac.map_reduce.reducers &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,11 +20,12 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
     <link rel="up" title="API Documentation" href="../../api.html" />
+    <link rel="next" title="epac.map_reduce.results" href="results.html" />
     <link rel="prev" title="epac.map_reduce.mappers" href="mappers.html" /> 
   </head>
   <body>
@@ -37,6 +38,9 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="results.html" title="epac.map_reduce.results"
+             accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="mappers.html" title="epac.map_reduce.mappers"
              accesskey="P">previous</a> |</li>
@@ -57,7 +61,7 @@
 &#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.map_reduce.reducers.Reducer">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">Reducer</tt><a class="reference internal" href="../../_modules/epac/map_reduce/reducers.html#Reducer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.Reducer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">Reducer</tt><a class="reference internal" href="../../modules/epac/map_reduce/reducers.html#Reducer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.Reducer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reducer abstract class, called within the reduce method to process
 up-stream data flow of Result.</p>
 <p>Inherited classes should implement reduce(result).</p>
@@ -65,7 +69,7 @@ up-stream data flow of Result.</p>
 
 <dl class="class">
 <dt id="epac.map_reduce.reducers.ClassificationReport">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">ClassificationReport</tt><big>(</big><em>select_regexp='test'</em>, <em>keep=False</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/reducers.html#ClassificationReport"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.ClassificationReport" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">ClassificationReport</tt><big>(</big><em>select_regexp='test'</em>, <em>keep=False</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/reducers.html#ClassificationReport"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.ClassificationReport" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reducer that computes classification statistics.</p>
 <dl class="docutils">
 <dt>select_regexp: srt</dt>
@@ -85,7 +89,7 @@ up-stream data flow of Result.</p>
 
 <dl class="class">
 <dt id="epac.map_reduce.reducers.PvalPerms">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">PvalPerms</tt><big>(</big><em>select_regexp='.*score.+'</em>, <em>keep=False</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/reducers.html#PvalPerms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.PvalPerms" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.reducers.</tt><tt class="descname">PvalPerms</tt><big>(</big><em>select_regexp='.*score.+'</em>, <em>keep=False</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/reducers.html#PvalPerms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.reducers.PvalPerms" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reducer that computes p-values of stattistics.</p>
 <dl class="docutils">
 <dt>select_regexp: srt</dt>
@@ -104,10 +108,13 @@ p-values.</dd>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="mappers.html"
-                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.mappers</span></tt></a></p>
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.map_reduce.mappers</span></tt></a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="results.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.results</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/map_reduce/reducers.txt"
+    <li><a href="../../sources/api/map_reduce/reducers.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -136,6 +143,9 @@ p-values.</dd>
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="results.html" title="epac.map_reduce.results"
+             >next</a> |</li>
         <li class="right" >
           <a href="mappers.html" title="epac.map_reduce.mappers"
              >previous</a> |</li>

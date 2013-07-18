@@ -8,8 +8,8 @@
     
     <title>epac.worklfow.estimators &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,9 +20,9 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
     <link rel="up" title="API Documentation" href="../../api.html" />
     <link rel="next" title="epac.worklfow.pipeline" href="pipeline.html" />
@@ -64,7 +64,7 @@ that implement fit and predict methods.</p>
 &#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.workflow.estimators.InternalEstimator">
-<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">InternalEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_transform=None</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/estimators.html#InternalEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.InternalEstimator" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">InternalEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_transform=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#InternalEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.InternalEstimator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Estimator Wrapper: Automatically connect estimator.fit and
 estimator.transform to BaseNode.transform.</p>
 <dl class="docutils">
@@ -131,7 +131,7 @@ use in_args_predict.</dd>
 
 <dl class="class">
 <dt id="epac.workflow.estimators.LeafEstimator">
-<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">LeafEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/estimators.html#LeafEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">LeafEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Estimator Wrapper:
 Automatically connect estimator.fit (if exist) and estimator.predict to
 BaseNode.transform.</p>
@@ -160,7 +160,7 @@ BaseNode.transform.</p>
 </div>
 <dl class="method">
 <dt id="epac.workflow.estimators.LeafEstimator.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/estimators.html#LeafEstimator.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.__init__" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">__init__</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>estimator: any class contains fit and predict functions </dt>
 <dd>any class implements fit and predict</dd>
@@ -180,7 +180,7 @@ use in_args_predict.</dd>
 
 <dl class="method">
 <dt id="epac.workflow.estimators.LeafEstimator.transform">
-<tt class="descname">transform</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/estimators.html#LeafEstimator.transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.transform" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">transform</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator.transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.transform" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>Xy: dictionary</dt>
 <dd>parameters for fit and transform</dd>
@@ -191,7 +191,7 @@ use in_args_predict.</dd>
 
 <dl class="class">
 <dt id="epac.workflow.estimators.CVBestSearchRefit">
-<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">CVBestSearchRefit</tt><big>(</big><em>node</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/epac/workflow/estimators.html#CVBestSearchRefit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.CVBestSearchRefit" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">CVBestSearchRefit</tt><big>(</big><em>node</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#CVBestSearchRefit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.CVBestSearchRefit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Cross-validation + grid-search then refit with optimals parameters.</p>
 <p>Average results over first axis, then find the arguments that maximize or
 minimise a &#8220;score&#8221; over other axis.</p>
@@ -215,13 +215,13 @@ is True.</dd>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="base.html"
-                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.base</span></tt></a></p>
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.worklfow.base</span></tt></a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="pipeline.html"
                         title="next chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.pipeline</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/workflow/estimators.txt"
+    <li><a href="../../sources/api/workflow/estimators.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">

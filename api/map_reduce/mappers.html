@@ -8,8 +8,8 @@
     
     <title>epac.map_reduce.mappers &mdash; epac 0.0.1 documentation</title>
     
-    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,9 +20,9 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="top" title="epac 0.0.1 documentation" href="../../index.html" />
     <link rel="up" title="API Documentation" href="../../api.html" />
     <link rel="next" title="epac.map_reduce.reducers" href="reducers.html" />
@@ -62,7 +62,7 @@
 &#64;author: <a class="reference external" href="mailto:benoit&#46;da_mota&#37;&#52;&#48;inria&#46;fr">benoit<span>&#46;</span>da_mota<span>&#64;</span>inria<span>&#46;</span>fr</a></p>
 <dl class="class">
 <dt id="epac.map_reduce.mappers.MapperSubtrees">
-<em class="property">class </em><tt class="descclassname">epac.map_reduce.mappers.</tt><tt class="descname">MapperSubtrees</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">epac.map_reduce.mappers.</tt><tt class="descname">MapperSubtrees</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/mappers.html#MapperSubtrees"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees" title="Permalink to this definition">¶</a></dt>
 <dd><p>The mapper runs function (usually as &#8220;transform&#8221;) for NodesInput
 which is a dictionary of nodes.</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">tempfile</span>
@@ -125,7 +125,7 @@ which is a dictionary of nodes.</p>
 </div>
 <dl class="method">
 <dt id="epac.map_reduce.mappers.MapperSubtrees.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.__init__" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">__init__</tt><big>(</big><em>Xy</em>, <em>tree_root</em>, <em>store_fs=None</em>, <em>function='transform'</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/mappers.html#MapperSubtrees.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialization for the mapper</p>
 <p>Xy:X matrix and y vertor</p>
 <dl class="docutils">
@@ -140,7 +140,7 @@ which is a dictionary of nodes.</p>
 
 <dl class="method">
 <dt id="epac.map_reduce.mappers.MapperSubtrees.map">
-<tt class="descname">map</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../_modules/epac/map_reduce/mappers.html#MapperSubtrees.map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.map" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">map</tt><big>(</big><em>nodes_input</em><big>)</big><a class="reference internal" href="../../modules/epac/map_reduce/mappers.html#MapperSubtrees.map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.map_reduce.mappers.MapperSubtrees.map" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run self.function for each sub_tree of map_input</p>
 <p>nodes_input: epac.map_reduce.inputs.NodesInput</p>
 </dd></dl>
@@ -157,13 +157,13 @@ which is a dictionary of nodes.</p>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="engine.html"
-                        title="previous chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.engine</span></tt></a></p>
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.map_reduce.engine</span></tt></a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="reducers.html"
                         title="next chapter"><tt class="docutils literal"><span class="pre">epac.map_reduce.reducers</span></tt></a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../../_sources/api/map_reduce/mappers.txt"
+    <li><a href="../../sources/api/map_reduce/mappers.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">

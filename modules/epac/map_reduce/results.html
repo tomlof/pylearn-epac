@@ -1,0 +1,274 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>epac.map_reduce.results &mdash; epac 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="top" title="epac 0.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for epac.map_reduce.results</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Fri May 17 16:37:54 2013</span>
+
+<span class="sd">@author: edouard.duchesnay@cea.fr</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Set</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.inputs</span> <span class="kn">import</span> <span class="n">ReduceInput</span>
+
+
+<div class="viewcode-block" id="ResultSet"><a class="viewcode-back" href="../../../api/map_reduce/results.html#epac.map_reduce.results.ResultSet">[docs]</a><span class="k">class</span> <span class="nc">ResultSet</span><span class="p">(</span><span class="n">Set</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;ResultSet is a set of Result</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from epac import Result, ResultSet</span>
+<span class="sd">    &gt;&gt;&gt; r1 = Result(&#39;SVC(C=1)&#39;, **dict(a=1, b=2))</span>
+<span class="sd">    &gt;&gt;&gt; r2 = Result(&#39;SVC(C=2)&#39;, **dict(a=1, b=2))</span>
+<span class="sd">    &gt;&gt;&gt; r3 = Result(&#39;SVC(C=3)&#39;, **dict(a=1, b=2))</span>
+<span class="sd">    &gt;&gt;&gt; r4 = Result(&#39;SVC(C=4)&#39;, **dict(a=1, b=2))</span>
+<span class="sd">    &gt;&gt;&gt; set1 = ResultSet(r1, r2)</span>
+<span class="sd">    &gt;&gt;&gt; set2 = ResultSet(r3, r4)</span>
+<span class="sd">    &gt;&gt;&gt; set3 = ResultSet(set1, set2)</span>
+<span class="sd">    &gt;&gt;&gt; set3.add(Result(&#39;SVC(C=5)&#39;, **dict(a=1, b=2)))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">ResultSet</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Result</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">key</span><span class="p">()</span> <span class="o">==</span> <span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">():</span>
+                <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">key</span><span class="p">()</span> <span class="o">==</span> <span class="n">key</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">res</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s">&quot;ResultSet(</span><span class="se">\n</span><span class="s">[&quot;</span>
+        <span class="n">cpt</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cpt</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">+=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">+=</span> <span class="s">&quot; &quot;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cpt</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">):</span>
+                <span class="n">s</span> <span class="o">+=</span> <span class="s">&quot;,</span><span class="se">\n</span><span class="s">&quot;</span>
+            <span class="n">cpt</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">s</span><span class="o">+</span><span class="s">&quot;])&quot;</span>
+
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Key &quot;</span><span class="si">%s</span><span class="s">&quot; already in ResultSet, do not overwrite&#39;</span> <span class="o">%</span> \
+                <span class="n">result</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="c">## FIX ME</span>
+            <span class="k">print</span> <span class="n">msg</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span>
+
+    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="Result"><a class="viewcode-back" href="../../../api/map_reduce/results.html#epac.map_reduce.results.Result">[docs]</a><span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="n">ReduceInput</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Result is a record with a &quot;key&quot;, and a &quot;payload&quot;.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+<span class="sd">    &gt;&gt;&gt; from epac import Result</span>
+<span class="sd">    &gt;&gt;&gt; r1 = Result(&#39;SVC(C=1)&#39;, **dict(a=1, b=2))</span>
+<span class="sd">    &gt;&gt;&gt; r2 = Result(key=&#39;SVC(C=10)&#39;, a=1, b=2)</span>
+<span class="sd">    &gt;&gt;&gt; r1[&quot;foo&quot;] = &quot;bar&quot;</span>
+<span class="sd">    &gt;&gt;&gt; r1[Result.SCORE, conf.TRAIN] = 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">SCORE</span> <span class="o">=</span> <span class="s">&quot;score&quot;</span>
+    <span class="n">SEP</span> <span class="o">=</span> <span class="s">&quot;_&quot;</span>
+    <span class="n">PRINT_ORDER_REGEXP</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">,</span> <span class="s">&quot;.*mean_score_te&quot;</span><span class="p">,</span> <span class="s">&quot;.*mean_score_tr&quot;</span><span class="p">,</span>
+                          <span class="s">&quot;.*score_te&quot;</span><span class="p">,</span> <span class="s">&quot;.*score_tr&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Result</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="s">&quot;key&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">payload</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s">&quot;key&quot;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;if &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">arg_name</span> <span class="o">=</span> <span class="n">Result</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">arg_name</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">arg_val</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Result</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="n">arg_name</span><span class="p">,</span> <span class="n">arg_val</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ordered_keys</span> <span class="o">=</span> <span class="n">_order_from_regexp</span><span class="p">(</span><span class="n">items</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                           <span class="n">order_regexps</span><span class="o">=</span><span class="n">Result</span><span class="o">.</span><span class="n">PRINT_ORDER_REGEXP</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s">&quot;{&quot;</span>
+        <span class="n">cpt</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">ordered_keys</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s">&quot;&#39;</span><span class="si">%s</span><span class="s">&#39;: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">cpt</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ordered_keys</span><span class="p">):</span>
+                <span class="n">s</span> <span class="o">+=</span> <span class="s">&quot;, &quot;</span>
+            <span class="n">cpt</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">s</span> <span class="o">+</span> <span class="s">&quot;}&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">cat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">parts</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Concatenate keys 3&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">SEP</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">])</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Result.stack"><a class="viewcode-back" href="../../../api/map_reduce/results.html#epac.map_reduce.results.Result.stack">[docs]</a>    <span class="k">def</span> <span class="nf">stack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stack results arguments, test that all results have the same key.</span>
+
+<span class="sd">         Example</span>
+<span class="sd">        -------</span>
+<span class="sd">        &gt;&gt;&gt; from epac import Result</span>
+<span class="sd">        &gt;&gt;&gt; r1 = Result(key=&#39;SVC(C=1)&#39;, score_te=.5, score_tr=1)</span>
+<span class="sd">        &gt;&gt;&gt; r2 = Result(key=&#39;SVC(C=1)&#39;, score_te=.25, score_tr=.75)</span>
+<span class="sd">        &gt;&gt;&gt; print Result.stack(r1, r2)</span>
+<span class="sd">        {&#39;key&#39;: SVC(C=1), &#39;score_te&#39;: [0.5, 0.25], &#39;score_tr&#39;: [1, 0.75]}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="n">stacked</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">stacked</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">stacked</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s">&quot;key&quot;</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">!=</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s">&quot;Stack results with different key&quot;</span><span class="p">)</span>
+                <span class="n">stacked</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="n">stacked</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="k">return</span> <span class="n">Result</span><span class="p">(</span><span class="o">**</span><span class="n">stacked</span><span class="p">)</span>
+</div></div>
+<span class="k">def</span> <span class="nf">_order_from_regexp</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">order_regexps</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Re-order list given regular expression listed by priorities</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; _order_from_regexp([&quot;aA&quot;, &quot;aZ&quot;, &quot;bb&quot;, &quot;bY&quot;, &quot;cZ&quot;, &quot;aY&quot;], [&quot;.*Y&quot;, &quot;.*Z&quot;])</span>
+<span class="sd">    [&#39;bY&#39;, &#39;aY&#39;, &#39;aZ&#39;, &#39;cZ&#39;, &#39;aA&#39;, &#39;bb&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">re</span>
+    <span class="n">ordered</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">order_regexp</span> <span class="ow">in</span> <span class="n">order_regexps</span><span class="p">:</span>
+        <span class="n">matched</span> <span class="o">=</span>  <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span> <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">order_regexp</span><span class="p">,</span> <span class="n">item</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">matched</span><span class="p">:</span>
+            <span class="n">ordered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">items</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="n">ordered</span> <span class="o">+=</span> <span class="n">items</span>
+    <span class="k">return</span> <span class="n">ordered</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">epac 0.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Neurospin.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>
