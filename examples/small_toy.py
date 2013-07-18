@@ -48,7 +48,6 @@ print multi.reduce()
 # which contains the "keys" of the methods that as beeen used.
 
 
-
 #                         Methods                  Methods (Splitter)
 #          /                        \
 # SVM(l1, C=1)  SVM(l1, C=10)  ..... SVM(l2, C=10) Classifiers (Estimator)
@@ -62,7 +61,7 @@ print svms.reduce()
 # 1    5   10   SelectKBest (Estimator)
 # |    |    |
 # SVM SVM SVM   Classifiers (Estimator)
-anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVM()) for k in [1, 2]])
+anovas_svm = Methods(*[Pipe(SelectKBest(k=k), SVM()) for k in [1, 5, 10]])
 anovas_svm.run(X=X, y=y)
 print anovas_svm.reduce()
 

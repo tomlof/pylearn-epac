@@ -27,7 +27,7 @@ class conf:
     SCORE_RECALL = "score_recall"
     SCORE_RECALL_MEAN = "score_recall_mean"
     SCORE_F1 = "score_f1"
-    SCORE_ACCURACY = "score_accuray"
+    SCORE_ACCURACY = "score_accuracy"
     BEST_PARAMS = "best_params"
     ML_CLASSIFICATION_MODE = None  # Set to True to force classification mode
     

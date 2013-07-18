@@ -1,13 +1,10 @@
 .. _tutorials:
 
-=========
-Tutorials
-=========
-
-In this section, we start with small examples to understand how to use epac libary. The source code of this tutorial is avaible in **./pylearn-epac/examples/small_toy.py**
 
 Building Dataset
 ================
+
+In this section, we start with small examples to understand how to use epac libary. The source code of this tutorial is avaible in **./pylearn-epac/examples/small_toy.py**
 
 In order to build the epac tree, we first need a dataset. Let's build *X* matrix (samples) and *y* vector (labels) as below.
 
@@ -25,8 +22,8 @@ In order to build the epac tree, we first need a dataset. Let's build *X* matrix
 
 In the next section, we can use *X* and *y* to run machine learning algorithm.
 
-Basic units: *Pipe* and *Methods*
-=================================
+Basic units: Pipe and Methods
+=============================
 
 In epac, there are two very basic elements, *Pipe* (sequential pipeline) and *Methods* (parallel methods). *Pipe* is used for running a sequence of nodes while *Methods* is designed for parallelly run sequences of nodes.
 
@@ -65,7 +62,7 @@ For example, we want to build a sequential machine learning process as ``{X, y} 
     [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]
 
 
-Using epac, the codes are much more simple as shown below. After building epac tree, we can call *run* which is a top-down process. The input *X* and *y* will pass from *SelectKBest* to SVM. The output of *SelectKBest* will become the input of *SVM* automatically. All the input and output are a dictionary. For example, we want to run  
+You can find that the output of ``SelectKBest(k=2)`` becomes the input of ``SVM()``. It is a sequential process. Using epac, the codes are much more simple as shown below. After building epac tree, we can call *run* which is a top-down process. The input *X* and *y* will pass from *SelectKBest* to SVM. The output of *SelectKBest* will become the input of *SVM* automatically. All the input and output are a dictionary. For example, we want to run  
 
 ::
 
@@ -177,17 +174,16 @@ In this section, we will introduce the cross-validation as codes below.
     [[{'y/test/pred': array([ 0.,  0.,  1.]), 'y/train/pred': array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), 'y/test/true': array([ 0.,  1.,  0.])}, {'y/test/pred': array([ 0.,  0.,  1.]), 'y/train/pred': array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), 'y/test/true': array([ 0.,  1.,  0.])}], [{'y/test/pred': array([ 1.,  1.,  1.]), 'y/train/pred': array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), 'y/test/true': array([ 1.,  0.,  1.])}, {'y/test/pred': array([ 0.,  1.,  1.]), 'y/train/pred': array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.]), 'y/test/true': array([ 1.,  0.,  1.])}], [{'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 1.,  0.])}, {'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 1.,  0.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 1.,  0.])}], [{'y/test/pred': array([ 0.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}, {'y/test/pred': array([ 0.,  0.]), 'y/train/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}], [{'y/test/pred': array([ 0.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}, {'y/test/pred': array([ 1.,  1.]), 'y/train/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}]]
     >>> print cv.reduce()
     ResultSet(
-    [{'key': LDA, 'y/test/score_accuray': 0.666666666667, 'y/test/score_precision': [ 0.66666667  0.66666667], 'y/test/score_recall': [ 0.66666667  0.66666667], 'y/test/score_f1': [ 0.66666667  0.66666667], 'y/test/score_recall_mean': 0.666666666667},
-     {'key': LinearSVC, 'y/test/score_accuray': 0.416666666667, 'y/test/score_precision': [ 0.42857143  0.4       ], 'y/test/score_recall': [ 0.5         0.33333333], 'y/test/score_f1': [ 0.46153846  0.36363636], 'y/test/score_recall_mean': 0.416666666667}])
+    [{'key': LDA, 'y/test/score_precision': [ 0.66666667  0.66666667], 'y/test/score_recall': [ 0.66666667  0.66666667], 'y/test/score_accuracy': 0.666666666667, 'y/test/score_f1': [ 0.66666667  0.66666667], 'y/test/score_recall_mean': 0.666666666667},
+     {'key': LinearSVC, 'y/test/score_precision': [ 0.42857143  0.4       ], 'y/test/score_recall': [ 0.5         0.33333333], 'y/test/score_accuracy': 0.416666666667, 'y/test/score_f1': [ 0.46153846  0.36363636], 'y/test/score_recall_mean': 0.416666666667}])
 
 
-``cv.run(X=X, y=y)`` run the top-down process so that we get all the results, and ``cv.reduce()`` compute different scores, accuracies, etc. For instance, ``y/test/score_precision`` denotes the precision on the test part for the prediction on *y*.
+``cv.run(X=X, y=y)`` run the top-down process so that we get all the results, and ``cv.reduce()`` compute different scores, accuracies, etc. For instance, ``y/test/score_precision`` denotes the precision on the test part for the prediction on *y*. 
 
-Model Selection  using Cross-validation
-=============================================
+Model Selection using Cross-validation
+======================================
 
 We have several classifiers and we need to select the best classifier using the cross-validation. 
-
  
 ::
 
@@ -206,65 +202,91 @@ We have several classifiers and we need to select the best classifier using the 
     ResultSet(
     [{'key': CVBestSearchRefit, 'best_params': [{'C': 1, 'name': 'LinearSVC'}], 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}]) 
 
-This example shows how to select model from several classifiers. ``wf.run(X=X, y=y)`` and ``wf.reduce()`` return the same results which are the best parameters and its prediction on ``y`` vector.  
+This example shows how to select model from several classifiers. ``wf.run(X=X, y=y)`` and ``wf.reduce()`` return the same results which are the best parameters and its prediction on ``y`` vector. A more complicated example, which select model from ``SelectKBest -> LDA()`` and ``SelectKBest -> SVM()``,  is shown as below.   
 
 ::
 
-    from epac import Pipe, CVBestSearchRefit, Methods
-    # CV + Grid search of a simple classifier
-    wf = CVBestSearchRefit(Methods(SVM(C=1), SVM(C=10)))
-    wf.run(X=X, y=y)
-    print wf.reduce()
+    >>> # Feature selection combined with SVM and LDA
+    >>> # CVBestSearchRefit
+    >>> #                     Methods          (Splitter)
+    >>> #               /              \
+    >>> #            KBest(1)         KBest(5) SelectKBest (Estimator)
+    >>> #              |
+    >>> #            Methods                   (Splitter)
+    >>> #        /          \
+    >>> #    LDA()          SVM() ...          Classifiers (Estimator)
+    >>> pipelines = Methods(*[Pipe(SelectKBest(k=k), Methods(LDA(), SVM())) for k in [1, 5]])
+    >>> print [n for n in pipelines.walk_leaves()]
+    [Methods/SelectKBest(k=1)/Methods/LDA, Methods/SelectKBest(k=1)/Methods/LinearSVC, Methods/SelectKBest(k=5)/Methods/LDA, Methods/SelectKBest(k=5)/Methods/LinearSVC]
+    >>> best_cv = CVBestSearchRefit(pipelines)
+    >>> best_cv.run(X=X, y=y)
+    {'best_params': [{'k': 1, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  1.,  1.])}
+    >>> best_cv.reduce()
+    ResultSet(
+    [{'key': CVBestSearchRefit, 'best_params': [{'k': 1, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 1.  0.  1.  1.  0.  0.  1.  0.  0.  0.  1.  1.]}])
 
+We can use epac like playing "lego". ``best_cv`` can be put in cross-validation as shown below.   
 
-
+::
  
-    # Feature selection combined with SVM and LDA
-    # CVBestSearchRefit
-    #                     Methods          (Splitter)
-    #               /              \
-    #            KBest(1)         KBest(5) SelectKBest (Estimator)
-    #              |
-    #            Methods                   (Splitter)
-    #        /          \
-    #    LDA()          SVM() ...          Classifiers (Estimator)
-    pipelines = Methods(*[Pipe(SelectKBest(k=k), Methods(LDA(), SVM())) for k in [1, 5]])
-    print [n for n in pipelines.walk_leaves()]
-    best_cv = CVBestSearchRefit(pipelines)
-    best_cv.run(X=X, y=y)
-    best_cv.reduce()
-    
-    # Put it in an outer CV
-    cv = CV(best_cv)
-    cv.run(X=X, y=y)
-    cv.reduce()
-    
-    # Perms + Cross-validation of SVM(linear) and SVM(rbf)
-    # -------------------------------------
-    #           Perms        Perm (Splitter)
-    #      /     |       \
-    #     0      1       2   Samples (Slicer)
-    #            |
-    #           CV           CV (Splitter)
-    #       /   |   \
-    #      0    1    2       Folds (Slicer)
-    #           |
-    #        Methods         Methods (Splitter)
-    #    /           \
-    # SVM(linear)  SVM(rbf)  Classifiers (Estimator)
-    
-    from sklearn.svm import SVC
-    from epac import Perms, CV, Methods
-    perms_cv_svm = Perms(CV(Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")])))
-    perms_cv_svm.run(X=X, y=y)
-    perms_cv_svm.reduce()
-    
-    
-    # Run with soma-workflow for multi-processes
-    from epac import SomaWorkflowEngine
-    sfw_engine = SomaWorkflowEngine(
-                        tree_root=perms_cv_svm,
-                        num_processes=2,
-                        )
-    perms_cv_svm = sfw_engine.run(X=X, y=y)
-    perms_cv_svm.reduce()
+    >>> # Put it in an outer CV
+    >>> cv = CV(best_cv)
+    >>> cv.run(X=X, y=y)
+    [{'best_params': [{'k': 5, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/test/pred': array([ 0.,  0.,  1.]), 'y/train/pred': array([ 1.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.]), 'y/test/true': array([ 0.,  1.,  0.])}, {'best_params': [{'k': 5, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/test/pred': array([ 0.,  0.,  0.]), 'y/train/pred': array([ 0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.]), 'y/test/true': array([ 1.,  0.,  1.])}, {'best_params': [{'k': 1, 'name': 'SelectKBest'}, {'name': 'LinearSVC'}], 'y/test/pred': array([ 0.,  1.]), 'y/train/pred': array([ 0.,  1.,  1.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/test/true': array([ 1.,  0.])}, {'best_params': [{'k': 5, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/test/pred': array([ 1.,  0.]), 'y/train/pred': array([ 0.,  0.,  1.,  1.,  0.,  0.,  1.,  0.,  0.,  1.]), 'y/test/true': array([ 0.,  1.])}, {'best_params': [{'k': 5, 'name': 'SelectKBest'}, {'name': 'LDA'}], 'y/test/pred': array([ 1.,  0.]), 'y/train/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  1.,  1.,  1.]), 'y/test/true': array([ 0.,  1.])}]
+    >>> cv.reduce()
+    ResultSet(
+    [{'key': CVBestSearchRefit, 'y/test/score_precision': [ 0.25  0.  ], 'y/test/score_recall': [ 0.33333333  0.        ], 'y/test/score_accuracy': 0.166666666667, 'y/test/score_f1': [ 0.28571429  0.        ], 'y/test/score_recall_mean': 0.166666666667}])
+
+
+Running in Parallel
+===================
+
+In order to take advantage of multi-cores machine, epac can be run in parallel. We can first create a epac tree as below
+
+::
+
+    >>> # Perms + Cross-validation of SVM(linear) and SVM(rbf)
+    >>> # -------------------------------------
+    >>> #           Perms        Perm (Splitter)
+    >>> #      /     |       \
+    >>> #     0      1       2   Samples (Slicer)
+    >>> #            |
+    >>> #           CV           CV (Splitter)
+    >>> #       /   |   \
+    >>> #      0    1    2       Folds (Slicer)
+    >>> #           |
+    >>> #        Methods         Methods (Splitter)
+    >>> #    /           \
+    >>> # SVM(linear)  SVM(rbf)  Classifiers (Estimator) 
+    >>> from sklearn.svm import SVC
+    >>> from epac import Perms, CV, Methods
+    >>> perms_cv_svm = Perms(CV(Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")])))
+
+You can use multi-processes to take advantage of multi-cores machine so that machine learning can be run more faster.
+
+::
+
+    >>> # Without multi-processes
+    >>> # perms_cv_svm.run(X=X, y=y)
+    >>> # perms_cv_svm.reduce()
+    >>> # With multi-processes
+    >>> from epac import LocalEngine
+    >>> local_engine = LocalEngine(tree_root=perms_cv_svm, num_processes=2)
+    >>> perms_cv_svm = local_engine.run(X=X, y=y)
+    >>> perms_cv_svm.reduce() 
+
+You can run your algorithms even on HPC on which DRMAA has been installed.
+
+::
+
+    >>> # Run with soma-workflow for multi-processes
+    >>> from epac import SomaWorkflowEngine
+    >>> sfw_engine = SomaWorkflowEngine(
+    >>>                     tree_root=perms_cv_svm,
+    >>>                     num_processes=2,
+    >>>                     resource_id="jl237561@gabriel",
+    >>>                     login="jl237561"
+    >>>                     )
+    >>> perms_cv_svm = sfw_engine.run(X=X, y=y)
+    >>> perms_cv_svm.reduce()
+
