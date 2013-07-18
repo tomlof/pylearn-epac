@@ -4,7 +4,7 @@ epac
 Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow
 builder.
 
-You can build a big machine workflow:
+* You can build a big machine workflow:
 
 ```
 
@@ -28,13 +28,38 @@ using very simple codes:
 
 
 ```python
+
     from sklearn.svm import SVC
     from epac import Perms, CV, Methods
     perms_cv_svm = Perms(CV(
                      Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")]),
                      n_folds=3),
                      n_perms=3)
+    perms_cv_svm.run(X=X, y=y)
+    perms_cv_svm.reduce() # get results
+
 ```
+
+
+* Run epac tree in parallel on local multi-core machine or on HPC.
+
+```python
+
+    from epac import LocalEngine
+    local_engine = LocalEngine(tree_root=perms_cv_svm, num_processes=2)
+    perms_cv_svm = local_engine.run(X=X, y=y)
+    perms_cv_svm.reduce()
+
+```
+
+* Design your own machine learning algorithm as a plug-in node in epac tree.
+
+```python
+
+    todo
+
+```
+
 
 **Installation**
 http://neurospin.github.io/pylearn-epac/installation.html
