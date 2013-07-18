@@ -42,7 +42,7 @@ http://neurospin.github.io/pylearn-epac/installation.html
 **Tutorials**
 http://neurospin.github.io/pylearn-epac/tutorials.html
 
-**documentation**
+**Documentation**
 http://neurospin.github.io/pylearn-epac
 
 
