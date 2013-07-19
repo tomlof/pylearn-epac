@@ -60,8 +60,8 @@ using very simple codes:
 
 ```
 
-Others
-------
+Important links
+---------------
 
 **Installation**
 http://neurospin.github.io/pylearn-epac/installation.html
