@@ -196,10 +196,10 @@ class Perms(BaseNodeSplitter):
 
     def transform(self, **Xy):
         # Set the slicing
-        if not "y" in Xy:
-            raise ValueError('"y" should be provided')
+        if not self.permute in Xy:
+            raise ValueError('"%s" should be provided' % self.permute)
         from epac.sklearn_plugins import Permutations
-        self._sclices = Permutations(n=Xy["y"].shape[0], n_perms=self.n_perms,
+        self._sclices = Permutations(n=Xy[self.permute].shape[0], n_perms=self.n_perms,
                                 random_state=self.random_state)
         return Xy
 
@@ -315,7 +315,7 @@ class RowSlicer(Slicer):
     ----------
     name: string
 
-    apply_on: string or list of strings
+    apply_on: string or list of strings (or None)
         The name(s) of the downstream blocs to be rescliced. If
         None, all downstream blocs are rescliced.
     """
@@ -324,7 +324,14 @@ class RowSlicer(Slicer):
         super(RowSlicer, self).__init__(signature_name, nb)
         self.slices = None
         self.n = 0  # the dimension of that array in ds should respect
-        self.apply_on = apply_on
+        if not apply_on: # None is an acceptable value here
+            self.apply_on = apply_on
+        elif isinstance(apply_on, list):
+            self.apply_on = apply_on
+        elif isinstance(apply_on, str):
+            self.apply_on = [apply_on]
+        else:
+            raise ValueError("apply_on must be a string or a list of strings or None")
 
     def set_sclices(self, slices):
         # convert as a list if required
