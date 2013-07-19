@@ -35,8 +35,8 @@ using very simple codes:
                      Methods(*[SVC(kernel="linear"), SVC(kernel="rbf")]),
                      n_folds=3),
                      n_perms=3)
-    perms_cv_svm.run(X=X, y=y)
-    perms_cv_svm.reduce() # get results
+    perms_cv_svm.run(X=X, y=y) # Top-down process: computing recognition rates, etc.
+    perms_cv_svm.reduce() # Bottom-up process: computing p-values, etc.
 
 ```
 
