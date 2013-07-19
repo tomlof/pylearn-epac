@@ -70,6 +70,6 @@ Design your own machine learning algorithm as a plug-in in epac tree.
 
 ::
 
-  Todo......
+  Todo......need to finish wrapper
 
 
