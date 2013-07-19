@@ -41,7 +41,7 @@ using very simple codes:
 ```
 
 
-* Run epac tree in parallel on local multi-core machine or on HPC.
+* Run epac tree in parallel on local multi-core machine or even on HPC using soma-workflow.
 
 ```python
 
@@ -60,6 +60,8 @@ using very simple codes:
 
 ```
 
+Others
+------
 
 **Installation**
 http://neurospin.github.io/pylearn-epac/installation.html
