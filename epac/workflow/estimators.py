@@ -21,38 +21,15 @@ from epac.map_reduce.results import ResultSet, Result
 from epac.stores import StoreMem
 from epac.configuration import conf
 from epac.map_reduce.reducers import ClassificationReport
+from epac.workflow.wrappers import Wrapper
 
 
-## ================================= ##
-## == Wrapper node for estimators == ##
-## ================================= ##
-class Estimator(BaseNode):
-    """Node that wrap estimators"""
-
-    def __init__(self, estimator):
-        super(Estimator, self).__init__()
-        self.estimator = estimator
-
-    def get_signature(self):
-        """Overload the base name method"""
-        if not self.signature_args:
-            return self.estimator.__class__.__name__
-        else:
-            args_str = ",".join([str(k) + "=" + str(self.signature_args[k])
-                             for k in self.signature_args])
-            args_str = "(" + args_str + ")"
-            return self.estimator.__class__.__name__ + args_str
-
-    def get_parameters(self):
-        return self.estimator.__dict__
-
-
-class InternalEstimator(Estimator):
-    """Estimator Wrapper: Automatically connect estimator.fit and
-    estimator.transform to BaseNode.transform.
+class InternalEstimator(Wrapper):
+    """Estimator Wrapper: Automatically connect wrapped_node.fit and
+    wrapped_node.transform to BaseNode.transform.
 
     Parameters:
-        estimator: object that implement fit and transform
+        wrapped_node: object that implement fit and transform
 
     Example
     -------
@@ -60,7 +37,7 @@ class InternalEstimator(Estimator):
     >>> from sklearn.svm import SVC
     >>> from sklearn.lda import LDA
     >>> from sklearn.feature_selection import SelectKBest
-    >>> from epac.workflow.estimators import InternalEstimator
+    >>> from epac.workflow.factory import InternalEstimator
     >>>
     >>> X, y = datasets.make_classification(n_samples=12,
     ...                                     n_features=10,
@@ -69,7 +46,7 @@ class InternalEstimator(Estimator):
     >>> Xy = dict(X=X, y=y)
     >>> internal_estimator  = InternalEstimator(SelectKBest(k=2))
     >>> internal_estimator.transform(**Xy)
-    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), 'X': array([[-0.34385368,  0.75623409],
+    {'y': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'X': array([[-0.34385368,  0.75623409],
            [ 0.19829972, -1.16389861],
            [-0.74715829,  0.86977629],
            [ 1.13162939,  0.90876519],
@@ -82,11 +59,11 @@ class InternalEstimator(Estimator):
            [ 0.12015895,  2.05996541],
            [-0.20889423,  2.05313908]])}
     """
-    def __init__(self, estimator, in_args_fit=None, in_args_transform=None):
+    def __init__(self, wrapped_node, in_args_fit=None, in_args_transform=None):
         """
         Parameters
         ----------
-        estimator: any class contains fit and transform functions
+        wrapped_node: any class contains fit and transform functions
             any class implements fit and transform
 
         in_args_fit: list of strings
@@ -97,14 +74,14 @@ class InternalEstimator(Estimator):
             names of input arguments of the tranform method. If missing,
             discover it automatically.
         """
-        if not hasattr(estimator, "fit") or not \
-            hasattr(estimator, "transform"):
-            raise ValueError("estimator should implement fit and transform")
-        super(InternalEstimator, self).__init__(estimator=estimator)
-        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
+        if not hasattr(wrapped_node, "fit") or not \
+            hasattr(wrapped_node, "transform"):
+            raise ValueError("wrapped_node should implement fit and transform")
+        super(InternalEstimator, self).__init__(wrapped_node=wrapped_node)
+        self.in_args_fit = _func_get_args_names(self.wrapped_node.fit) \
             if in_args_fit is None else in_args_fit
         self.in_args_transform = \
-            _func_get_args_names(self.estimator.transform) \
+            _func_get_args_names(self.wrapped_node.transform) \
             if in_args_transform is None else in_args_transform
 
     def transform(self, **Xy):
@@ -116,19 +93,19 @@ class InternalEstimator(Estimator):
         """
         if conf.KW_SPLIT_TRAIN_TEST in Xy:
             Xy_train, Xy_test = train_test_split(Xy)
-            res = self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            res = self.wrapped_node.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
-            Xy_out_tr = _as_dict(self.estimator.transform(
+            Xy_out_tr = _as_dict(self.wrapped_node.transform(
                         **_sub_dict(Xy_train, self.in_args_transform)),
                         keys=self.in_args_transform)
-            Xy_out_te = _as_dict(self.estimator.transform(**_sub_dict(Xy_test,
+            Xy_out_te = _as_dict(self.wrapped_node.transform(**_sub_dict(Xy_test,
                             self.in_args_transform)),
                             keys=self.in_args_transform)
             Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
-            res = self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            res = self.wrapped_node.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
-            Xy_out = _as_dict(self.estimator.transform(**_sub_dict(Xy,
+            Xy_out = _as_dict(self.wrapped_node.transform(**_sub_dict(Xy,
                                                  self.in_args_transform)),
                            keys=self.in_args_transform)
         # update ds with transformed values
@@ -146,10 +123,10 @@ class InternalEstimator(Estimator):
         return result_set
 
 
-class LeafEstimator(Estimator):
+class LeafEstimator(Wrapper):
     """Estimator Wrapper:
-    Automatically connect estimator.fit (if exist) and estimator.predict to
-    BaseNode.transform.
+    Automatically connect wrapped_node.fit and
+    wrapped_node.predict to BaseNode.transform.
 
     Example
     -------
@@ -157,7 +134,7 @@ class LeafEstimator(Estimator):
     >>> from sklearn.svm import SVC
     >>> from sklearn.lda import LDA
     >>> from sklearn.feature_selection import SelectKBest
-    >>> from epac.workflow.estimators import LeafEstimator
+    >>> from epac.workflow.factory import LeafEstimator
     >>>
     >>> X, y = datasets.make_classification(n_samples=12,
     ...                                     n_features=10,
@@ -166,22 +143,22 @@ class LeafEstimator(Estimator):
     >>> Xy = dict(X=X, y=y)
     >>> leaf_estimator  = LeafEstimator(SVC())
     >>> leaf_estimator.transform(**Xy)
-    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}
+    {'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}
     >>> print leaf_estimator.reduce()
     None
     >>> leaf_estimator.top_down(**Xy)
-    {'y': array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}
+    {'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}
     >>> print leaf_estimator.reduce()
     ResultSet(
-    [{'key': SVC, 'y': [1 0 0 1 0 0 1 0 1 1 0 1]}])
+    [{'key': SVC, 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.]}])
 
     """
-    def __init__(self, estimator, in_args_fit=None, in_args_predict=None,
+    def __init__(self, wrapped_node, in_args_fit=None, in_args_predict=None,
                  out_args_predict=None):
         '''
         Parameters
         ----------
-        estimator: any class contains fit and predict functions 
+        wrapped_node: any class contains fit and predict functions 
             any class implements fit and predict
 
         in_args_fit: list of strings
@@ -198,13 +175,13 @@ class LeafEstimator(Estimator):
             If not differences (such with PCA with fit(X) and predict(X))
             use in_args_predict.
         '''
-        if not hasattr(estimator, "fit") or not \
-            hasattr(estimator, "predict"):
-            raise ValueError("estimator should implement fit and predict")
-        super(LeafEstimator, self).__init__(estimator=estimator)
-        self.in_args_fit = _func_get_args_names(self.estimator.fit) \
+        if not hasattr(wrapped_node, "fit") or not \
+            hasattr(wrapped_node, "predict"):
+            raise ValueError("wrapped_node should implement fit and predict")
+        super(LeafEstimator, self).__init__(wrapped_node=wrapped_node)
+        self.in_args_fit = _func_get_args_names(self.wrapped_node.fit) \
             if in_args_fit is None else in_args_fit
-        self.in_args_predict = _func_get_args_names(self.estimator.predict) \
+        self.in_args_predict = _func_get_args_names(self.wrapped_node.predict) \
             if in_args_predict is None else in_args_predict
         if out_args_predict is None:
             fit_predict_diff = list(set(self.in_args_fit).difference(
@@ -228,16 +205,16 @@ class LeafEstimator(Estimator):
             Xy_train, Xy_test = train_test_split(Xy)
             Xy_out = dict()
             # Train fit
-            res = self.estimator.fit(**_sub_dict(Xy_train, self.in_args_fit))
+            res = self.wrapped_node.fit(**_sub_dict(Xy_train, self.in_args_fit))
             # Train predict
-            Xy_out_tr = _as_dict(self.estimator.predict(**_sub_dict(Xy_train,
+            Xy_out_tr = _as_dict(self.wrapped_node.predict(**_sub_dict(Xy_train,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
             Xy_out_tr = _dict_suffix_keys(Xy_out_tr,
                 suffix=conf.SEP + conf.TRAIN + conf.SEP + conf.PREDICTION)
             Xy_out.update(Xy_out_tr)
             # Test predict
-            Xy_out_te = _as_dict(self.estimator.predict(**_sub_dict(Xy_test,
+            Xy_out_te = _as_dict(self.wrapped_node.predict(**_sub_dict(Xy_test,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
             Xy_out_te = _dict_suffix_keys(Xy_out_te,
@@ -249,9 +226,9 @@ class LeafEstimator(Estimator):
                 suffix=conf.SEP + conf.TEST + conf.SEP + conf.TRUE)
             Xy_out.update(Xy_out_true)
         else:
-            res = self.estimator.fit(**_sub_dict(Xy, self.in_args_fit))
+            res = self.wrapped_node.fit(**_sub_dict(Xy, self.in_args_fit))
             # catch args_transform in ds, transform, store output in a dict
-            Xy_out = _as_dict(self.estimator.predict(**_sub_dict(Xy,
+            Xy_out = _as_dict(self.wrapped_node.predict(**_sub_dict(Xy,
                                                  self.in_args_predict)),
                            keys=self.out_args_predict)
             Xy_out = _dict_suffix_keys(Xy_out,
@@ -264,10 +241,9 @@ class LeafEstimator(Estimator):
         return Xy_out
 
     def reduce(self, store_results=True):
-        return self.load_state(name="result_set")
+        return self.load_state(name=conf.RESULT_SET)
 
-
-class CVBestSearchRefit(Estimator):
+class CVBestSearchRefit(Wrapper):
     """Cross-validation + grid-search then refit with optimals parameters.
 
     Average results over first axis, then find the arguments that maximize or
@@ -334,7 +310,7 @@ class CVBestSearchRefit(Estimator):
 
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set
-        return self.load_state(name="result_set")
+        return self.load_state(name=conf.RESULT_SET)
 
 if __name__ == "__main__":
     import doctest

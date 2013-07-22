@@ -16,7 +16,7 @@ import numpy as np
 import copy
 
 from epac.workflow.base import BaseNode, key_push, key_pop
-from epac.workflow.estimators import LeafEstimator
+from epac.workflow.factory import LeafEstimator
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
 from epac.map_reduce.reducers import ClassificationReport, PvalPerms

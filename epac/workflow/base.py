@@ -453,7 +453,7 @@ class BaseNode(object):
             Xy = ret[0] if len(ret) == 1 else ret
         else:
             result = Result(key=self.get_signature(), **Xy)
-            self.save_state(ResultSet(result), name="result_set")
+            self.save_state(ResultSet(result), name=conf.RESULT_SET)
         return Xy
 
     def get_children_top_down(self):
