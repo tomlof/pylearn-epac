@@ -6,6 +6,9 @@ Created on Mon Jul 22 14:43:15 2013
 """
 
 from epac.workflow.base import BaseNode
+from epac.utils import _func_get_args_names, train_test_merge, train_test_split
+from epac.utils import _sub_dict
+from epac.configuration import conf
 
 ## ================================= ##
 ## == Wrapper node == ##
@@ -20,13 +23,15 @@ class Wrapper(BaseNode):
     ...     def __init__(self):
     ...         self.a = 1
     ...         self.b = 2
-    ...
     ...     def transform(self, X, y):
     ...         return dict(res = x * self.a + y * self.b)
     ...
     >>> wrapper_node = Wrapper(Node2Wrap())
     >>> print wrapper_node.get_signature()
+    Node2Wrap
     >>> print wrapper_node.get_parameters()
+    {'a': 1, 'b': 2}
+
     """
 
     def __init__(self, wrapped_node):
@@ -53,8 +58,8 @@ class TransformNode(Wrapper):
     Example
     -------
 
-    >>> from epac.workflow.factory import NodeFactory
-    >>> from epac.workflow.factory import TransformNode
+    >>> from epac.workflow.wrappers import TransformNode
+    >>> from epac.utils import _func_get_args_names
     >>> class Node2Wrap:
     ...     def __init__(self):
     ...         self.a = 1
@@ -105,6 +110,9 @@ class TransformNode(Wrapper):
                             self.in_args_transform))
             Xy_out_te = self.wrapped_node.transform(**_sub_dict(Xy_test,
                             self.in_args_transform))
+            if type(Xy_out_tr) is not dict or type(Xy_out_te) is not dict:
+                raise ValueError("%s.transform should return a dictionary"
+                % (self.wrapped_node.__class__.__name__))
             Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
         else:
             # catch args_transform in ds, transform, store output in a dict
@@ -117,3 +125,7 @@ class TransformNode(Wrapper):
         # update ds with transformed values
         Xy.update(Xy_out)
         return Xy
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
