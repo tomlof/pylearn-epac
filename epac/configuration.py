@@ -29,6 +29,7 @@ class conf:
     SCORE_F1 = "score_f1"
     SCORE_ACCURACY = "score_accuracy"
     BEST_PARAMS = "best_params"
+    RESULT_SET = "result_set"
     ML_CLASSIFICATION_MODE = None  # Set to True to force classification mode
     
     @classmethod
