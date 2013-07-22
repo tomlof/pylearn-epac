@@ -319,7 +319,6 @@ class BaseNode(object):
                 found_pos = 0
                 i = 0
                 for child in curr.children:
-                    print child.get_signature()
                     if child.get_signature() == signature:
                         is_found = True
                         found_pos = i
