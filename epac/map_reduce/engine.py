@@ -125,7 +125,6 @@ class LocalEngine(Engine):
         mapper = MapperSubtrees(Xy=Xy,
                                 tree_root=self.tree_root,
                                 function=self.function_name)
-
         ## Run map processes in parallel
         ## =============================
         partial_map_process = partial(map_process, mapper=mapper)

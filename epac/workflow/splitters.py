@@ -367,8 +367,8 @@ class RowSlicer(Slicer):
                         Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set]]
             else:
                 if len(dat.shape) == 2:
-                    Xy[data_key] = dat[self.slices]
+                    Xy[data_key] = dat[self.slices, :]
                 else:
-                    Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set]]
+                    Xy[data_key] = dat[self.slices]
         return Xy
 

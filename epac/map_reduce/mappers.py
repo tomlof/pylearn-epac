@@ -126,9 +126,9 @@ class MapperSubtrees(Mapper):
         listkey = []
         for key_map_input in nodes_input:
             listkey.append(nodes_input[key_map_input])
-        common_key, _ = key_pop(os.path.commonprefix(listkey))
+        common_parent_key, _ = key_pop(os.path.commonprefix(listkey))
         common_parent = None
-        common_parent = self.tree_root.get_node(common_key)
+        common_parent = self.tree_root.get_node(common_parent_key)
         if common_parent:
             for node_root2common in common_parent.get_path_from_root():
                 node_root2common = \
@@ -143,6 +143,7 @@ class MapperSubtrees(Mapper):
             # print curr_key
             # curr_key = 'Permutations/Perm(nb=3)'
             curr_node = self.tree_root.get_node(curr_key)
+            common_parent = self.tree_root.get_node(common_parent_key)
             for node_common2curr in \
                     curr_node.get_path_from_node(common_parent):
                 if node_common2curr is common_parent:
@@ -155,7 +156,7 @@ class MapperSubtrees(Mapper):
                         self.tree_root.get_node(node_common2curr.get_key())
                 func = getattr(node_common2curr, self.function)
                 cpXy = func(**cpXy)
-            curr_node = self.tree_root.get_node(curr_node.get_key())
+            curr_node = self.tree_root.get_node(curr_key)
             # print "Recursively run from root to current node"
             if self.store_fs:
                 curr_node.store = StoreMem()

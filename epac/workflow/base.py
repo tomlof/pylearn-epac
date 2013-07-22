@@ -297,7 +297,12 @@ class BaseNode(object):
         else:
             key = self.get_key()
             parent_key = node.get_key()
-            path_key = key.replace(parent_key, "").lstrip(conf.SEP)
+            trim_key = key.strip().strip(conf.SEP).strip()
+            if(trim_key[0:len(parent_key)] == parent_key):
+                #Remove root
+                trim_key = trim_key[len(parent_key):]
+                trim_key = trim_key.lstrip(conf.SEP)
+            path_key = trim_key
             key_parts = key_split(path_key)
             #idx = len(key_parts) - 1
             curr = self
@@ -310,11 +315,20 @@ class BaseNode(object):
             yield curr
             while key_parts:
                 signature = key_parts.pop(0)
+                is_found = False
+                found_pos = 0
+                i = 0
                 for child in curr.children:
+                    print child.get_signature()
                     if child.get_signature() == signature:
+                        is_found = True
+                        found_pos = i
                         break
-                curr = child
-                yield curr
+                    i = i + 1
+                if is_found:
+                    curr = curr.children[found_pos]
+                    yield curr
+                
 
     # --------------------- #
     # -- Key             -- #
