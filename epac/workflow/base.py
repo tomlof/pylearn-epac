@@ -327,7 +327,6 @@ class BaseNode(object):
                 if is_found:
                     curr = curr.children[found_pos]
                     yield curr
-                
 
     # --------------------- #
     # -- Key             -- #
