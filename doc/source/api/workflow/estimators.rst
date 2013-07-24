@@ -5,17 +5,9 @@
 
 .. automodule:: epac.workflow.estimators
 
-  .. autoclass:: InternalEstimator
+  .. autoclass:: Estimator
 
-     .. automethod:: LeafEstimator.__init__
-
-     .. automethod:: LeafEstimator.transform
-
-  .. autoclass:: LeafEstimator
-
-     .. automethod:: LeafEstimator.__init__
-
-     .. automethod:: LeafEstimator.transform
+     .. automethod:: Estimator.transform
 
   .. autoclass:: CVBestSearchRefit
 
