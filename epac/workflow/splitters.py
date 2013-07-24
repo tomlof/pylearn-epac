@@ -16,7 +16,7 @@ import numpy as np
 import copy
 
 from epac.workflow.base import BaseNode, key_push, key_pop
-from epac.workflow.factory import LeafEstimator
+from epac.workflow.factory import NodeFactory
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
 from epac.map_reduce.reducers import ClassificationReport, PvalPerms
@@ -44,7 +44,7 @@ class BaseNodeSplitter(BaseNode):
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return results
         if not self.children:
-            return self.load_state(name="results")
+            return self.load_state(name=conf.RESULT_SET)
         # 1) Build sub-aggregates over children
         children_results = [child.reduce(store_results=False) for
             child in self.children]
@@ -60,7 +60,6 @@ class BaseNodeSplitter(BaseNode):
             # remove the head of the key
             _, key_tail = key_pop(result["key"], index=0)
             result["key"] = key_tail
-            key_tail = result["key"]
             if not key_tail in groups:
                 groups[key_tail] = list()
             groups[key_tail].append(result)
@@ -199,7 +198,7 @@ class Perms(BaseNodeSplitter):
         if not self.permute in Xy:
             raise ValueError('"%s" should be provided' % self.permute)
         from epac.sklearn_plugins import Permutations
-        self._sclices = Permutations(n=Xy[self.permute].shape[0], n_perms=self.n_perms,
+        self._sclices = Permutations(n=Xy[self.permute].shape[0],n_perms=self.n_perms,
                                 random_state=self.random_state)
         return Xy
 
@@ -211,8 +210,7 @@ class Methods(BaseNodeSplitter):
         super(Methods, self).__init__()
         for node in nodes:
             node_cp = copy.deepcopy(node)
-            node_cp = node_cp if isinstance(node_cp, BaseNode) else \
-                LeafEstimator(node_cp)
+            node_cp = NodeFactory.build(node_cp)
             self.add_child(node_cp)
         curr_nodes = self.children
         leaves_key = [l.get_key() for l in self.walk_leaves()]

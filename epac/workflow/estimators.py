@@ -24,7 +24,9 @@ from epac.map_reduce.reducers import ClassificationReport
 from epac.workflow.wrappers import Wrapper
 
 
-class InternalEstimator(Wrapper):
+
+
+class DeprecatedInternalEstimator(Wrapper):
     """Estimator Wrapper: Automatically connect wrapped_node.fit and
     wrapped_node.transform to BaseNode.transform.
 
@@ -137,7 +139,7 @@ class InternalEstimator(Wrapper):
         return Xy
 
 
-class LeafEstimator(Wrapper):
+class DeprecatedLeafEstimator(Wrapper):
     """Estimator Wrapper:
     Automatically connect wrapped_node.fit and
     wrapped_node.predict to BaseNode.transform.
@@ -253,6 +255,167 @@ class LeafEstimator(Wrapper):
                 suffix=conf.SEP + conf.TRUE)
             Xy_out.update(Xy_out_true)
         return Xy_out
+
+
+class Estimator(Wrapper):
+    """Estimator Wrapper: Automatically connect wrapped_node.fit and
+    wrapped_node.transform to BaseNode.transform
+    
+    Example
+    -------
+    >>> from sklearn import datasets
+    >>> from sklearn.svm import SVC
+    >>> from sklearn.lda import LDA
+    >>> from sklearn.feature_selection import SelectKBest
+    >>> from epac.workflow.estimators import Estimator
+    >>> X, y = datasets.make_classification(n_samples=12,
+    ...                                     n_features=10,
+    ...                                     n_informative=2,
+    ...                                     random_state=1)
+    >>> Xy = dict(X=X, y=y)
+    >>> print Xy
+    >>> internal_estimator  = InternalEstimator(SelectKBest(k=2))
+    >>> internal_estimator.transform(**Xy)
+    """
+    def __init__(self,
+                 wrapped_node,
+                 in_args_fit=None,
+                 in_args_transform=None,
+                 in_args_predict=None,
+                 out_args_predict=None):
+        """
+        Parameters
+        ----------
+        wrapped_node: any class contains fit and transform functions
+            any class implements fit and transform
+
+        in_args_fit: list of strings
+            names of input arguments of the fit method. If missing discover
+            discover it automatically.
+
+        in_args_transform: list of strings
+            names of input arguments of the tranform method. If missing,
+            discover it automatically.
+        """
+        is_fit_estimator = False
+        if hasattr(wrapped_node, "fit") and hasattr(wrapped_node, "transform"):
+            is_fit_estimator = True
+        elif hasattr(wrapped_node, "fit") and hasattr(wrapped_node, "predict"):
+            is_fit_estimator = True
+        if not is_fit_estimator:
+            raise ValueError("%s should implement fit and transform" %
+                            wrapped_node.__class__.__name__)
+        super(Estimator, self).__init__(wrapped_node=wrapped_node)
+        if in_args_fit:
+            self.in_args_fit = in_args_fit
+        else:
+            self.in_args_fit = _func_get_args_names(self.wrapped_node.fit)
+        # Internal Estimator
+        if hasattr(wrapped_node, "transform"):
+            if in_args_transform:
+                self.in_args_transform = in_args_transform
+            else:
+                self.in_args_transform = \
+                    _func_get_args_names(self.wrapped_node.transform)
+        # Leaf Estimator
+        if hasattr(wrapped_node, "predict"):
+            if in_args_predict:
+                self.in_args_predict = in_args_predict
+            else:
+                self.in_args_predict = \
+                    _func_get_args_names(self.wrapped_node.predict)
+            if out_args_predict is None:
+                fit_predict_diff = list(set(self.in_args_fit).difference(
+                                            self.in_args_predict))
+                if len(fit_predict_diff) > 0:
+                    self.out_args_predict = fit_predict_diff
+                else:
+                    self.out_args_predict = self.in_args_predict
+            else:
+                self.out_args_predict = out_args_predict
+
+    def _wrapped_node_transform(self, **Xy):
+        Xy_out = _as_dict(self.wrapped_node.transform(
+                            **_sub_dict(Xy, self.in_args_transform)),
+                            keys=self.in_args_transform)
+        return Xy_out
+
+    def _wrapped_node_predict(self, **Xy):
+        Xy_out = _as_dict(self.wrapped_node.predict(
+                            **_sub_dict(Xy, self.in_args_predict)),
+                            keys=self.out_args_predict)
+        return Xy_out
+
+    def transform(self, **Xy):
+        """
+        Parameter
+        ---------
+        Xy: dictionary
+            parameters for fit and transform
+        """
+        is_fit_predict = False
+        is_fit_transform = False
+        if (hasattr(self.wrapped_node, "transform") and
+                hasattr(self.wrapped_node, "predict")):
+            if not self.children:
+                # leaf node
+                is_fit_predict = True
+            else:
+                # internal node
+                is_fit_transform = True
+        elif hasattr(self.wrapped_node, "transform"):
+            is_fit_transform = True
+        elif hasattr(self.wrapped_node, "predict"):
+            is_fit_predict = True
+
+        if is_fit_transform:
+            if conf.KW_SPLIT_TRAIN_TEST in Xy:
+                Xy_train, Xy_test = train_test_split(Xy)
+                res = self.wrapped_node.fit(**_sub_dict(Xy_train,
+                                                        self.in_args_fit))
+                Xy_out_tr = self._wrapped_node_transform(**Xy_train)
+                Xy_out_te = self._wrapped_node_transform(**Xy_test)
+                Xy_out = train_test_merge(Xy_out_tr, Xy_out_te)
+            else:
+                res = self.wrapped_node.fit(**_sub_dict(Xy, self.in_args_fit))
+                Xy_out = self._wrapped_node_transform(**Xy)
+            # update ds with transformed values
+            Xy.update(Xy_out)
+            return Xy
+        elif is_fit_predict:
+            if conf.KW_SPLIT_TRAIN_TEST in Xy:
+                Xy_train, Xy_test = train_test_split(Xy)
+                Xy_out = dict()
+                res = self.wrapped_node.fit(**_sub_dict(Xy_train,
+                                            self.in_args_fit))
+                Xy_out_tr = self._wrapped_node_predict(**Xy_train)
+                Xy_out_tr = _dict_suffix_keys(Xy_out_tr,
+                    suffix=conf.SEP + conf.TRAIN + conf.SEP + conf.PREDICTION)
+                Xy_out.update(Xy_out_tr)
+                # Test predict
+                Xy_out_te = self._wrapped_node_predict(**Xy_test)
+                Xy_out_te = _dict_suffix_keys(Xy_out_te,
+                    suffix=conf.SEP + conf.TEST + conf.SEP + conf.PREDICTION)
+                Xy_out.update(Xy_out_te)
+                ## True test
+                Xy_test_true = _sub_dict(Xy_test, self.out_args_predict)
+                Xy_out_true = _dict_suffix_keys(Xy_test_true,
+                    suffix=conf.SEP + conf.TEST + conf.SEP + conf.TRUE)
+                Xy_out.update(Xy_out_true)
+            else:
+                res = self.wrapped_node.fit(**_sub_dict(Xy, self.in_args_fit))
+                Xy_out = self._wrapped_node_predict(**Xy)
+                Xy_out = _dict_suffix_keys(Xy_out,
+                    suffix=conf.SEP + conf.PREDICTION)
+                ## True test
+                Xy_true = _sub_dict(Xy, self.out_args_predict)
+                Xy_out_true = _dict_suffix_keys(Xy_true,
+                    suffix=conf.SEP + conf.TRUE)
+                Xy_out.update(Xy_out_true)
+            return Xy_out
+        else:
+            raise ValueError("%s should implement either transform or predict"
+                            % self.wrapped_node.__class__.__name__)
 
 
 class CVBestSearchRefit(Wrapper):
