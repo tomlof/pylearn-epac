@@ -136,16 +136,6 @@ class InternalEstimator(Wrapper):
         Xy.update(Xy_out)
         return Xy
 
-    def reduce(self, store_results=True):
-        # 1) Build sub-aggregates over children
-        children_result_set = [child.reduce(store_results=False) for
-            child in self.children]
-        result_set = ResultSet(*children_result_set)
-        # Append node signature in the keys
-        for result in result_set:
-            result["key"] = key_push(self.get_signature(), result["key"])
-        return result_set
-
 
 class LeafEstimator(Wrapper):
     """Estimator Wrapper:
@@ -200,11 +190,12 @@ class LeafEstimator(Wrapper):
         '''
         if not hasattr(wrapped_node, "fit") or not \
             hasattr(wrapped_node, "predict"):
-            raise ValueError("wrapped_node should implement fit and predict")
+            raise ValueError("%s should implement fit and predict" %
+                              wrapped_node.__class__.__name__)
         super(LeafEstimator, self).__init__(wrapped_node=wrapped_node)
         self.in_args_fit = _func_get_args_names(self.wrapped_node.fit) \
             if in_args_fit is None else in_args_fit
-        self.in_args_predict = _func_get_args_names(self.wrapped_node.predict) \
+        self.in_args_predict = _func_get_args_names(self.wrapped_node.predict)\
             if in_args_predict is None else in_args_predict
         if out_args_predict is None:
             fit_predict_diff = list(set(self.in_args_fit).difference(
@@ -262,9 +253,6 @@ class LeafEstimator(Wrapper):
                 suffix=conf.SEP + conf.TRUE)
             Xy_out.update(Xy_out_true)
         return Xy_out
-
-    def reduce(self, store_results=True):
-        return self.load_state(name=conf.RESULT_SET)
 
 
 class CVBestSearchRefit(Wrapper):

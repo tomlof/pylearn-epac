@@ -17,13 +17,39 @@ class NodeFactory:
 
     @staticmethod
     def build(node, is_leaf=True):
+        """
+
+        Parameters
+        ----------
+        node: any class
+            node to wraper which should implement methods
+            in one of below cases:
+
+        is_leaf: boolean
+            is_leaf is an option only for the classifier which implement all
+            three methods, fit, transform and predict. Because we don't know
+            if it is leaf, we need this parameter, is_leaf.
+            For example, PCA classifier in scikit-learn contains three methods.
+            It coule either non-leaf node or leaf node.
+
+        """
         if (hasattr(node, "fit")
             and hasattr(node, "transform")
-            and not is_leaf):
-            return InternalEstimator(node)
-        if (hasattr(node, "fit")
             and hasattr(node, "predict")
-            and is_leaf):
+            ):
+            # For example, PCA classifier contains three methods
+            # So we need to know if it is a leaf.
+            if is_leaf:
+                return LeafEstimator(node)
+            else:
+                return InternalEstimator(node)
+        elif (hasattr(node, "fit")
+            and hasattr(node, "transform")
+            ):
+            return InternalEstimator(node)
+        elif (hasattr(node, "fit")
+            and hasattr(node, "predict")
+            ):
             return LeafEstimator(node)
         elif hasattr(node, "transform"):
             return TransformNode(node)

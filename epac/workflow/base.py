@@ -418,26 +418,42 @@ class BaseNode(object):
     def top_down(self, **Xy):
         """Top-down data processing method
 
-            This method does nothing more that recursively call
-            parent/children func_name. Most of time, it should be re-defined.
+        This method does nothing more that recursively call
+        parent/children func_name. Most of time, it should be re-defined.
 
-            Parameters
-            ----------
-            func_name: str
-                the name of the function to be called
-            recursion: boolean
-                if True recursively call parent/children func_name. If the
-                current node is the root of the tree call the children.
-                This way the whole tree is executed.
-                If it is a leaf, then recursively call the parent before
-                being executed. This a pipeline made of the path from the
-                leaf to the root is executed.
-            **Xy: dict
-                the keyword dictionnary of data-flow
+        Parameters
+        ----------
+        func_name: str
+            the name of the function to be called
 
-            Return
-            ------
-            A dictionnary of processed data
+        recursion: boolean
+            if True recursively call parent/children func_name. If the
+            current node is the root of the tree call the children.
+            This way the whole tree is executed.
+            If it is a leaf, then recursively call the parent before
+            being executed. This a pipeline made of the path from the
+            leaf to the root is executed.
+
+        **Xy: dict
+            the keyword dictionnary of data-flow
+
+        Return
+        ------
+        A dictionnary of processed data
+
+        Example
+        -------
+        >>> from epac import Methods
+        >>> from sklearn.svm import SVC
+        >>> from sklearn import datasets
+        >>> X, y = datasets.make_classification(n_samples=12,
+        ...                                     n_features=10,
+        ...                                     n_informative=2,
+        ...                                     random_state=1)
+        >>> methods = Methods(*[SVC(C=1), SVC(C=2)])
+        >>> methods.top_down(X=X, y=y)
+        [{'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}, {'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}]
+
         """
         if conf.TRACE_TOPDOWN:
             print self.get_key()
@@ -468,13 +484,22 @@ class BaseNode(object):
 
     def initialization(self, **Xy):
         conf.init_ml(**Xy)
-        
+
     # --------------------------------------------- #
     # -- Bottum-up data-flow operations (reduce) -- #
     # --------------------------------------------- #
-    @abstractmethod
     def reduce(self, store_results=True):
-        """ Reduce abstract method"""
+        if self.children:
+            # 1) Build sub-aggregates over children
+            children_result_set = [child.reduce(store_results=False) for
+                child in self.children]
+            result_set = ResultSet(*children_result_set)
+            # Append node signature in the keys
+            for result in result_set:
+                result["key"] = key_push(self.get_signature(), result["key"])
+            return result_set
+        else:
+            return self.load_state(name=conf.RESULT_SET)
 
     # -------------------------------- #
     # -- I/O persistance operations -- #
