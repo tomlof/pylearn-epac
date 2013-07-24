@@ -85,7 +85,8 @@ class TestCV(unittest.TestCase):
 class TestPerms(unittest.TestCase):
 
     def test_perm(self):
-        X, y = datasets.make_classification(n_samples=20, n_features=5,
+        X, y = datasets.make_classification(n_samples=20,
+                                            n_features=5,
                                             n_informative=2)
         n_perms = 2
         rnd = 0
@@ -129,7 +130,8 @@ class TestPerms(unittest.TestCase):
 class TestCVBestSearchRefit(unittest.TestCase):
 
     def test_cvbestsearchrefit(self):
-        X, y = datasets.make_classification(n_samples=12, n_features=10,
+        X, y = datasets.make_classification(n_samples=12,
+                                            n_features=10,
                                             n_informative=2)
         n_folds_nested = 2
         #random_state = 0
