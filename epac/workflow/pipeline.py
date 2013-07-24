@@ -10,7 +10,7 @@ Define "Pipeline": the primitive to build sequential execution of tasks.
 ## te: test
 
 from epac.workflow.base import BaseNode
-from epac.workflow.estimators import LeafEstimator, InternalEstimator
+from epac.workflow.factory import NodeFactory
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -57,13 +57,7 @@ def Pipe(*nodes):
     prev = None
     for i in xrange(len(nodes)):
         node = nodes[i]
-        if not isinstance(node, BaseNode):
-            if i == len(nodes) - 1:
-                curr = LeafEstimator(node)
-            else:
-                curr = InternalEstimator(node)
-        else:
-            curr = node
+        curr = NodeFactory.build(node)
         if not root:
             root = curr
         else:

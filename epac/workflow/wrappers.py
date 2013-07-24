@@ -9,6 +9,9 @@ from epac.workflow.base import BaseNode
 from epac.utils import _func_get_args_names, train_test_merge, train_test_split
 from epac.utils import _sub_dict
 from epac.configuration import conf
+from epac.map_reduce.results import ResultSet
+from epac.workflow.base import key_push
+
 
 ## ================================= ##
 ## == Wrapper node == ##
@@ -121,10 +124,10 @@ class TransformNode(Wrapper):
             if type(Xy_out) is not dict:
                 raise ValueError("%s.transform should return a dictionary"
                 % (self.wrapped_node.__class__.__name__))
-
         # update ds with transformed values
         Xy.update(Xy_out)
         return Xy
+
 
 if __name__ == "__main__":
     import doctest
