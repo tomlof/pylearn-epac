@@ -4,6 +4,24 @@ epac
 Embarrassingly Parallel Array Computing: EPAC is a machine learning workflow
 builder.
 
+
+Given a database:
+ 
+```python
+
+    from sklearn import datasets
+    from sklearn.svm import LinearSVC as SVM
+    from sklearn.lda import LDA
+    from sklearn.feature_selection import SelectKBest
+    X, y = datasets.make_classification(n_samples=12,
+                                        n_features=10,
+                                        n_informative=2,
+                                        random_state=1)
+
+```
+
+
+
 * You can build a big machine workflow:
 
 ```
