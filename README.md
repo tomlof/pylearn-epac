@@ -59,7 +59,7 @@ using very simple codes:
 ```
 
 
-* Run epac tree in parallel on local multi-core machine or even on HPC using soma-workflow.
+* Run epac tree in parallel on local multi-core machine or even on HPC using [soma-workflow](https://pypi.python.org/pypi/soma-workflow "soma-workflow").
 
 ```python
 
