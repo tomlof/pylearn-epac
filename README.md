@@ -25,17 +25,17 @@ Given a database:
 
     Permutation (Perm) + Cross-validation (CV) of SVM(linear) and SVM(rbf)
     ----------------------------------------------------------------------
-             Perms         Perm (Splitter)
-         /     |       \
-        0      1       2   Samples
-               |
-              CV           CV (Splitter)
-          /   |   \
-         0    1    2       Folds
+             Perms          Perm (Splitter)
+        /     |       \
+       0      1       2     Samples
               |
-           Methods         Methods (Splitter)
+              CV            CV (Splitter)
+          /   |   \
+         0    1    2        Folds
+              |
+           Methods          Methods (Splitter)
        /           \
-    SVM(linear)  SVM(rbf)  Classifiers (Estimator)
+    SVM(linear)  SVM(rbf)   Classifiers (Estimator)
 
 ```
 
