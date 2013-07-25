@@ -20,6 +20,7 @@ X, y = datasets.make_classification(n_samples=12,
                                     n_informative=2,
                                     random_state=1)
 
+
 ## 2) Design your classifier
 ## ===========================================================================
 class MySVC:
@@ -31,6 +32,7 @@ class MySVC:
         svc.fit(X, y)
         # "transform" should return a dictionary
         return {"y/pred": svc.predict(X)}
+
 
 ## 3) Design your reducer which compute, precision, recall, f1_score, etc.
 ## ===========================================================================
@@ -53,5 +55,11 @@ my_svc2 = MySVC(C=2.0)
 two_svc = Methods(my_svc1, my_svc2)
 two_svc.reducer = MyReducer()
 
-two_svc.top_down(X=X, y=y) # top-down process to call transform
-res = two_svc.reduce() # buttom-up process to compute scores
+# top-down process to call transform
+two_svc.top_down(X=X, y=y)
+# buttom-up process to compute scores
+two_svc.reduce()
+
+## You can get below results:
+## ===========================================================================
+## [{'MySVC(C=1.0)': array([ 1.,  1.])}, {'MySVC(C=2.0)': array([ 1.,  1.])}]
