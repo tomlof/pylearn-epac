@@ -104,7 +104,8 @@ class CV(BaseNodeSplitter):
         self.slicer = RowSlicer(signature_name="CV", nb=0, apply_on=None)
         self.children = VirtualList(size=n_folds, parent=self)
         self.slicer.parent = self
-        subtree = node if isinstance(node, BaseNode) else LeafEstimator(node)
+        subtree = NodeFactory.build(node)
+        # subtree = node if isinstance(node, BaseNode) else LeafEstimator(node)
         self.slicer.add_child(subtree)
 
     def move_to_child(self, nb):
@@ -176,7 +177,8 @@ class Perms(BaseNodeSplitter):
         self.slicer = RowSlicer(signature_name="Perm", nb=0, apply_on=permute)
         self.children = VirtualList(size=n_perms, parent=self)
         self.slicer.parent = self
-        subtree = node if isinstance(node, BaseNode) else LeafEstimator(node)
+        subtree = NodeFactory.build(node)
+        # subtree = node if isinstance(node, BaseNode) else LeafEstimator(node)
         self.slicer.add_child(subtree)
 
     def move_to_child(self, nb):

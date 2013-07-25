@@ -24,8 +24,6 @@ from epac.map_reduce.reducers import ClassificationReport
 from epac.workflow.wrappers import Wrapper
 
 
-
-
 class Estimator(Wrapper):
     """Estimator Wrapper: Automatically connect wrapped_node.fit and
     wrapped_node.transform to BaseNode.transform
