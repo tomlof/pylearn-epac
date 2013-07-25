@@ -55,7 +55,7 @@ using very simple codes:
 
 ```
 
-Therefore you can get results like:
+Then you can get results like:
 
 ```
 ResultSet(

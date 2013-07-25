@@ -248,6 +248,8 @@ class Methods(BaseNodeSplitter):
         children_results = [child.reduce(store_results=False) for
             child in self.children]
         results = ResultSet(*children_results)
+        if self.reducer:
+            return self.reducer.reduce(results)
         return results
 
 # -------------------------------- #

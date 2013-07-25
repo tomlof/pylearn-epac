@@ -2,7 +2,8 @@
 """
 Created on Mon Jul 22 14:43:15 2013
 
-@author: jinpeng
+@author: jinpeng.li@cea.fr
+
 """
 
 from epac.workflow.base import BaseNode
