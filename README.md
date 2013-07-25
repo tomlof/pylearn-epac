@@ -55,6 +55,15 @@ using very simple codes:
 
 ```
 
+Therefore you can get results like:
+
+```
+ResultSet(
+[{'key': SVC(kernel=linear), 'y/test/score_f1': [ 0.5  0.5], 'y/test/score_recall_mean/pval': [ 0.5], 'y/test/score_recall/pval': [ 0.5  0.5], 'y/test/score_accuracy/pval': [ 0.5], 'y/test/score_f1/pval': [ 0.5  0.5], 'y/test/score_precision/pval': [ 0.5  0.5], 'y/test/score_precision': [ 0.5  0.5], 'y/test/score_recall': [ 0.5  0.5], 'y/test/score_accuracy': 0.5, 'y/test/score_recall_mean': 0.5},
+ {'key': SVC(kernel=rbf), 'y/test/score_f1': [ 0.5  0.5], 'y/test/score_recall_mean/pval': [ 1.], 'y/test/score_recall/pval': [ 0.  1.], 'y/test/score_accuracy/pval': [ 1.], 'y/test/score_f1/pval': [ 1.  1.], 'y/test/score_precision/pval': [ 1.  1.], 'y/test/score_precision': [ 0.5  0.5], 'y/test/score_recall': [ 0.5  0.5], 'y/test/score_accuracy': 0.5, 'y/test/score_recall_mean': 0.5}])
+```
+
+
 
 * Run epac tree in parallel on local multi-core machine or even on HPC using [soma-workflow](https://pypi.python.org/pypi/soma-workflow "soma-workflow").
 
@@ -66,15 +75,6 @@ using very simple codes:
     perms_cv_svm.reduce()
 
 ```
-
-Therefore you can get results like:
-
-```
-ResultSet(
-[{'key': SVC(kernel=linear), 'y/test/score_f1': [ 0.5  0.5], 'y/test/score_recall_mean/pval': [ 0.5], 'y/test/score_recall/pval': [ 0.5  0.5], 'y/test/score_accuracy/pval': [ 0.5], 'y/test/score_f1/pval': [ 0.5  0.5], 'y/test/score_precision/pval': [ 0.5  0.5], 'y/test/score_precision': [ 0.5  0.5], 'y/test/score_recall': [ 0.5  0.5], 'y/test/score_accuracy': 0.5, 'y/test/score_recall_mean': 0.5},
- {'key': SVC(kernel=rbf), 'y/test/score_f1': [ 0.5  0.5], 'y/test/score_recall_mean/pval': [ 1.], 'y/test/score_recall/pval': [ 0.  1.], 'y/test/score_accuracy/pval': [ 1.], 'y/test/score_f1/pval': [ 1.  1.], 'y/test/score_precision/pval': [ 1.  1.], 'y/test/score_precision': [ 0.5  0.5], 'y/test/score_recall': [ 0.5  0.5], 'y/test/score_accuracy': 0.5, 'y/test/score_recall_mean': 0.5}])
-```
-
 
 * Design your own machine learning algorithm as a plug-in node in epac tree.
 
