@@ -147,7 +147,8 @@ class SomaWorkflowEngine(LocalEngine):
                  num_processes=-1,
                  resource_id="",
                  login="",
-                 pw=""):
+                 pw="",
+                 need_rm_done_wf=True):
         super(SomaWorkflowEngine, self).__init__(
                         tree_root=tree_root,
                         function_name=function_name,
@@ -157,6 +158,7 @@ class SomaWorkflowEngine(LocalEngine):
         self.resource_id = resource_id
         self.login = login
         self.pw = pw
+        self.need_rm_done_wf = need_rm_done_wf
 
     def _save_job_list(self,
                         working_directory,
@@ -293,7 +295,8 @@ class SomaWorkflowEngine(LocalEngine):
         Helper.transfer_input_files(wf_id, controller)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
+        if self.need_rm_done_wf:
+            controller.delete_workflow(wf_id)
         ## read result tree
         ## ================
         self.tree_root = store.load()
