@@ -80,9 +80,11 @@ ResultSet(
 
 ```python
 
-    from epac.map_reduce.reducers import Reducer
-    from epac import Methods
     from sklearn.metrics import precision_recall_fscore_support
+    from sklearn.svm import SVC
+    from epac.map_reduce.reducers import Reducer 
+    from epac import Methods
+    
 
     ## 1) Design your classifier
     ## =========================
