@@ -78,6 +78,7 @@ def do_all(options):
 #                        num_processes=options.n_cores,
 #                        resource_id="jl237561@gabriel",
 #                        login="jl237561")
+    # You can use soma_workflow_gui to track your progress
     wf = sfw_engine.run(X=X, y=y)
     print "Time ellapsed, fit predict:",  time.time() - time_fit_predict
     time_reduce = time.time()
