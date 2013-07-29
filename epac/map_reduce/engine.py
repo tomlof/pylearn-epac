@@ -223,7 +223,7 @@ class SomaWorkflowEngine(LocalEngine):
         >>> ## Build SomaWorkflowEngine and run function for each node
         >>> ## =======================================================
         >>> sfw_engine = SomaWorkflowEngine(tree_root=tree_root_node,
-        ...                                 function_name="trasform",
+        ...                                 function_name="transform",
         ...                                 num_processes=3)
         >>> tree_root_node = sfw_engine.run(**Xy)
 
