@@ -80,6 +80,10 @@ ResultSet(
 
 ```python
 
+    from epac.map_reduce.reducers import Reducer
+    from epac import Methods
+    from sklearn.metrics import precision_recall_fscore_support
+
     ## 1) Design your classifier
     ## =========================
     class MySVC:
@@ -117,7 +121,7 @@ ResultSet(
 
 ```
 
-You can get below results:
+You can get results:
 [{'MySVC(C=1.0)': array([ 1.,  1.])}, {'MySVC(C=2.0)': array([ 1.,  1.])}]
 
 Important links
