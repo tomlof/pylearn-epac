@@ -125,9 +125,7 @@ class TransformNode(Wrapper):
             if type(Xy_out) is not dict:
                 raise ValueError("%s.transform should return a dictionary"
                 % (self.wrapped_node.__class__.__name__))
-        # update ds with transformed values
-        Xy.update(Xy_out)
-        return Xy
+        return Xy_out
 
 
 if __name__ == "__main__":

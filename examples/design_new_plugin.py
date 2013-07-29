@@ -26,12 +26,11 @@ X, y = datasets.make_classification(n_samples=12,
 class MySVC:
     def __init__(self, C=1.0):
         self.C = C
-
     def transform(self, X, y):
         svc = SVC(C=self.C)
         svc.fit(X, y)
         # "transform" should return a dictionary
-        return {"y/pred": svc.predict(X)}
+        return {"y/pred": svc.predict(X), "y": y}
 
 
 ## 3) Design your reducer which compute, precision, recall, f1_score, etc.
