@@ -108,11 +108,14 @@ ResultSet(
                  pred_list.append({res['key']: recall})
              return pred_list
 
-     ## 3) run with Methods
-     ## ===================
+     ## 3) Build a tree, and then compute results 
+     ## =========================================
      my_svc1 = MySVC(C=1.0)
      my_svc2 = MySVC(C=2.0)
      two_svc = Methods(my_svc1, my_svc2)
+     #           Methods
+     #          /      \
+     # MySVC(C=1.0)  MySVC(C=2.0)
      two_svc.reducer = MyReducer()
      # top-down process to call transform
      two_svc.top_down(X=X, y=y)
