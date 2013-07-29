@@ -85,7 +85,6 @@ ResultSet(
     class MySVC:
         def __init__(self, C=1.0):
             self.C = C
-
         def transform(self, X, y):
             svc = SVC(C=self.C)
             svc.fit(X, y)
@@ -105,26 +104,21 @@ ResultSet(
                  pred_list.append({res['key']: recall})
              return pred_list
 
-
      ## 3) run with Methods
-     ## ===========================================================================
+     ## ===================
      my_svc1 = MySVC(C=1.0)
      my_svc2 = MySVC(C=2.0)
-     
      two_svc = Methods(my_svc1, my_svc2)
      two_svc.reducer = MyReducer()
-     
      # top-down process to call transform
      two_svc.top_down(X=X, y=y)
      # buttom-up process to compute scores
      two_svc.reduce()
-     
-     ## You can get below results:
-     ## ===========================================================================
-     ## [{'MySVC(C=1.0)': array([ 1.,  1.])}, {'MySVC(C=2.0)': array([ 1.,  1.])}]
-
 
 ```
+
+You can get below results:
+[{'MySVC(C=1.0)': array([ 1.,  1.])}, {'MySVC(C=2.0)': array([ 1.,  1.])}]
 
 Important links
 ---------------
