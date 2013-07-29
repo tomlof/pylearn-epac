@@ -113,10 +113,10 @@ ResultSet(
      my_svc1 = MySVC(C=1.0)
      my_svc2 = MySVC(C=2.0)
      two_svc = Methods(my_svc1, my_svc2)
+     two_svc.reducer = MyReducer()
      #           Methods
      #          /      \
-     # MySVC(C=1.0)  MySVC(C=2.0)
-     two_svc.reducer = MyReducer()
+     # MySVC(C=1.0)  MySVC(C=2.0) 
      # top-down process to call transform
      two_svc.top_down(X=X, y=y)
      # buttom-up process to compute scores
