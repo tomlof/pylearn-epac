@@ -148,7 +148,8 @@ class SomaWorkflowEngine(LocalEngine):
                  resource_id="",
                  login="",
                  pw="",
-                 need_rm_done_wf=True):
+                 remove_finished_wf=True,
+                 remove_local_tree=True):
         super(SomaWorkflowEngine, self).__init__(
                         tree_root=tree_root,
                         function_name=function_name,
@@ -158,7 +159,8 @@ class SomaWorkflowEngine(LocalEngine):
         self.resource_id = resource_id
         self.login = login
         self.pw = pw
-        self.need_rm_done_wf = need_rm_done_wf
+        self.remove_finished_wf = remove_finished_wf
+        self.remove_local_tree  = remove_local_tree
 
     def _save_job_list(self,
                         working_directory,
@@ -295,13 +297,13 @@ class SomaWorkflowEngine(LocalEngine):
         Helper.transfer_input_files(wf_id, controller)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        if self.need_rm_done_wf:
+        if self.remove_finished_wf:
             controller.delete_workflow(wf_id)
         ## read result tree
         ## ================
         self.tree_root = store.load()
         os.chdir(cur_work_dir)
-        if os.path.isdir(tmp_work_dir_path):
+        if os.path.isdir(tmp_work_dir_path) and self.remove_local_tree:
             shutil.rmtree(tmp_work_dir_path)
         return self.tree_root
 
