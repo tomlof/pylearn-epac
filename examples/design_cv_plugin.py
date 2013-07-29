@@ -12,7 +12,11 @@ from epac.map_reduce.reducers import Reducer
 from epac import Methods
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.cross_validation import StratifiedKFold
-
+from epac.workflow.splitters import BaseNodeSplitter
+from epac.workflow.base import BaseNode
+from epac import Pipe
+from epac.workflow.factory import NodeFactory
+import copy
 
 
 ## 1) Build dataset
@@ -25,15 +29,57 @@ X, y = datasets.make_classification(n_samples=12,
 
 ## 2) Design your classifier
 ## ===========================================================================
-class MySVC:
+class MyCVSVC:
     def __init__(self, C=1.0):
         self.C = C
-
-    def transform(self, X, y):
+    def transform(self, X_train, y_train, X_test, y_test):
         svc = SVC(C=self.C)
-        svc.fit(X, y)
-        # "transform" should return a dictionary
-        return {"y/pred": svc.predict(X)}
+        svc.fit(X_train, y_train)
+        y_train_pred = svc.predict(X_train)
+        y_test_pred = svc.predict(X_test)
+        return {"y/train/pred": y_train_pred, "y/train/true": y_test,
+                "y/test/pred": y_test_pred, "y/test/true": y_test}
+
+
+class MyTrainTestCV(BaseNode):
+    def __init__(self, i_flods=0, train_index=0, test_index=0):
+        super(MyTrainTestCV, self).__init__()
+        self.train_index = train_index
+        self.test_index = test_index
+        self.i_flods = i_flods
+        self.signature_args = repr(i_flods)
+        self.signature_name = "CV"
+    def transform(self, X, y):
+        X_train = X[self.train_index]
+        y_train = y[self.train_index]
+        X_test = X[self.test_index]
+        y_test = y[self.test_index]
+        return dict(X_train=X_train, y_train=y_train,
+                    X_test=X_test, y_test=y_test)
+    def get_parameters(self):
+        return dict(i_flods=self.i_flods)
+    def get_signature(self):
+        """Overload the base name method: use self.signature_name"""
+        return self.signature_name + \
+            "(nb=" + str(self.signature_args) + ")"
+    def get_signature_args(self):
+        """overried get_signature_args to return a copy"""
+        return copy.copy(self.signature_args)
+
+
+class MyCV(BaseNodeSplitter):
+    def __init__(self, node, y, n_flods=2):
+        super(MyCV, self).__init__()
+        node = NodeFactory.build(node)
+        skf = StratifiedKFold(y, n_flods)
+        i_flods = 0
+        for train_index, test_index in skf:
+            cp_node = copy.copy(node)
+            cp_node.__init__(i_flods, train_index, test_index)
+            self.add_child(cp_node)
+            i_flods = i_flods + 1
+    def transform(self, X, y):
+        return dict(X=X, y=y)
 
 
 ## 3) Design your reducer which compute, precision, recall, f1_score, etc.
@@ -49,34 +95,21 @@ class MyReducer(Reducer):
             pred_list.append({res['key']: recall})
         return pred_list
 
-
-class MyTrainTestCV:
-    def __init__(self, i_flods, ):
-        pass
-
-
-class MyCV:
-    def __init__(self, i_flods, train_samples, test_samples):
-        self.i_flods = 0
-        self.train_samples = train_samples
-        self.test_samples = test_samples
-
-    def transform(self, X, y):
-        return dict(X=X[self.train_samples], y=y[self.train_samples])
-
-
 ## 4) run with Methods
 ## ===========================================================================
-my_svc1 = MySVC(C=1.0)
-my_svc2 = MySVC(C=2.0)
+my_svc1 = MyCVSVC(C=1.0)
+my_svc2 = MyCVSVC(C=2.0)
 
-two_svc = Methods(my_svc1, my_svc2)
-two_svc.reducer = MyReducer()
+two_svc = Pipe(MyTrainTestCV(), Methods(my_svc1, my_svc2))
+cv_two_svc = MyCV(two_svc, y, n_flods=2)
+
+for leaf in cv_two_svc.walk_leaves():
+    print leaf
 
 # top-down process to call transform
-two_svc.top_down(X=X, y=y)
+cv_two_svc.top_down(X=X, y=y)
 # buttom-up process to compute scores
-two_svc.reduce()
+cv_two_svc.reduce()
 
 
 ## You can get below results:

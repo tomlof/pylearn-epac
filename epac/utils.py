@@ -45,6 +45,7 @@ def _list_union_inter_diff(*lists):
 def _list_indices(l, val):
     return [i for i in xrange(len(l)) if l[i] == val]
 
+
 def dict_diff(*dicts):
     """Find the differences in a dictionaries
 
