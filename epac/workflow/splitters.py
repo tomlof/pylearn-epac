@@ -44,7 +44,7 @@ class BaseNodeSplitter(BaseNode):
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return results
         if not self.children:
-            return self.load_state(name=conf.RESULT_SET)
+            return self.load_results()
         # 1) Build sub-aggregates over children
         children_results = [child.reduce(store_results=False) for
             child in self.children]

@@ -7,12 +7,15 @@ Base Workflow node plus keys manipulation utilities.
 
 import re
 import sys
-import numpy as np
-from abc import abstractmethod
 import ast
+import numpy as np
+import warnings
+from abc import abstractmethod
+
 from epac.stores import StoreMem
 from epac.configuration import conf, debug
 from epac.map_reduce.results import ResultSet, Result
+
 
 
 ## ================================= ##
@@ -469,7 +472,7 @@ class BaseNode(object):
             Xy = ret[0] if len(ret) == 1 else ret
         else:
             result = Result(key=self.get_signature(), **Xy)
-            self.save_state(ResultSet(result), name=conf.RESULT_SET)
+            self.save_results(ResultSet(result))
         return Xy
 
     def get_children_top_down(self):
@@ -499,17 +502,29 @@ class BaseNode(object):
                 result["key"] = key_push(self.get_signature(), result["key"])
             return result_set
         else:
-            return self.load_state(name=conf.RESULT_SET)
+            return self.load_results()
 
     # -------------------------------- #
     # -- I/O persistance operations -- #
     # -------------------------------- #
+    def save_results(self, results):
+        """ Save ResultSet
+        """
+        store = self.get_store()
+        store.save(key_push(self.get_key(), conf.RESULT_SET), results)
+
+    def load_results(self):
+        """ Load ResultSet
+        """
+        return self.get_store().load(key_push(self.get_key(), conf.RESULT_SET))
 
     def save_state(self, state, name="default"):
+        warnings.warn("deprecated save_state", DeprecationWarning)
         store = self.get_store()
         store.save(key_push(self.get_key(), name), state)
 
     def load_state(self, name="default"):
+        warnings.warn("deprecated load_state", DeprecationWarning)
         return self.get_store(name=name).load(key_push(self.get_key(), name))
 
     def save_tree(self, store):

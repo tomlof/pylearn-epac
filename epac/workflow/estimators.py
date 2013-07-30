@@ -311,7 +311,7 @@ class CVBestSearchRefit(Wrapper):
 
     def reduce(self, store_results=True):
         # Terminaison (leaf) node return result_set
-        return self.load_state(name=conf.RESULT_SET)
+        return self.load_results()
 
 if __name__ == "__main__":
     import doctest

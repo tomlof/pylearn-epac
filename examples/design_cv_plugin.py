@@ -2,9 +2,13 @@
 """
 Created on Fri Jul 26 14:59:37 2013
 
+
+Still working on. It is not finished.
+
 @author: jinpeng.li@cea.fr
 
 """
+
 
 from sklearn import datasets
 from sklearn.svm import SVC
