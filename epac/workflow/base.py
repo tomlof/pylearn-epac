@@ -516,7 +516,8 @@ class BaseNode(object):
     def load_results(self):
         """ Load ResultSet
         """
-        return self.get_store().load(key_push(self.get_key(), conf.RESULT_SET))
+        return self.get_store(name=conf.RESULT_SET).load(
+                    key_push(self.get_key(), conf.RESULT_SET))
 
     def save_state(self, state, name="default"):
         warnings.warn("deprecated save_state", DeprecationWarning)
