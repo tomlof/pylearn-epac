@@ -122,6 +122,9 @@ class LocalEngine(Engine):
         split_node_input = SplitNodesInput(self.tree_root,
                                            num_processes=self.num_processes)
         input_list = split_node_input.split(node_input)
+        if len(input_list) == 1:
+            self.tree_root.run(**Xy)
+            return self.tree_root
         mapper = MapperSubtrees(Xy=Xy,
                                 tree_root=self.tree_root,
                                 function=self.function_name)
