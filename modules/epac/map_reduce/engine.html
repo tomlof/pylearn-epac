@@ -174,7 +174,6 @@
         <span class="n">mapper</span> <span class="o">=</span> <span class="n">MapperSubtrees</span><span class="p">(</span><span class="n">Xy</span><span class="o">=</span><span class="n">Xy</span><span class="p">,</span>
                                 <span class="n">tree_root</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="p">,</span>
                                 <span class="n">function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">function_name</span><span class="p">)</span>
-
         <span class="c">## Run map processes in parallel</span>
         <span class="c">## =============================</span>
         <span class="n">partial_map_process</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">map_process</span><span class="p">,</span> <span class="n">mapper</span><span class="o">=</span><span class="n">mapper</span><span class="p">)</span>
@@ -273,7 +272,7 @@
 <span class="sd">        &gt;&gt;&gt; ## Build SomaWorkflowEngine and run function for each node</span>
 <span class="sd">        &gt;&gt;&gt; ## =======================================================</span>
 <span class="sd">        &gt;&gt;&gt; sfw_engine = SomaWorkflowEngine(tree_root=tree_root_node,</span>
-<span class="sd">        ...                                 function_name=&quot;trasform&quot;,</span>
+<span class="sd">        ...                                 function_name=&quot;transform&quot;,</span>
 <span class="sd">        ...                                 num_processes=3)</span>
 <span class="sd">        &gt;&gt;&gt; tree_root_node = sfw_engine.run(**Xy)</span>
 

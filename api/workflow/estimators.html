@@ -63,124 +63,57 @@ that implement fit and predict methods.</p>
 <p>&#64;author: <a class="reference external" href="mailto:edouard&#46;duchesnay&#37;&#52;&#48;cea&#46;fr">edouard<span>&#46;</span>duchesnay<span>&#64;</span>cea<span>&#46;</span>fr</a>
 &#64;author: <a class="reference external" href="mailto:jinpeng&#46;li&#37;&#52;&#48;cea&#46;fr">jinpeng<span>&#46;</span>li<span>&#64;</span>cea<span>&#46;</span>fr</a></p>
 <dl class="class">
-<dt id="epac.workflow.estimators.InternalEstimator">
-<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">InternalEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_transform=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#InternalEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.InternalEstimator" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimator Wrapper: Automatically connect estimator.fit and
-estimator.transform to BaseNode.transform.</p>
-<dl class="docutils">
-<dt>Parameters:</dt>
-<dd>estimator: object that implement fit and transform</dd>
-</dl>
-<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<dt id="epac.workflow.estimators.Estimator">
+<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">Estimator</tt><big>(</big><em>wrapped_node</em>, <em>in_args_fit=None</em>, <em>in_args_transform=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#Estimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.Estimator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Estimator Wrapper: Automatically connect wrapped_node.fit and
+wrapped_node.transform to BaseNode.transform</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">InternalEstimator</span>
-<span class="go">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
-<span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">internal_estimator</span>  <span class="o">=</span> <span class="n">InternalEstimator</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">internal_estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
-<span class="go">{&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), &#39;X&#39;: array([[-0.34385368,  0.75623409],</span>
-<span class="go">       [ 0.19829972, -1.16389861],</span>
-<span class="go">       [-0.74715829,  0.86977629],</span>
-<span class="go">       [ 1.13162939,  0.90876519],</span>
-<span class="go">       [ 0.23009474, -0.68017257],</span>
-<span class="go">       [ 0.16003707, -1.55458039],</span>
-<span class="go">       [ 0.40349164,  1.38791468],</span>
-<span class="go">       [-1.11731035,  0.23476552],</span>
-<span class="go">       [ 1.19891788,  0.0888684 ],</span>
-<span class="go">       [-0.75439794, -0.90039992],</span>
-<span class="go">       [ 0.12015895,  2.05996541],</span>
-<span class="go">       [-0.20889423,  2.05313908]])}</span>
-</pre></div>
-</div>
-<dl class="method">
-<dt id="epac.workflow.estimators.InternalEstimator.LeafEstimator.__init__">
-<tt class="descclassname">LeafEstimator.</tt><tt class="descname">__init__</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="headerlink" href="#epac.workflow.estimators.InternalEstimator.LeafEstimator.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>estimator: any class contains fit and predict functions </dt>
-<dd>any class implements fit and predict</dd>
-<dt>in_args_fit: list of strings</dt>
-<dd>names of input arguments of the fit method. If missing discover
-discover it automatically.</dd>
-<dt>in_args_predict: list of strings</dt>
-<dd>names of input arguments of the predict method. If missing,
-discover it automatically.</dd>
-<dt>out_args_predict: list of strings</dt>
-<dd>names of output arguments of the predict method. If missing,
-discover it automatically by self.in_args_fit - in_args_predict.
-If not differences (such with PCA with fit(X) and predict(X))
-use in_args_predict.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="epac.workflow.estimators.InternalEstimator.LeafEstimator.transform">
-<tt class="descclassname">LeafEstimator.</tt><tt class="descname">transform</tt><big>(</big><em>**Xy</em><big>)</big><a class="headerlink" href="#epac.workflow.estimators.InternalEstimator.LeafEstimator.transform" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Xy: dictionary</dt>
-<dd>parameters for fit and transform</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="epac.workflow.estimators.LeafEstimator">
-<em class="property">class </em><tt class="descclassname">epac.workflow.estimators.</tt><tt class="descname">LeafEstimator</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator" title="Permalink to this definition">¶</a></dt>
-<dd><p>Estimator Wrapper:
-Automatically connect estimator.fit (if exist) and estimator.predict to
-BaseNode.transform.</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.lda</span> <span class="kn">import</span> <span class="n">LDA</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.feature_selection</span> <span class="kn">import</span> <span class="n">SelectKBest</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">LeafEstimator</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Pipe</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">CV</span><span class="p">,</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">Estimator</span>
 <span class="go">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
 <span class="gp">... </span>                                    <span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">... </span>                                    <span class="n">n_informative</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+<span class="gp">... </span>                                    <span class="n">random_state</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">Xy</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">leaf_estimator</span>  <span class="o">=</span> <span class="n">LeafEstimator</span><span class="p">(</span><span class="n">SVC</span><span class="p">())</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">leaf_estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
-<span class="go">{&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">leaf_estimator</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
-<span class="go">None</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">leaf_estimator</span><span class="o">.</span><span class="n">top_down</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
-<span class="go">{&#39;y&#39;: array([1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1])}</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">leaf_estimator</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">lda_estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">LDA</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">lda_estimator</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">{&#39;y/true&#39;: array([ 1.,  0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.]), &#39;y/pred&#39;: array([ 1.,  1.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">(</span><span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">7</span><span class="p">),</span> <span class="n">lda_estimator</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">{&#39;y/true&#39;: array([ 1.,  0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.]), &#39;y/pred&#39;: array([ 1.,  1.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe2</span> <span class="o">=</span> <span class="n">Pipe</span><span class="p">(</span><span class="n">lda_estimator</span><span class="p">,</span> <span class="n">SVC</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe2</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">{&#39;y/true&#39;: array([ 1.,  0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.]), &#39;y/pred&#39;: array([ 1.,  1.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,</span>
+<span class="go">        1.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">pipe</span><span class="p">,</span> <span class="n">SVC</span><span class="p">()),</span> <span class="n">n_folds</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">[[{&#39;y/test/pred&#39;: array([ 1.,  0.,  1.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  1.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.,  0.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.,  0.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  1.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.,  0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.]), &#39;y/train/pred&#39;: array([ 1.,  1.,  1.,  0.,  0.,  0.,  0.,  1.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  0.,  1.])}, {&#39;y/test/pred&#39;: array([ 1.,  0.,  0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  0.,  0.,  1.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 0.,  0.,  0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  1.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  1.,  1.])}]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
 <span class="go">ResultSet(</span>
-<span class="go">[{&#39;key&#39;: SVC, &#39;y&#39;: [1 0 0 1 0 0 1 0 1 1 0 1]}])</span>
+<span class="go">[{&#39;key&#39;: SelectKBest/LDA/SVC, &#39;y/test/score_precision&#39;: [ 0.5         0.42857143], &#39;y/test/score_recall&#39;: [ 0.5         0.42857143], &#39;y/test/score_accuracy&#39;: 0.466666666667, &#39;y/test/score_f1&#39;: [ 0.5         0.42857143], &#39;y/test/score_recall_mean&#39;: 0.464285714286},</span>
+<span class="go"> {&#39;key&#39;: SVC, &#39;y/test/score_precision&#39;: [ 0.7  0.8], &#39;y/test/score_recall&#39;: [ 0.875       0.57142857], &#39;y/test/score_accuracy&#39;: 0.733333333333, &#39;y/test/score_f1&#39;: [ 0.77777778  0.66666667], &#39;y/test/score_recall_mean&#39;: 0.723214285714}])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv2</span> <span class="o">=</span> <span class="n">CV</span><span class="p">(</span><span class="n">Methods</span><span class="p">(</span><span class="n">pipe2</span><span class="p">,</span> <span class="n">SVC</span><span class="p">()),</span> <span class="n">n_folds</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv2</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
+<span class="go">[[{&#39;y/test/pred&#39;: array([ 1.,  1.,  1.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  1.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.,  0.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.,  0.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  1.,  0.,  0.,  0.,  0.,  1.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 0.,  1.,  0.,  0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 1.,  1.,  1.,  1.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  0.,  0.,  1.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  0.,  1.])}, {&#39;y/test/pred&#39;: array([ 1.,  0.,  0.,  0.,  1.]), &#39;y/train/pred&#39;: array([ 1.,  0.,  1.,  0.,  0.,  0.,  0.,  1.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  0.,  1.])}], [{&#39;y/test/pred&#39;: array([ 0.,  1.,  0.,  0.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  1.,  1.])}, {&#39;y/test/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.]), &#39;y/train/pred&#39;: array([ 0.,  1.,  1.,  0.,  0.,  0.,  0.,  0.,  1.,  1.]), &#39;y/test/true&#39;: array([ 1.,  0.,  0.,  1.,  1.])}]]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cv2</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: LDA/SVC, &#39;y/test/score_precision&#39;: [ 0.25        0.36363636], &#39;y/test/score_recall&#39;: [ 0.125       0.57142857], &#39;y/test/score_accuracy&#39;: 0.333333333333, &#39;y/test/score_f1&#39;: [ 0.16666667  0.44444444], &#39;y/test/score_recall_mean&#39;: 0.348214285714},</span>
+<span class="go"> {&#39;key&#39;: SVC, &#39;y/test/score_precision&#39;: [ 0.7  0.8], &#39;y/test/score_recall&#39;: [ 0.875       0.57142857], &#39;y/test/score_accuracy&#39;: 0.733333333333, &#39;y/test/score_f1&#39;: [ 0.77777778  0.66666667], &#39;y/test/score_recall_mean&#39;: 0.723214285714}])</span>
 </pre></div>
 </div>
 <dl class="method">
-<dt id="epac.workflow.estimators.LeafEstimator.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>estimator</em>, <em>in_args_fit=None</em>, <em>in_args_predict=None</em>, <em>out_args_predict=None</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>estimator: any class contains fit and predict functions </dt>
-<dd>any class implements fit and predict</dd>
-<dt>in_args_fit: list of strings</dt>
-<dd>names of input arguments of the fit method. If missing discover
-discover it automatically.</dd>
-<dt>in_args_predict: list of strings</dt>
-<dd>names of input arguments of the predict method. If missing,
-discover it automatically.</dd>
-<dt>out_args_predict: list of strings</dt>
-<dd>names of output arguments of the predict method. If missing,
-discover it automatically by self.in_args_fit - in_args_predict.
-If not differences (such with PCA with fit(X) and predict(X))
-use in_args_predict.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="epac.workflow.estimators.LeafEstimator.transform">
-<tt class="descname">transform</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#LeafEstimator.transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.LeafEstimator.transform" title="Permalink to this definition">¶</a></dt>
+<dt id="epac.workflow.estimators.Estimator.transform">
+<tt class="descname">transform</tt><big>(</big><em>**Xy</em><big>)</big><a class="reference internal" href="../../modules/epac/workflow/estimators.html#Estimator.transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#epac.workflow.estimators.Estimator.transform" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>Xy: dictionary</dt>
 <dd>parameters for fit and transform</dd>
@@ -203,6 +136,30 @@ minimise a &#8220;score&#8221; over other axis.</p>
 <dd>True/False take parameters that maximize/minimize the score. Default
 is True.</dd>
 </dl>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">datasets</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Methods</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">epac.workflow.estimators</span> <span class="kn">import</span> <span class="n">CVBestSearchRefit</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">make_classification</span><span class="p">(</span><span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">n_features</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">n_informative</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">n_folds_nested</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">C_values</span> <span class="o">=</span> <span class="p">[</span><span class="o">.</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;linear&quot;</span><span class="p">,</span> <span class="s">&quot;rbf&quot;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">methods</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">SVC</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">C</span> <span class="ow">in</span> <span class="n">C_values</span> <span class="k">for</span> <span class="n">kernel</span> <span class="ow">in</span> <span class="n">kernels</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span> <span class="o">=</span> <span class="n">CVBestSearchRefit</span><span class="p">(</span><span class="n">methods</span><span class="p">,</span> <span class="n">n_folds</span><span class="o">=</span><span class="n">n_folds_nested</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">{&#39;best_params&#39;: [{&#39;kernel&#39;: &#39;linear&#39;, &#39;C&#39;: 2, &#39;name&#39;: &#39;SVC&#39;}], &#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="go">{&#39;best_params&#39;: [{&#39;kernel&#39;: &#39;linear&#39;, &#39;C&#39;: 2, &#39;name&#39;: &#39;SVC&#39;}], &#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wf</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+<span class="go">ResultSet(</span>
+<span class="go">[{&#39;key&#39;: CVBestSearchRefit, &#39;best_params&#39;: [{&#39;kernel&#39;: &#39;linear&#39;, &#39;C&#39;: 2, &#39;name&#39;: &#39;SVC&#39;}], &#39;y/true&#39;: [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], &#39;y/pred&#39;: [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}])</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </div>
@@ -215,7 +172,7 @@ is True.</dd>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="base.html"
-                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal docutils literal"><span class="pre">epac.worklfow.base</span></tt></a></p>
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">epac.worklfow.base</span></tt></a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="pipeline.html"
                         title="next chapter"><tt class="docutils literal"><span class="pre">epac.worklfow.pipeline</span></tt></a></p>

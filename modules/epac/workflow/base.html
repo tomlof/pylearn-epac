@@ -346,7 +346,12 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
             <span class="n">parent_key</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
-            <span class="n">path_key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">parent_key</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span><span class="p">)</span>
+            <span class="n">trim_key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">trim_key</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">parent_key</span><span class="p">)]</span> <span class="o">==</span> <span class="n">parent_key</span><span class="p">):</span>
+                <span class="c">#Remove root</span>
+                <span class="n">trim_key</span> <span class="o">=</span> <span class="n">trim_key</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">parent_key</span><span class="p">):]</span>
+                <span class="n">trim_key</span> <span class="o">=</span> <span class="n">trim_key</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">SEP</span><span class="p">)</span>
+            <span class="n">path_key</span> <span class="o">=</span> <span class="n">trim_key</span>
             <span class="n">key_parts</span> <span class="o">=</span> <span class="n">key_split</span><span class="p">(</span><span class="n">path_key</span><span class="p">)</span>
             <span class="c">#idx = len(key_parts) - 1</span>
             <span class="n">curr</span> <span class="o">=</span> <span class="bp">self</span>
@@ -359,11 +364,18 @@
             <span class="k">yield</span> <span class="n">curr</span>
             <span class="k">while</span> <span class="n">key_parts</span><span class="p">:</span>
                 <span class="n">signature</span> <span class="o">=</span> <span class="n">key_parts</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">is_found</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">found_pos</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
                 <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">curr</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">child</span><span class="o">.</span><span class="n">get_signature</span><span class="p">()</span> <span class="o">==</span> <span class="n">signature</span><span class="p">:</span>
+                        <span class="n">is_found</span> <span class="o">=</span> <span class="bp">True</span>
+                        <span class="n">found_pos</span> <span class="o">=</span> <span class="n">i</span>
                         <span class="k">break</span>
-                <span class="n">curr</span> <span class="o">=</span> <span class="n">child</span>
-                <span class="k">yield</span> <span class="n">curr</span>
+                    <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">is_found</span><span class="p">:</span>
+                    <span class="n">curr</span> <span class="o">=</span> <span class="n">curr</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="n">found_pos</span><span class="p">]</span>
+                    <span class="k">yield</span> <span class="n">curr</span>
 
     <span class="c"># --------------------- #</span>
     <span class="c"># -- Key             -- #</span>
@@ -455,26 +467,42 @@
 <div class="viewcode-block" id="BaseNode.top_down"><a class="viewcode-back" href="../../../api/workflow/base.html#epac.workflow.base.BaseNode.top_down">[docs]</a>    <span class="k">def</span> <span class="nf">top_down</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Top-down data processing method</span>
 
-<span class="sd">            This method does nothing more that recursively call</span>
-<span class="sd">            parent/children func_name. Most of time, it should be re-defined.</span>
+<span class="sd">        This method does nothing more that recursively call</span>
+<span class="sd">        parent/children func_name. Most of time, it should be re-defined.</span>
 
-<span class="sd">            Parameters</span>
-<span class="sd">            ----------</span>
-<span class="sd">            func_name: str</span>
-<span class="sd">                the name of the function to be called</span>
-<span class="sd">            recursion: boolean</span>
-<span class="sd">                if True recursively call parent/children func_name. If the</span>
-<span class="sd">                current node is the root of the tree call the children.</span>
-<span class="sd">                This way the whole tree is executed.</span>
-<span class="sd">                If it is a leaf, then recursively call the parent before</span>
-<span class="sd">                being executed. This a pipeline made of the path from the</span>
-<span class="sd">                leaf to the root is executed.</span>
-<span class="sd">            **Xy: dict</span>
-<span class="sd">                the keyword dictionnary of data-flow</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        func_name: str</span>
+<span class="sd">            the name of the function to be called</span>
 
-<span class="sd">            Return</span>
-<span class="sd">            ------</span>
-<span class="sd">            A dictionnary of processed data</span>
+<span class="sd">        recursion: boolean</span>
+<span class="sd">            if True recursively call parent/children func_name. If the</span>
+<span class="sd">            current node is the root of the tree call the children.</span>
+<span class="sd">            This way the whole tree is executed.</span>
+<span class="sd">            If it is a leaf, then recursively call the parent before</span>
+<span class="sd">            being executed. This a pipeline made of the path from the</span>
+<span class="sd">            leaf to the root is executed.</span>
+
+<span class="sd">        **Xy: dict</span>
+<span class="sd">            the keyword dictionnary of data-flow</span>
+
+<span class="sd">        Return</span>
+<span class="sd">        ------</span>
+<span class="sd">        A dictionnary of processed data</span>
+
+<span class="sd">        Example</span>
+<span class="sd">        -------</span>
+<span class="sd">        &gt;&gt;&gt; from epac import Methods</span>
+<span class="sd">        &gt;&gt;&gt; from sklearn.svm import SVC</span>
+<span class="sd">        &gt;&gt;&gt; from sklearn import datasets</span>
+<span class="sd">        &gt;&gt;&gt; X, y = datasets.make_classification(n_samples=12,</span>
+<span class="sd">        ...                                     n_features=10,</span>
+<span class="sd">        ...                                     n_informative=2,</span>
+<span class="sd">        ...                                     random_state=1)</span>
+<span class="sd">        &gt;&gt;&gt; methods = Methods(*[SVC(C=1), SVC(C=2)])</span>
+<span class="sd">        &gt;&gt;&gt; methods.top_down(X=X, y=y)</span>
+<span class="sd">        [{&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}, {&#39;y/true&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), &#39;y/pred&#39;: array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.])}]</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">conf</span><span class="o">.</span><span class="n">TRACE_TOPDOWN</span><span class="p">:</span>
             <span class="k">print</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_key</span><span class="p">()</span>
@@ -490,7 +518,7 @@
             <span class="n">Xy</span> <span class="o">=</span> <span class="n">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">ret</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_signature</span><span class="p">(),</span> <span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">save_state</span><span class="p">(</span><span class="n">ResultSet</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s">&quot;result_set&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_state</span><span class="p">(</span><span class="n">ResultSet</span><span class="p">(</span><span class="n">result</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">RESULT_SET</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Xy</span>
 </div>
     <span class="k">def</span> <span class="nf">get_children_top_down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -505,13 +533,22 @@
 
     <span class="k">def</span> <span class="nf">initialization</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">Xy</span><span class="p">):</span>
         <span class="n">conf</span><span class="o">.</span><span class="n">init_ml</span><span class="p">(</span><span class="o">**</span><span class="n">Xy</span><span class="p">)</span>
-        
+
     <span class="c"># --------------------------------------------- #</span>
     <span class="c"># -- Bottum-up data-flow operations (reduce) -- #</span>
     <span class="c"># --------------------------------------------- #</span>
-    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store_results</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Reduce abstract method&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+            <span class="c"># 1) Build sub-aggregates over children</span>
+            <span class="n">children_result_set</span> <span class="o">=</span> <span class="p">[</span><span class="n">child</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store_results</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span> <span class="k">for</span>
+                <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">]</span>
+            <span class="n">result_set</span> <span class="o">=</span> <span class="n">ResultSet</span><span class="p">(</span><span class="o">*</span><span class="n">children_result_set</span><span class="p">)</span>
+            <span class="c"># Append node signature in the keys</span>
+            <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">result_set</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key_push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_signature</span><span class="p">(),</span> <span class="n">result</span><span class="p">[</span><span class="s">&quot;key&quot;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">result_set</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_state</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">conf</span><span class="o">.</span><span class="n">RESULT_SET</span><span class="p">)</span>
 
     <span class="c"># -------------------------------- #</span>
     <span class="c"># -- I/O persistance operations -- #</span>

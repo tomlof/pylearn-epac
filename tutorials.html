@@ -296,6 +296,55 @@ In the next section, we will introduce reducers, for instance, Cross-validation.
 </pre></div>
 </div>
 </div>
+<div class="section" id="design-your-own-plug-in">
+<h1>Design your own plug-in<a class="headerlink" href="#design-your-own-plug-in" title="Permalink to this headline">¶</a></h1>
+<p>Design your own machine learning algorithm as a plug-in in epac tree.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">precision_recall_fscore_support</span>
+<span class="kn">from</span> <span class="nn">sklearn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="kn">from</span> <span class="nn">epac.map_reduce.reducers</span> <span class="kn">import</span> <span class="n">Reducer</span>
+<span class="kn">from</span> <span class="nn">epac</span> <span class="kn">import</span> <span class="n">Methods</span>
+
+
+<span class="c">## 1) Design your classifier</span>
+<span class="c">## =========================</span>
+<span class="k">class</span> <span class="nc">MySVC</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">C</span> <span class="o">=</span> <span class="n">C</span>
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">svc</span> <span class="o">=</span> <span class="n">SVC</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">C</span><span class="p">)</span>
+        <span class="n">svc</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="c"># &quot;transform&quot; should return a dictionary</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&quot;y/pred&quot;</span><span class="p">:</span> <span class="n">svc</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="s">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">}</span>
+
+<span class="c">## 2) Design your reducer which recall rate</span>
+<span class="c">## ========================================</span>
+<span class="k">class</span> <span class="nc">MyReducer</span><span class="p">(</span><span class="n">Reducer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="n">pred_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c"># iterate all the results of each classifier</span>
+        <span class="c"># then you can design you own reducer!</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">precision</span><span class="p">,</span> <span class="n">recall</span><span class="p">,</span> <span class="n">f1_score</span><span class="p">,</span> <span class="n">support</span> <span class="o">=</span> \
+                    <span class="n">precision_recall_fscore_support</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="s">&#39;y/pred&#39;</span><span class="p">])</span>
+            <span class="n">pred_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="n">res</span><span class="p">[</span><span class="s">&#39;key&#39;</span><span class="p">]:</span> <span class="n">recall</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">pred_list</span>
+
+<span class="c">## 3) Build a tree, and then compute results</span>
+<span class="c">## =========================================</span>
+<span class="n">my_svc1</span> <span class="o">=</span> <span class="n">MySVC</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">my_svc2</span> <span class="o">=</span> <span class="n">MySVC</span><span class="p">(</span><span class="n">C</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+<span class="n">two_svc</span> <span class="o">=</span> <span class="n">Methods</span><span class="p">(</span><span class="n">my_svc1</span><span class="p">,</span> <span class="n">my_svc2</span><span class="p">)</span>
+<span class="n">two_svc</span><span class="o">.</span><span class="n">reducer</span> <span class="o">=</span> <span class="n">MyReducer</span><span class="p">()</span>
+<span class="c">#           Methods</span>
+<span class="c">#          /      \</span>
+<span class="c"># MySVC(C=1.0)  MySVC(C=2.0)</span>
+<span class="c"># top-down process to call transform</span>
+<span class="n">two_svc</span><span class="o">.</span><span class="n">top_down</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+<span class="c"># buttom-up process to compute scores</span>
+<span class="n">two_svc</span><span class="o">.</span><span class="n">reduce</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 
 
           </div>
@@ -315,6 +364,7 @@ In the next section, we will introduce reducers, for instance, Cross-validation.
 <li><a class="reference internal" href="#cross-validation">Cross-validation</a></li>
 <li><a class="reference internal" href="#model-selection-using-cross-validation">Model Selection using Cross-validation</a></li>
 <li><a class="reference internal" href="#running-in-parallel">Running in Parallel</a></li>
+<li><a class="reference internal" href="#design-your-own-plug-in">Design your own plug-in</a></li>
 </ul>
 
   <h4>Previous topic</h4>

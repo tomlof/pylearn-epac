@@ -175,9 +175,9 @@
         <span class="n">listkey</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">key_map_input</span> <span class="ow">in</span> <span class="n">nodes_input</span><span class="p">:</span>
             <span class="n">listkey</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nodes_input</span><span class="p">[</span><span class="n">key_map_input</span><span class="p">])</span>
-        <span class="n">common_key</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">key_pop</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">commonprefix</span><span class="p">(</span><span class="n">listkey</span><span class="p">))</span>
+        <span class="n">common_parent_key</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">key_pop</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">commonprefix</span><span class="p">(</span><span class="n">listkey</span><span class="p">))</span>
         <span class="n">common_parent</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="n">common_parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">common_key</span><span class="p">)</span>
+        <span class="n">common_parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">common_parent_key</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">common_parent</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">node_root2common</span> <span class="ow">in</span> <span class="n">common_parent</span><span class="o">.</span><span class="n">get_path_from_root</span><span class="p">():</span>
                 <span class="n">node_root2common</span> <span class="o">=</span> \
@@ -192,6 +192,7 @@
             <span class="c"># print curr_key</span>
             <span class="c"># curr_key = &#39;Permutations/Perm(nb=3)&#39;</span>
             <span class="n">curr_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">curr_key</span><span class="p">)</span>
+            <span class="n">common_parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">common_parent_key</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">node_common2curr</span> <span class="ow">in</span> \
                     <span class="n">curr_node</span><span class="o">.</span><span class="n">get_path_from_node</span><span class="p">(</span><span class="n">common_parent</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">node_common2curr</span> <span class="ow">is</span> <span class="n">common_parent</span><span class="p">:</span>
@@ -204,7 +205,7 @@
                         <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">node_common2curr</span><span class="o">.</span><span class="n">get_key</span><span class="p">())</span>
                 <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">node_common2curr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">)</span>
                 <span class="n">cpXy</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">**</span><span class="n">cpXy</span><span class="p">)</span>
-            <span class="n">curr_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">curr_node</span><span class="o">.</span><span class="n">get_key</span><span class="p">())</span>
+            <span class="n">curr_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tree_root</span><span class="o">.</span><span class="n">get_node</span><span class="p">(</span><span class="n">curr_key</span><span class="p">)</span>
             <span class="c"># print &quot;Recursively run from root to current node&quot;</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_fs</span><span class="p">:</span>
                 <span class="n">curr_node</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">StoreMem</span><span class="p">()</span>
