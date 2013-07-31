@@ -299,7 +299,7 @@ class CVBestSearchRefit(Wrapper):
         key_val = [(result.key(), result[self.score]) \
                 for result in cv_result_set]
         scores = np.asarray(zip(*key_val)[1])
-        scores_opt = np.max(scores) if self.arg_max else  np.min(scores)
+        scores_opt = np.max(scores) if self.arg_max else np.min(scores)
         idx_best = np.where(scores == scores_opt)[0][0]
         best_key = key_val[idx_best][0]
         # Find nodes that match the best
