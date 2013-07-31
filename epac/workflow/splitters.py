@@ -16,11 +16,15 @@ import numpy as np
 import copy
 
 from epac.workflow.base import BaseNode, key_push, key_pop
+from epac.workflow.base import key_split
+from epac.stores import StoreMem
+from epac.utils import train_test_split
 from epac.workflow.factory import NodeFactory
 from epac.map_reduce.results import Result, ResultSet
 from epac.utils import _list_indices, dict_diff, _sub_dict
 from epac.map_reduce.reducers import ClassificationReport, PvalPerms
 from epac.configuration import conf
+from epac.workflow.wrappers import Wrapper
 
 ## ======================================================================== ##
 ## ==                                                                    == ##
@@ -363,7 +367,7 @@ class RowSlicer(Slicer):
             if isinstance(self.slices, dict):
                 Xy[conf.KW_SPLIT_TRAIN_TEST] = True
                 for sample_set in self.slices:
-                    if len(dat.shape) == 2:                  
+                    if len(dat.shape) == 2:
                         Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set], :]
                     else:
                         Xy[key_push(data_key, sample_set)] = dat[self.slices[sample_set]]
@@ -374,3 +378,105 @@ class RowSlicer(Slicer):
                     Xy[data_key] = dat[self.slices]
         return Xy
 
+
+class CVBestSearchRefit(Wrapper):
+    """Cross-validation + grid-search then refit with optimals parameters.
+
+    Average results over first axis, then find the arguments that maximize or
+    minimise a "score" over other axis.
+
+    Parameters
+    ----------
+
+    See CV parameters, plus other parameters:
+
+    score: string
+        the score name to be optimized (default "mean_score_te").
+
+    arg_max: boolean
+        True/False take parameters that maximize/minimize the score. Default
+        is True.
+
+    Example
+    -------
+    >>> from sklearn import datasets
+    >>> from sklearn.svm import SVC
+    >>> from epac import Methods
+    >>> from epac.workflow.splitters import CVBestSearchRefit
+    >>> X, y = datasets.make_classification(n_samples=12,
+    ... n_features=10,
+    ... n_informative=2,
+    ... random_state=1)
+    >>> n_folds_nested = 2
+    >>> C_values = [.1, 0.5, 1, 2, 5]
+    >>> kernels = ["linear", "rbf"]
+    >>> methods = Methods(*[SVC(C=C, kernel=kernel)
+    ...     for C in C_values for kernel in kernels])
+    >>> wf = CVBestSearchRefit(methods, n_folds=n_folds_nested)
+    >>> wf.transform(X=X, y=y)
+    {'best_params': [{'kernel': 'linear', 'C': 2, 'name': 'SVC'}], 'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}
+    >>> wf.reduce()
+    >>> wf.run(X=X, y=y)
+    {'best_params': [{'kernel': 'linear', 'C': 2, 'name': 'SVC'}], 'y/true': array([ 1.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  1.,  0.,  1.]), 'y/pred': array([ 0.,  0.,  0.,  1.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  1.])}
+    >>> wf.reduce()
+    ResultSet(
+    [{'key': CVBestSearchRefit, 'best_params': [{'kernel': 'linear', 'C': 2, 'name': 'SVC'}], 'y/true': [ 1.  0.  0.  1.  0.  0.  1.  0.  1.  1.  0.  1.], 'y/pred': [ 0.  0.  0.  1.  0.  0.  1.  0.  1.  0.  0.  1.]}])
+
+    """
+
+    def __init__(self, node, **kwargs):
+        super(CVBestSearchRefit, self).__init__(wrapped_node=None)
+        #### 'y/test/score_recall_mean'
+        default_score = "y" + conf.SEP + \
+                        conf.TEST + conf.SEP + \
+                        conf.SCORE_RECALL_MEAN
+        score = kwargs.pop("score") if "score" in kwargs else default_score
+        arg_max = kwargs.pop("arg_max") if "arg_max" in kwargs else True
+        from epac.workflow.splitters import CV
+        #methods = Methods(*tasks)
+        self.cv = CV(node=node, reducer=ClassificationReport(keep=False), **kwargs)
+        self.score = score
+        self.arg_max = arg_max
+
+    def get_signature(self):
+        return self.__class__.__name__
+
+    def transform(self, **Xy):
+        Xy_train, Xy_test = train_test_split(Xy)
+        if Xy_train is Xy_test:
+            to_refit, best_params = self._search_best(**Xy)
+        else:
+            to_refit, best_params = self._search_best(**Xy_train)
+        out = to_refit.top_down(**Xy)
+        out[conf.BEST_PARAMS] = best_params
+        self.refited = to_refit
+        self.best_params = best_params
+        return out
+
+    def _search_best(self, **Xy):
+        # Fit/predict CV grid search
+        self.cv.store = StoreMem()  # local store erased at each fit
+        from epac.workflow.pipeline import Pipe
+        self.cv.top_down(**Xy)
+        #  Pump-up results
+        cv_result_set = self.cv.reduce(store_results=False)
+        key_val = [(result.key(), result[self.score]) \
+                for result in cv_result_set]
+        scores = np.asarray(zip(*key_val)[1])
+        scores_opt = np.max(scores) if self.arg_max else np.min(scores)
+        idx_best = np.where(scores == scores_opt)[0][0]
+        best_key = key_val[idx_best][0]
+        # Find nodes that match the best
+        nodes_dict = {n.get_signature(): n for n in self.cv.walk_true_nodes() \
+            if n.get_signature() in key_split(best_key)}
+        to_refit = Pipe(*[nodes_dict[k].wrapped_node for k in key_split(best_key)])
+        best_params = [dict(sig) for sig in key_split(best_key, eval=True)]
+        return to_refit, best_params
+
+    def reduce(self, store_results=True):
+        # Terminaison (leaf) node return result_set
+        return self.load_results()
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

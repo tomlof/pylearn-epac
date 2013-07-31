@@ -9,8 +9,8 @@ Factory class to build BaseNode
 
 
 from epac.workflow.wrappers import TransformNode
-from epac.workflow.estimators import Estimator
 from epac.workflow.base import BaseNode
+from epac.sklearn_plugins.estimators import Estimator
 
 
 class NodeFactory:
