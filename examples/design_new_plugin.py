@@ -62,3 +62,16 @@ two_svc.reduce()
 ## You can get below results:
 ## ===========================================================================
 ## [{'MySVC(C=1.0)': array([ 1.,  1.])}, {'MySVC(C=2.0)': array([ 1.,  1.])}]
+
+from epac.map_reduce.engine import LocalEngine
+local_engine = LocalEngine(two_svc, "transform")
+two_svc = local_engine.run(**dict(X=X, y=y))
+two_svc.reduce()
+
+from epac.map_reduce.engine import SomaWorkflowEngine
+sfw_engine = SomaWorkflowEngine(
+                    tree_root=two_svc,
+                    num_processes=2,
+                    resource_id="jl237561@gabriel",
+                    login="jl237561")
+two_svc = sfw_engine.run(**dict(X=X, y=y))

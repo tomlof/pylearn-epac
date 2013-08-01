@@ -235,9 +235,9 @@ class SomaWorkflowEngine(LocalEngine):
          {'key': SelectKBest/SVC(C=3), 'y/test/score_recall_mean/pval': [ 0.], 'y/test/score_recall/pval': [ 0.  0.], 'y/test/score_accuray': 0.8, 'y/test/score_f1/pval': [ 0.  0.], 'y/test/score_precision/pval': [ 0.  0.], 'y/test/score_precision': [ 0.8  0.8], 'y/test/score_recall': [ 0.8  0.8], 'y/test/score_f1': [ 0.8  0.8], 'y/test/score_recall_mean': 0.8, 'y/test/score_accuray/pval': [ 0.]}])
         '''
         try:
-            from soma.workflow.client import Job, Workflow
-            from soma.workflow.client import Helper, FileTransfer
-            from soma.workflow.client import WorkflowController
+            from soma_workflow.client import Job, Workflow
+            from soma_workflow.client import Helper, FileTransfer
+            from soma_workflow.client import WorkflowController
         except ImportError:
             errmsg = "No soma-workflow is found. "\
                 "Please verify your soma-worklow"\
@@ -293,7 +293,7 @@ class SomaWorkflowEngine(LocalEngine):
         Helper.transfer_input_files(wf_id, controller)
         Helper.wait_workflow(wf_id, controller)
         Helper.transfer_output_files(wf_id, controller)
-        controller.delete_workflow(wf_id)
+        #controller.delete_workflow(wf_id)
         ## read result tree
         ## ================
         self.tree_root = store.load()
@@ -309,8 +309,8 @@ class SomaWorkflowEngine(LocalEngine):
         see the directory of "examples/run_somaworkflow_gui.py" in epac
         '''
         try:
-            from soma.workflow.client import Job, Workflow
-            from soma.workflow.client import Helper, FileTransfer
+            from soma_workflow.client import Job, Workflow
+            from soma_workflow.client import Helper, FileTransfer
         except ImportError:
             errmsg = "No soma-workflow is found. "\
                 "Please verify your soma-worklow"\

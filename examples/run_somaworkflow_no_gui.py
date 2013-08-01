@@ -70,8 +70,7 @@ def do_all(options):
     ## Run on local machine
     sfw_engine = SomaWorkflowEngine(
                         tree_root=wf,
-                        num_processes=options.n_cores
-                        )
+                        num_processes=options.n_cores)
     ## Run on cluster
 #    sfw_engine = SomaWorkflowEngine(
 #                        tree_root=wf,

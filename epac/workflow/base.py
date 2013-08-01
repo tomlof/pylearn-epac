@@ -16,11 +16,10 @@ from epac.stores import StoreMem
 from epac.configuration import conf, debug
 from epac.map_reduce.results import ResultSet, Result
 
-
-
 ## ================================= ##
 ## == Key manipulation utils      == ##
 ## ================================= ##
+
 
 def key_push(key, basename):
     if key and basename:
